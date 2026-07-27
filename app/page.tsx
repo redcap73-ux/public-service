@@ -32,7 +32,10 @@ export default function Home() {
       gap: '2rem',
       padding: '2rem'
     }}>
-      <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>안녕하세요</h1>
+      <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>이 곳은 고객동의 웹 서버입니다.</h1>
+      <p style={{ fontSize: '1.125rem', textAlign: 'center', margin: 0 }}>
+        향후 이곳에서 고객의 동의 및 인증절차를 진행하는 시스템으로 구현됩니다.
+      </p>
       <button 
         onClick={handleApiCall}
         disabled={loading}
