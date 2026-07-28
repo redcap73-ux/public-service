@@ -1,5 +1,30 @@
 import { PDFDocument } from 'pdf-lib';
 
+type PdfJsLib = {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (src: { data: ArrayBuffer } | { url: string }) => {
+    promise: Promise<{
+      numPages: number;
+      getPage: (pageNumber: number) => Promise<{
+        getViewport: (params: { scale: number }) => { width: number; height: number };
+        render: (params: {
+          canvasContext: CanvasRenderingContext2D;
+          viewport: { width: number; height: number };
+        }) => { promise: Promise<void> };
+      }>;
+    }>;
+  };
+};
+
+declare global {
+  interface Window {
+    pdfjsLib?: PdfJsLib;
+  }
+}
+
+const PDFJS_VERSION = '3.11.174';
+const PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
+
 function getFileNameFromPath(filePath: string, index: number) {
   const rawName = filePath.split('/').pop() || `document-${index + 1}.pdf`;
   const baseName = rawName.toLowerCase().endsWith('.pdf')
@@ -21,15 +46,84 @@ function triggerDownload(bytes: Uint8Array, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Crop nearly-white margins so the ink sits flush when placed. */
-async function trimSignaturePng(signatureDataUrl: string): Promise<Uint8Array> {
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+function dataUrlToBytes(dataUrl: string) {
+  const commaIndex = dataUrl.indexOf(',');
+
+  if (commaIndex < 0) {
+    throw new Error('서명 이미지 형식이 올바르지 않습니다.');
+  }
+
+  const base64 = dataUrl.slice(commaIndex + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+function loadScript(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
+
+    if (existing) {
+      if (existing.dataset.loaded === 'true') {
+        resolve();
+        return;
+      }
+
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`스크립트 로드 실패: ${src}`)), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`스크립트 로드 실패: ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensurePdfJs(): Promise<PdfJsLib> {
+  const existing = window.pdfjsLib as PdfJsLib | undefined;
+
+  if (existing) {
+    return existing;
+  }
+
+  await loadScript(`${PDFJS_CDN}/pdf.min.js`);
+
+  const pdfjsLib = window.pdfjsLib as PdfJsLib | undefined;
+
+  if (!pdfjsLib) {
+    throw new Error('pdf.js를 초기화하지 못했습니다.');
+  }
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
+  return pdfjsLib;
+}
+
+function loadImage(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('서명 이미지를 불러오지 못했습니다.'));
-    img.src = signatureDataUrl;
+    img.src = dataUrl;
   });
+}
 
+/** Crop white margins so ink is flush to the image edges. */
+async function trimSignatureToImage(signatureDataUrl: string) {
+  const image = await loadImage(signatureDataUrl);
   const source = document.createElement('canvas');
   source.width = image.width;
   source.height = image.height;
@@ -66,8 +160,7 @@ async function trimSignaturePng(signatureDataUrl: string): Promise<Uint8Array> {
   }
 
   if (maxX < minX || maxY < minY) {
-    const fallback = await fetch(signatureDataUrl).then((response) => response.arrayBuffer());
-    return new Uint8Array(fallback);
+    throw new Error('서명 내용이 비어 있습니다. 다시 서명한 뒤 저장해 주세요.');
   }
 
   const padding = 4;
@@ -99,57 +192,65 @@ async function trimSignaturePng(signatureDataUrl: string): Promise<Uint8Array> {
     cropHeight
   );
 
-  const trimmedDataUrl = trimmed.toDataURL('image/png');
-  const trimmedBytes = await fetch(trimmedDataUrl).then((response) => response.arrayBuffer());
-  return new Uint8Array(trimmedBytes);
+  return loadImage(trimmed.toDataURL('image/png'));
 }
 
+/**
+ * Rasterize PDF pages, stamp signature on the visual bottom-LEFT of the last page,
+ * then rebuild a downloadable PDF. Pixel x=0 is always the visual left edge.
+ */
 async function embedSignatureOnLastPage(
   pdfBytes: ArrayBuffer,
   signatureDataUrl: string
 ) {
-  const sourceDoc = await PDFDocument.load(pdfBytes);
-
-  // Rebuild onto fresh pages so leftover CTM from the source PDF cannot flip/shift coordinates.
+  const pdfjsLib = await ensurePdfJs();
+  // pdf.js may detach the buffer; copy first.
+  const pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice(0) }).promise;
+  const signatureImage = await trimSignatureToImage(signatureDataUrl);
   const pdfDoc = await PDFDocument.create();
-  const embeddedPages = await pdfDoc.embedPdf(sourceDoc);
+  const renderScale = 2;
 
-  for (const embeddedPage of embeddedPages) {
-    const page = pdfDoc.addPage([embeddedPage.width, embeddedPage.height]);
-    page.drawPage(embeddedPage, {
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: renderScale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      throw new Error('PDF 페이지를 렌더링하지 못했습니다.');
+    }
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    if (pageNumber === pdf.numPages) {
+      const maxSignatureWidth = Math.min(canvas.width * 0.28, 360);
+      const scale = maxSignatureWidth / signatureImage.width;
+      const signatureWidth = signatureImage.width * scale;
+      const signatureHeight = signatureImage.height * scale;
+      // Canvas coordinates: (0,0) = top-left. Place at bottom-RIGHT.
+      const rightMargin = Math.round(canvas.width * 0.06);
+      const bottomMargin = Math.round(canvas.height * 0.04);
+      const x = canvas.width - rightMargin - signatureWidth;
+      const y = canvas.height - bottomMargin - signatureHeight;
+
+      context.drawImage(signatureImage, x, y, signatureWidth, signatureHeight);
+    }
+
+    const pageImageBytes = dataUrlToBytes(canvas.toDataURL('image/jpeg', 0.92));
+    const embeddedImage = await pdfDoc.embedJpg(pageImageBytes);
+    const pdfPage = pdfDoc.addPage([embeddedImage.width / renderScale, embeddedImage.height / renderScale]);
+
+    pdfPage.drawImage(embeddedImage, {
       x: 0,
       y: 0,
-      width: embeddedPage.width,
-      height: embeddedPage.height,
+      width: pdfPage.getWidth(),
+      height: pdfPage.getHeight(),
     });
   }
-
-  const pages = pdfDoc.getPages();
-  const lastPage = pages[pages.length - 1];
-
-  if (!lastPage) {
-    throw new Error('PDF 페이지를 찾을 수 없습니다.');
-  }
-
-  const pngBytes = await trimSignaturePng(signatureDataUrl);
-  const signatureImage = await pdfDoc.embedPng(pngBytes);
-
-  const { width: pageWidth } = lastPage.getSize();
-  const maxSignatureWidth = Math.min(pageWidth * 0.3, 180);
-  const scale = maxSignatureWidth / signatureImage.width;
-  const signatureWidth = signatureImage.width * scale;
-  const signatureHeight = signatureImage.height * scale;
-
-  // Fresh page coordinates: x=0 is left, y=0 is bottom.
-  const leftMargin = 48;
-  const bottomMargin = 40;
-
-  lastPage.drawImage(signatureImage, {
-    x: leftMargin,
-    y: bottomMargin,
-    width: signatureWidth,
-    height: signatureHeight,
-  });
 
   return pdfDoc.save();
 }

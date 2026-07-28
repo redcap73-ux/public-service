@@ -1,19 +1,16 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import SignaturePad from '@/components/SignaturePad';
+import type { SignaturePadHandle } from '@/components/SignaturePad';
 import { callPublicServiceSignApi } from '@/lib/api';
 import { downloadSignedDocuments } from '@/lib/signed-pdf';
 
 const PdfPreview = dynamic(() => import('@/components/PdfPreview'), {
   ssr: false,
   loading: () => <p style={{ padding: '1rem', margin: 0 }}>PDF를 불러오는 중...</p>,
-});
-
-const SignaturePad = dynamic(() => import('@/components/SignaturePad'), {
-  ssr: false,
-  loading: () => <p style={{ padding: '1rem', margin: 0 }}>서명란을 준비하는 중...</p>,
 });
 
 type SignDocument = {
@@ -82,16 +79,22 @@ function SignContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const signaturePadRef = useRef<SignaturePadHandle | null>(null);
 
   const documents = useMemo(() => extractDocuments(signData), [signData]);
 
   async function handleSaveSignedPdfs() {
-    if (!signatureDataUrl) {
+    // Always re-capture from the pad at save time (mobile state can go stale/blank).
+    const capturedSignature =
+      signaturePadRef.current?.getSignatureDataUrl() ?? signatureDataUrl;
+
+    if (!capturedSignature) {
       setSaveError('서명이 없습니다. 먼저 서명해 주세요.');
       setSaveMessage(null);
       return;
     }
 
+    setSignatureDataUrl(capturedSignature);
     setIsSaving(true);
     setSaveError(null);
     setSaveMessage('서명된 PDF를 준비하는 중...');
@@ -103,7 +106,7 @@ function SignContent() {
           fileUrl: buildFileApiUrl(document.file_path),
           label: getDocumentLabel(document, index),
         })),
-        signatureDataUrl,
+        signatureDataUrl: capturedSignature,
         onProgress: setSaveMessage,
       });
     } catch (err) {
@@ -282,6 +285,7 @@ function SignContent() {
           )}
 
           <SignaturePad
+            ref={signaturePadRef}
             onSignatureChange={(nextSignature) => {
               setSignatureDataUrl(nextSignature);
               setSaveError(null);
