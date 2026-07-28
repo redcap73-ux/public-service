@@ -4,10 +4,16 @@ import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { callPublicServiceSignApi } from '@/lib/api';
+import { downloadSignedDocuments } from '@/lib/signed-pdf';
 
 const PdfPreview = dynamic(() => import('@/components/PdfPreview'), {
   ssr: false,
   loading: () => <p style={{ padding: '1rem', margin: 0 }}>PDF를 불러오는 중...</p>,
+});
+
+const SignaturePad = dynamic(() => import('@/components/SignaturePad'), {
+  ssr: false,
+  loading: () => <p style={{ padding: '1rem', margin: 0 }}>서명란을 준비하는 중...</p>,
 });
 
 type SignDocument = {
@@ -72,8 +78,41 @@ function SignContent() {
   const [statusMessage, setStatusMessage] = useState('동의 정보를 가져 오고 있습니다.');
   const [error, setError] = useState<string | null>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const documents = useMemo(() => extractDocuments(signData), [signData]);
+
+  async function handleSaveSignedPdfs() {
+    if (!signatureDataUrl) {
+      setSaveError('서명이 없습니다. 먼저 서명해 주세요.');
+      setSaveMessage(null);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveMessage('서명된 PDF를 준비하는 중...');
+
+    try {
+      await downloadSignedDocuments({
+        documents: documents.map((document, index) => ({
+          filePath: document.file_path,
+          fileUrl: buildFileApiUrl(document.file_path),
+          label: getDocumentLabel(document, index),
+        })),
+        signatureDataUrl,
+        onProgress: setSaveMessage,
+      });
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : '서명 PDF 저장 중 오류가 발생했습니다.');
+      setSaveMessage(null);
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!token) {
@@ -241,6 +280,50 @@ function SignContent() {
               </div>
             </div>
           )}
+
+          <SignaturePad
+            onSignatureChange={(nextSignature) => {
+              setSignatureDataUrl(nextSignature);
+              setSaveError(null);
+              setSaveMessage(null);
+            }}
+          />
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              maxWidth: 'min(100%, 720px)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSaveSignedPdfs}
+              disabled={isSaving || !signatureDataUrl}
+              style={{
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                borderRadius: '0.35rem',
+                backgroundColor: isSaving || !signatureDataUrl ? '#9aa4b2' : '#0b6e4f',
+                color: '#fff',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: isSaving || !signatureDataUrl ? 'not-allowed' : 'pointer',
+                alignSelf: 'flex-start',
+              }}
+            >
+              {isSaving ? '저장 중...' : '저장 (서명 PDF 다운로드)'}
+            </button>
+
+            {saveMessage && (
+              <p style={{ margin: 0, color: '#0f5132' }}>{saveMessage}</p>
+            )}
+
+            {saveError && (
+              <p style={{ margin: 0, color: '#842029' }}>{saveError}</p>
+            )}
+          </div>
         </section>
       )}
 
