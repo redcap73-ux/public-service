@@ -1,17 +1,33 @@
 import { PDFDocument } from 'pdf-lib';
 
+type PdfJsViewport = {
+  width: number;
+  height: number;
+  convertToViewportPoint: (x: number, y: number) => [number, number];
+};
+
+type PdfJsTextItem = {
+  str?: string;
+  transform: number[];
+  width: number;
+  height: number;
+};
+
+type PdfJsPage = {
+  getViewport: (params: { scale: number }) => PdfJsViewport;
+  getTextContent: () => Promise<{ items: Array<PdfJsTextItem | { type?: string }> }>;
+  render: (params: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: PdfJsViewport;
+  }) => { promise: Promise<void> };
+};
+
 type PdfJsLib = {
   GlobalWorkerOptions: { workerSrc: string };
   getDocument: (src: { data: ArrayBuffer } | { url: string }) => {
     promise: Promise<{
       numPages: number;
-      getPage: (pageNumber: number) => Promise<{
-        getViewport: (params: { scale: number }) => { width: number; height: number };
-        render: (params: {
-          canvasContext: CanvasRenderingContext2D;
-          viewport: { width: number; height: number };
-        }) => { promise: Promise<void> };
-      }>;
+      getPage: (pageNumber: number) => Promise<PdfJsPage>;
     }>;
   };
 };
@@ -121,7 +137,7 @@ function loadImage(dataUrl: string) {
   });
 }
 
-/** Crop white margins so ink is flush to the image edges. */
+/** Crop margins and keep only ink on a transparent background. */
 async function trimSignatureToImage(signatureDataUrl: string) {
   const image = await loadImage(signatureDataUrl);
   const source = document.createElement('canvas');
@@ -140,7 +156,7 @@ async function trimSignatureToImage(signatureDataUrl: string) {
   let minY = height;
   let maxX = -1;
   let maxY = -1;
-  const threshold = 250;
+  const whiteThreshold = 245;
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -149,8 +165,9 @@ async function trimSignatureToImage(signatureDataUrl: string) {
       const g = data[index + 1];
       const b = data[index + 2];
       const a = data[index + 3];
+      const isInk = a > 10 && (r < whiteThreshold || g < whiteThreshold || b < whiteThreshold);
 
-      if (a > 10 && (r < threshold || g < threshold || b < threshold)) {
+      if (isInk) {
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x);
@@ -178,8 +195,7 @@ async function trimSignatureToImage(signatureDataUrl: string) {
     throw new Error('서명 이미지를 자르지 못했습니다.');
   }
 
-  trimmedCtx.fillStyle = '#ffffff';
-  trimmedCtx.fillRect(0, 0, cropWidth, cropHeight);
+  trimmedCtx.clearRect(0, 0, cropWidth, cropHeight);
   trimmedCtx.drawImage(
     source,
     cropX,
@@ -192,23 +208,175 @@ async function trimSignatureToImage(signatureDataUrl: string) {
     cropHeight
   );
 
-  return loadImage(trimmed.toDataURL('image/png'));
+  const trimmedData = trimmedCtx.getImageData(0, 0, cropWidth, cropHeight);
+  const pixels = trimmedData.data;
+
+  // Make near-white transparent, keep ink fully opaque for clarity.
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index];
+    const g = pixels[index + 1];
+    const b = pixels[index + 2];
+
+    if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
+      pixels[index + 3] = 0;
+    } else if (pixels[index + 3] > 0) {
+      pixels[index] = 0;
+      pixels[index + 1] = 0;
+      pixels[index + 2] = 0;
+      pixels[index + 3] = 255;
+    }
+  }
+
+  trimmedCtx.putImageData(trimmedData, 0, 0);
+
+  // Thicken strokes by 1px dilation so the stamp looks bolder on the PDF.
+  const bold = document.createElement('canvas');
+  bold.width = cropWidth;
+  bold.height = cropHeight;
+  const boldCtx = bold.getContext('2d');
+
+  if (!boldCtx) {
+    return loadImage(trimmed.toDataURL('image/png'));
+  }
+
+  boldCtx.clearRect(0, 0, cropWidth, cropHeight);
+
+  for (const [ox, oy] of [
+    [0, 0],
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+  ] as const) {
+    boldCtx.drawImage(trimmed, ox, oy);
+  }
+
+  return loadImage(bold.toDataURL('image/png'));
 }
 
 /**
- * Rasterize PDF pages, stamp signature on the visual bottom-LEFT of the last page,
- * then rebuild a downloadable PDF. Pixel x=0 is always the visual left edge.
+ * Prefer the signature field label "(서명 또는 인)" / "서명" over unrelated body text.
+ */
+async function findSignatureAnchor(page: PdfJsPage, viewport: PdfJsViewport) {
+  const textContent = await page.getTextContent();
+  const items = textContent.items.filter((item): item is PdfJsTextItem => {
+    return !!item && typeof (item as PdfJsTextItem).str === 'string' && Array.isArray((item as PdfJsTextItem).transform);
+  });
+
+  const preferred =
+    items.find((item) => (item.str || '').includes('(서명 또는 인)')) ||
+    items.find((item) => (item.str || '').trim() === '서명') ||
+    [...items].reverse().find((item) => {
+      const text = (item.str || '').trim();
+      return text.includes('서명') && text.length <= 20;
+    });
+
+  if (!preferred) {
+    return null;
+  }
+
+  const pdfX = preferred.transform[4] ?? 0;
+  const pdfY = preferred.transform[5] ?? 0;
+  const [viewportX, viewportY] = viewport.convertToViewportPoint(pdfX, pdfY);
+  const scaleRatio = viewport.width / page.getViewport({ scale: 1 }).width;
+  const fontHeight = Math.abs(preferred.transform[3] || preferred.height || 12) * scaleRatio;
+  const label = preferred.str || '서명';
+  const fullWidth = preferred.width * scaleRatio;
+
+  // If label is "(서명 또는 인)", target the "서명" portion inside it.
+  let targetX = viewportX;
+  let targetWidth = fullWidth;
+
+  if (label.includes('(서명 또는 인)')) {
+    const prefix = label.slice(0, Math.max(0, label.indexOf('서명')));
+    const prefixRatio = label.length > 0 ? prefix.length / label.length : 0;
+    const wordRatio = 2 / Math.max(label.length, 1);
+    targetX = viewportX + fullWidth * prefixRatio;
+    targetWidth = Math.max(fullWidth * wordRatio, fontHeight * 2);
+  } else if (label.includes('서명')) {
+    const index = label.indexOf('서명');
+    const prefixRatio = label.length > 0 ? index / label.length : 0;
+    const wordRatio = 2 / Math.max(label.length, 1);
+    targetX = viewportX + fullWidth * prefixRatio;
+    targetWidth = Math.max(fullWidth * wordRatio, fontHeight * 2);
+  }
+
+  return {
+    x: targetX,
+    y: viewportY,
+    width: targetWidth,
+    fontHeight,
+    label,
+  };
+}
+
+function drawSignatureNearAnchor(
+  context: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  signatureImage: HTMLImageElement,
+  anchor: { x: number; y: number; width: number; fontHeight: number } | null
+) {
+  let signatureWidth: number;
+  let signatureHeight: number;
+
+  if (anchor) {
+    // Fit around the "서명" text box so the stroke sits on the label.
+    signatureWidth = Math.max(anchor.width * 2.2, anchor.fontHeight * 6);
+    signatureWidth = Math.min(signatureWidth, canvas.width * 0.35);
+    const scale = signatureWidth / signatureImage.width;
+    signatureHeight = signatureImage.height * scale;
+  } else {
+    signatureWidth = Math.min(canvas.width * 0.28, 360);
+    const scale = signatureWidth / signatureImage.width;
+    signatureHeight = signatureImage.height * scale;
+  }
+
+  let x: number;
+  let y: number;
+
+  if (anchor) {
+    // Center the signature on the "서명" characters.
+    x = anchor.x + anchor.width / 2 - signatureWidth / 2;
+    y = anchor.y - signatureHeight / 2 - anchor.fontHeight * 0.2;
+
+    const margin = 8;
+    x = Math.min(Math.max(margin, x), canvas.width - signatureWidth - margin);
+    y = Math.min(Math.max(margin, y), canvas.height - signatureHeight - margin);
+  } else {
+    const rightMargin = Math.round(canvas.width * 0.06);
+    const bottomMargin = Math.round(canvas.height * 0.04);
+    x = canvas.width - rightMargin - signatureWidth;
+    y = canvas.height - bottomMargin - signatureHeight;
+  }
+
+  context.save();
+  context.globalAlpha = 1;
+  context.drawImage(signatureImage, x, y, signatureWidth, signatureHeight);
+  context.restore();
+}
+
+/**
+ * Rasterize PDF pages, stamp signature near the "서명" label when found,
+ * then rebuild a downloadable PDF.
  */
 async function embedSignatureOnLastPage(
   pdfBytes: ArrayBuffer,
   signatureDataUrl: string
 ) {
   const pdfjsLib = await ensurePdfJs();
-  // pdf.js may detach the buffer; copy first.
   const pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice(0) }).promise;
   const signatureImage = await trimSignatureToImage(signatureDataUrl);
   const pdfDoc = await PDFDocument.create();
   const renderScale = 2;
+
+  const renderedPages: Array<{
+    canvas: HTMLCanvasElement;
+    anchor: Awaited<ReturnType<typeof findSignatureAnchor>>;
+  }> = [];
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
@@ -226,23 +394,32 @@ async function embedSignatureOnLastPage(
     context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: context, viewport }).promise;
 
-    if (pageNumber === pdf.numPages) {
-      const maxSignatureWidth = Math.min(canvas.width * 0.28, 360);
-      const scale = maxSignatureWidth / signatureImage.width;
-      const signatureWidth = signatureImage.width * scale;
-      const signatureHeight = signatureImage.height * scale;
-      // Canvas coordinates: (0,0) = top-left. Place at bottom-RIGHT.
-      const rightMargin = Math.round(canvas.width * 0.06);
-      const bottomMargin = Math.round(canvas.height * 0.04);
-      const x = canvas.width - rightMargin - signatureWidth;
-      const y = canvas.height - bottomMargin - signatureHeight;
+    const anchor = await findSignatureAnchor(page, viewport);
+    renderedPages.push({ canvas, anchor });
+  }
 
-      context.drawImage(signatureImage, x, y, signatureWidth, signatureHeight);
+  const hasAnchor = renderedPages.some((page) => !!page.anchor);
+
+  for (let index = 0; index < renderedPages.length; index += 1) {
+    const { canvas, anchor } = renderedPages[index];
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      throw new Error('PDF 페이지를 렌더링하지 못했습니다.');
+    }
+
+    if (anchor) {
+      drawSignatureNearAnchor(context, canvas, signatureImage, anchor);
+    } else if (!hasAnchor && index === renderedPages.length - 1) {
+      drawSignatureNearAnchor(context, canvas, signatureImage, null);
     }
 
     const pageImageBytes = dataUrlToBytes(canvas.toDataURL('image/jpeg', 0.92));
     const embeddedImage = await pdfDoc.embedJpg(pageImageBytes);
-    const pdfPage = pdfDoc.addPage([embeddedImage.width / renderScale, embeddedImage.height / renderScale]);
+    const pdfPage = pdfDoc.addPage([
+      embeddedImage.width / renderScale,
+      embeddedImage.height / renderScale,
+    ]);
 
     pdfPage.drawImage(embeddedImage, {
       x: 0,

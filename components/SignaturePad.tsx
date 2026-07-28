@@ -116,10 +116,10 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
 
       // 1:1 CSS-to-canvas pixels avoids blank mobile exports from DPR scaling.
       const pad = new SignaturePadLib(canvas, {
-        backgroundColor: 'rgb(255, 255, 255)',
+        backgroundColor: 'rgba(0, 0, 0, 0)',
         penColor: 'rgb(0, 0, 0)',
-        minWidth: 1.5,
-        maxWidth: 3.5,
+        minWidth: 2.5,
+        maxWidth: 5.5,
         throttle: 0,
       });
       padRef.current = pad;
