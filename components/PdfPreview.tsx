@@ -56,14 +56,16 @@ function loadScript(src: string) {
   });
 }
 
-async function ensurePdfJs() {
-  if (window.pdfjsLib) {
-    return window.pdfjsLib;
+async function ensurePdfJs(): Promise<PdfJsLib> {
+  const existing = window.pdfjsLib as PdfJsLib | undefined;
+
+  if (existing) {
+    return existing;
   }
 
   await loadScript(`${PDFJS_CDN}/pdf.min.js`);
 
-  const pdfjsLib = window.pdfjsLib;
+  const pdfjsLib = window.pdfjsLib as PdfJsLib | undefined;
 
   if (!pdfjsLib) {
     throw new Error('pdf.js를 초기화하지 못했습니다.');
