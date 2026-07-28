@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import SignaturePadLib from 'signature_pad';
+import type { PointGroup } from 'signature_pad';
 
 export type SignaturePadHandle = {
   getSignatureDataUrl: () => string | null;
@@ -19,30 +20,33 @@ type SignaturePadProps = {
   onSignatureChange?: (dataUrl: string | null) => void;
 };
 
-function canvasHasInk(canvas: HTMLCanvasElement) {
-  const context = canvas.getContext('2d');
-
-  if (!context || canvas.width === 0 || canvas.height === 0) {
-    return false;
+function exportStrokesToPng(points: PointGroup[], width: number, height: number) {
+  if (!points.length || width <= 0 || height <= 0) {
+    return null;
   }
 
-  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-  const threshold = 245;
-  const step = Math.max(1, Math.floor(data.length / 4 / 40000));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
 
-  for (let pixel = 0; pixel < data.length / 4; pixel += step) {
-    const index = pixel * 4;
-    const r = data[index];
-    const g = data[index + 1];
-    const b = data[index + 2];
-    const a = data[index + 3];
+  // Solid white background exports more reliably on iOS Safari.
+  const pad = new SignaturePadLib(canvas, {
+    backgroundColor: 'rgb(255, 255, 255)',
+    penColor: 'rgb(0, 0, 0)',
+    minWidth: 2.5,
+    maxWidth: 5.5,
+    throttle: 0,
+  });
 
-    if (a > 20 && (r < threshold || g < threshold || b < threshold)) {
-      return true;
-    }
+  pad.fromData(points);
+  const dataUrl = pad.toDataURL('image/png');
+  pad.off();
+
+  if (!dataUrl.startsWith('data:image/png') || dataUrl.length < 800) {
+    return null;
   }
 
-  return false;
+  return dataUrl;
 }
 
 const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
@@ -51,7 +55,9 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
     const padRef = useRef<SignaturePadLib | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const onSignatureChangeRef = useRef(onSignatureChange);
+    const strokeDataRef = useRef<PointGroup[]>([]);
     const lastGoodDataUrlRef = useRef<string | null>(null);
+    const canvasSizeRef = useRef({ width: 300, height: 180 });
     const isDrawingRef = useRef(false);
     const [isEmpty, setIsEmpty] = useState(true);
 
@@ -59,51 +65,61 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
       onSignatureChangeRef.current = onSignatureChange;
     }, [onSignatureChange]);
 
-    const captureFromPad = () => {
+    const syncExport = () => {
       const pad = padRef.current;
-      const canvas = canvasRef.current;
 
-      if (!pad || !canvas || pad.isEmpty()) {
-        return lastGoodDataUrlRef.current;
+      if (!pad || pad.isEmpty()) {
+        strokeDataRef.current = [];
+        lastGoodDataUrlRef.current = null;
+        setIsEmpty(true);
+        onSignatureChangeRef.current?.(null);
+        return null;
       }
 
       const points = pad.toData();
-      pad.clear();
-      pad.fromData(points);
+      strokeDataRef.current = points;
 
-      if (!canvasHasInk(canvas)) {
-        return lastGoodDataUrlRef.current;
-      }
+      const { width, height } = canvasSizeRef.current;
+      const dataUrl = exportStrokesToPng(points, width, height);
 
-      const dataUrl = pad.toDataURL('image/png');
-
-      if (dataUrl.startsWith('data:image/png') && dataUrl.length > 500) {
+      if (dataUrl) {
         lastGoodDataUrlRef.current = dataUrl;
+        setIsEmpty(false);
+        onSignatureChangeRef.current?.(dataUrl);
         return dataUrl;
       }
 
+      setIsEmpty(false);
+      onSignatureChangeRef.current?.(lastGoodDataUrlRef.current);
       return lastGoodDataUrlRef.current;
     };
 
     useImperativeHandle(ref, () => ({
       getSignatureDataUrl: () => {
-        const captured = captureFromPad();
+        // Prefer a fresh offscreen export from stroke points (mobile-safe).
+        if (strokeDataRef.current.length > 0) {
+          const { width, height } = canvasSizeRef.current;
+          const fresh = exportStrokesToPng(strokeDataRef.current, width, height);
 
-        if (captured) {
-          setIsEmpty(false);
-          onSignatureChangeRef.current?.(captured);
-          return captured;
+          if (fresh) {
+            lastGoodDataUrlRef.current = fresh;
+            setIsEmpty(false);
+            onSignatureChangeRef.current?.(fresh);
+            return fresh;
+          }
         }
 
-        return null;
+        const synced = syncExport();
+        return synced ?? lastGoodDataUrlRef.current;
       },
       clear: () => {
         padRef.current?.clear();
+        strokeDataRef.current = [];
         lastGoodDataUrlRef.current = null;
         setIsEmpty(true);
         onSignatureChangeRef.current?.(null);
       },
-      isEmpty: () => !(lastGoodDataUrlRef.current || (padRef.current && !padRef.current.isEmpty())),
+      isEmpty: () => strokeDataRef.current.length === 0,
     }));
 
     useEffect(() => {
@@ -114,7 +130,6 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
         return;
       }
 
-      // 1:1 CSS-to-canvas pixels avoids blank mobile exports from DPR scaling.
       const pad = new SignaturePadLib(canvas, {
         backgroundColor: 'rgba(0, 0, 0, 0)',
         penColor: 'rgb(0, 0, 0)',
@@ -124,15 +139,6 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
       });
       padRef.current = pad;
 
-      const publish = (dataUrl: string | null) => {
-        setIsEmpty(!dataUrl);
-        onSignatureChangeRef.current?.(dataUrl);
-      };
-
-      const notifyChange = () => {
-        publish(captureFromPad());
-      };
-
       const resizeCanvas = () => {
         if (isDrawingRef.current) {
           return;
@@ -141,25 +147,36 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
         const width = Math.floor(container.clientWidth);
         const height = Math.max(Math.round(width * 0.4), 180);
 
-        if (width <= 0 || (canvas.width === width && canvas.height === height)) {
+        if (width <= 0) {
           return;
         }
 
-        const data = pad.isEmpty() ? null : pad.toData();
+        // Ignore tiny mobile address-bar resizes that clear strokes.
+        const prev = canvasSizeRef.current;
+        if (
+          canvas.width > 0 &&
+          Math.abs(prev.width - width) < 8 &&
+          Math.abs(prev.height - height) < 8
+        ) {
+          return;
+        }
+
+        const data = strokeDataRef.current.length > 0 ? strokeDataRef.current : null;
 
         canvas.width = width;
         canvas.height = height;
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
-
         canvas.getContext('2d')?.setTransform(1, 0, 0, 1, 0, 0);
+        canvasSizeRef.current = { width, height };
+
         pad.clear();
 
         if (data && data.length > 0) {
           pad.fromData(data);
-
-          if (canvasHasInk(canvas)) {
-            lastGoodDataUrlRef.current = pad.toDataURL('image/png');
+          const exported = exportStrokesToPng(data, width, height);
+          if (exported) {
+            lastGoodDataUrlRef.current = exported;
           }
         }
       };
@@ -171,38 +188,28 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
       };
       const onEnd = () => {
         isDrawingRef.current = false;
-        notifyChange();
+        syncExport();
       };
 
       pad.addEventListener('beginStroke', onBegin);
       pad.addEventListener('endStroke', onEnd);
 
-      let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-      const scheduleResize = () => {
-        if (resizeTimer) {
-          clearTimeout(resizeTimer);
-        }
+      // Size once more after layout, then stop observing to avoid mobile wipeouts.
+      const layoutTimer = setTimeout(resizeCanvas, 100);
 
-        resizeTimer = setTimeout(resizeCanvas, 250);
+      const onOrientation = () => {
+        setTimeout(resizeCanvas, 300);
       };
-
-      const observer = new ResizeObserver(scheduleResize);
-      observer.observe(container);
-      window.addEventListener('orientationchange', scheduleResize);
+      window.addEventListener('orientationchange', onOrientation);
 
       return () => {
-        if (resizeTimer) {
-          clearTimeout(resizeTimer);
-        }
-
+        clearTimeout(layoutTimer);
         pad.removeEventListener('beginStroke', onBegin);
         pad.removeEventListener('endStroke', onEnd);
         pad.off();
-        observer.disconnect();
-        window.removeEventListener('orientationchange', scheduleResize);
+        window.removeEventListener('orientationchange', onOrientation);
         padRef.current = null;
       };
-      // captureFromPad reads refs only
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -230,6 +237,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
             type="button"
             onClick={() => {
               padRef.current?.clear();
+              strokeDataRef.current = [];
               lastGoodDataUrlRef.current = null;
               setIsEmpty(true);
               onSignatureChangeRef.current?.(null);

@@ -17,6 +17,17 @@ function getFileNameFromPath(filePath: string, index: number) {
 
 function triggerDownload(bytes: Uint8Array, fileName: string) {
   const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
+
+  // iOS Safari often ignores <a download>; open the blob URL instead.
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  if (isIos) {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -241,13 +252,13 @@ function drawSignatureNearAnchor(
   let signatureHeight: number;
 
   if (anchor) {
-    // Fit around the "서명" text box so the stroke sits on the label.
-    signatureWidth = Math.max(anchor.width * 2.2, anchor.fontHeight * 6);
-    signatureWidth = Math.min(signatureWidth, canvas.width * 0.35);
+    // Fit around the "서명" text box; keep a readable minimum size on mobile PDFs.
+    signatureWidth = Math.max(anchor.width * 2.8, anchor.fontHeight * 10, canvas.width * 0.2);
+    signatureWidth = Math.min(signatureWidth, canvas.width * 0.42);
     const scale = signatureWidth / signatureImage.width;
     signatureHeight = signatureImage.height * scale;
   } else {
-    signatureWidth = Math.min(canvas.width * 0.28, 360);
+    signatureWidth = Math.min(canvas.width * 0.32, 420);
     const scale = signatureWidth / signatureImage.width;
     signatureHeight = signatureImage.height * scale;
   }
