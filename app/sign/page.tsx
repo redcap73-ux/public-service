@@ -1,8 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { callPublicServiceSignApi } from '@/lib/api';
+
+const PdfPreview = dynamic(() => import('@/components/PdfPreview'), {
+  ssr: false,
+  loading: () => <p style={{ padding: '1rem', margin: 0 }}>PDF를 불러오는 중...</p>,
+});
 
 type SignDocument = {
   file_path: string;
@@ -55,13 +61,7 @@ function buildFileApiUrl(filePath: string, download = false) {
     params.set('download', '1');
   }
 
-  const url = `/api/files?${params.toString()}`;
-
-  if (!download) {
-    return `${url}#view=FitH`;
-  }
-
-  return url;
+  return `/api/files?${params.toString()}`;
 }
 
 function SignContent() {
@@ -132,11 +132,12 @@ function SignContent() {
         flexDirection: 'column',
         gap: '1rem',
         minHeight: '100vh',
-        padding: '2rem',
+        padding: '1rem',
         fontFamily: 'Arial, sans-serif',
+        boxSizing: 'border-box',
       }}
     >
-      <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold' }}>고객 동의 및 인증 화면</h1>
+      <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 'bold' }}>고객 동의 및 인증 화면</h1>
       <p style={{ margin: 0 }}>
         <strong>token:</strong> {token ?? '전달되지 않음'}
       </p>
@@ -228,26 +229,15 @@ function SignContent() {
               <h3 style={{ margin: 0 }}>PDF 미리보기</h3>
               <div
                 style={{
-                  width: '50%',
-                  maxWidth: '50%',
+                  width: '100%',
+                  maxWidth: 'min(100%, 720px)',
                   overflowX: 'hidden',
                   border: '1px solid #ccc',
                   borderRadius: '0.35rem',
                   backgroundColor: '#fff',
                 }}
               >
-                <iframe
-                  key={previewPath}
-                  title="PDF 미리보기"
-                  src={buildFileApiUrl(previewPath)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    minHeight: '70vh',
-                    border: 'none',
-                    overflow: 'hidden',
-                  }}
-                />
+                <PdfPreview key={previewPath} fileUrl={buildFileApiUrl(previewPath)} />
               </div>
             </div>
           )}
