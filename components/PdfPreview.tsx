@@ -35,11 +35,12 @@ export default function PdfPreview({ fileUrl }: PdfPreviewProps) {
         }
 
         const width = Math.max(container.clientWidth, 280);
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           const page = await pdf.getPage(pageNumber);
           const unscaledViewport = page.getViewport({ scale: 1 });
-          const scale = width / unscaledViewport.width;
+          const scale = (width / unscaledViewport.width) * pixelRatio;
           const viewport = page.getViewport({ scale });
 
           const canvas = document.createElement('canvas');

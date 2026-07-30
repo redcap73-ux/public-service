@@ -8,6 +8,7 @@ import SignaturePad from '@/components/SignaturePad';
 import type { SignaturePadHandle } from '@/components/SignaturePad';
 import { verifyCustomerIdentity } from '@/app/actions/verify';
 import { callPublicServiceSignApi } from '@/lib/api';
+import { fillAcroFormIdentity } from '@/lib/acroform-fill';
 import { downloadSignedDocuments } from '@/lib/signed-pdf';
 
 const PdfPreview = dynamic(() => import('@/components/PdfPreview'), {
@@ -84,9 +85,77 @@ function SignContent() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifiedUser, setVerifiedUser] = useState<{
+    name?: string;
+    phoneNumber?: string;
+    birthDate?: string;
+    ci?: string;
+    txId?: string;
+    clientIp?: string;
+    userAgent?: string;
+  } | null>(null);
+  const [filledPreviewUrls, setFilledPreviewUrls] = useState<Record<string, string>>({});
   const signaturePadRef = useRef<SignaturePadHandle | null>(null);
+  const filledPreviewUrlsRef = useRef<Record<string, string>>({});
 
   const documents = useMemo(() => extractDocuments(signData), [signData]);
+
+  const previewFileUrl = useMemo(() => {
+    if (!previewPath) {
+      return null;
+    }
+
+    return filledPreviewUrls[previewPath] ?? buildFileApiUrl(previewPath);
+  }, [previewPath, filledPreviewUrls]);
+
+  function revokeFilledPreviewUrls(urls: Record<string, string>) {
+    for (const url of Object.values(urls)) {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function buildFilledPreviewUrls(
+    docs: SignDocument[],
+    userInfo: {
+      name?: string;
+      phoneNumber?: string;
+      birthDate?: string;
+      ci?: string;
+      txId?: string;
+      clientIp?: string;
+      userAgent?: string;
+    }
+  ) {
+    const nextUrls: Record<string, string> = {};
+
+    for (const document of docs) {
+      const response = await fetch(buildFileApiUrl(document.file_path), {
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const pdfBytes = await response.arrayBuffer();
+      const filled = await fillAcroFormIdentity(pdfBytes, userInfo);
+
+      if (!filled) {
+        continue;
+      }
+
+      const blob = new Blob([new Uint8Array(filled.bytes)], {
+        type: 'application/pdf',
+      });
+      nextUrls[document.file_path] = URL.createObjectURL(blob);
+    }
+
+    revokeFilledPreviewUrls(filledPreviewUrlsRef.current);
+    filledPreviewUrlsRef.current = nextUrls;
+    setFilledPreviewUrls(nextUrls);
+
+    return Object.keys(nextUrls).length;
+  }
 
   async function handleSaveSignedPdfs() {
     // Always re-capture from the pad at save time (mobile state can go stale/blank).
@@ -112,6 +181,7 @@ function SignContent() {
           label: getDocumentLabel(document, index),
         })),
         signatureDataUrl: capturedSignature,
+        identity: verifiedUser,
         onProgress: setSaveMessage,
       });
     } catch (err) {
@@ -126,10 +196,8 @@ function SignContent() {
     const capturedSignature =
       signaturePadRef.current?.getSignatureDataUrl() ?? signatureDataUrl;
 
-    if (!capturedSignature) {
-      setVerifyError('서명이 없습니다. 먼저 서명해 주세요.');
-      setVerifyMessage(null);
-      return;
+    if (capturedSignature) {
+      setSignatureDataUrl(capturedSignature);
     }
 
     const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
@@ -141,7 +209,6 @@ function SignContent() {
       return;
     }
 
-    setSignatureDataUrl(capturedSignature);
     setIsVerifying(true);
     setVerifyError(null);
     setVerifyMessage('본인인증을 진행합니다...');
@@ -180,10 +247,32 @@ function SignContent() {
         return;
       }
 
-      setVerifyMessage(
-        `본인인증이 완료되었습니다. (${result.userInfo?.name ?? '이름 없음'} / ${result.userInfo?.phoneNumber ?? '연락처 없음'})`
-      );
+      const userInfo = {
+        name: result.userInfo?.name,
+        phoneNumber: result.userInfo?.phoneNumber,
+        birthDate: result.userInfo?.birthDate,
+        ci: result.userInfo?.ci,
+        txId: result.userInfo?.txId,
+        clientIp: result.userInfo?.clientIp,
+        userAgent: result.userInfo?.userAgent,
+      };
+      setVerifiedUser(userInfo);
       setVerifyError(null);
+
+      if (documents.length > 0) {
+        setVerifyMessage('본인인증 완료. 미리보기에 정보를 반영하는 중...');
+        const filledCount = await buildFilledPreviewUrls(documents, userInfo);
+        setVerifyMessage(
+          `본인인증이 완료되었습니다. (${userInfo.name ?? '이름 없음'} / ${userInfo.phoneNumber ?? '연락처 없음'} / ${userInfo.birthDate ?? '생년월일 없음'}). ` +
+            (filledCount > 0
+              ? `AcroForm 문서 ${filledCount}개 미리보기에 반영했습니다. 서명 후 「저장 (서명 PDF 다운로드)」를 눌러 주세요.`
+              : 'AcroForm 필드가 있는 문서가 없어 미리보기 반영을 건너뛰었습니다. 서명 후 「저장 (서명 PDF 다운로드)」를 눌러 주세요.')
+        );
+      } else {
+        setVerifyMessage(
+          `본인인증이 완료되었습니다. (${userInfo.name ?? '이름 없음'} / ${userInfo.phoneNumber ?? '연락처 없음'} / ${userInfo.birthDate ?? '생년월일 없음'}). 서명 후 「저장 (서명 PDF 다운로드)」를 눌러 주세요.`
+        );
+      }
     } catch (err) {
       console.error(err);
       setVerifyError(err instanceof Error ? err.message : '본인인증 중 오류가 발생했습니다.');
@@ -212,6 +301,10 @@ function SignContent() {
       setSignData(null);
       setJsonText(null);
       setPreviewPath(null);
+      setVerifiedUser(null);
+      revokeFilledPreviewUrls(filledPreviewUrlsRef.current);
+      filledPreviewUrlsRef.current = {};
+      setFilledPreviewUrls({});
 
       try {
         const result = await callPublicServiceSignApi(currentToken);
@@ -240,6 +333,8 @@ function SignContent() {
 
     return () => {
       isMounted = false;
+      revokeFilledPreviewUrls(filledPreviewUrlsRef.current);
+      filledPreviewUrlsRef.current = {};
     };
   }, [token]);
 
@@ -260,6 +355,42 @@ function SignContent() {
         <strong>token:</strong> {token ?? '전달되지 않음'}
       </p>
       <p style={{ margin: 0, fontSize: '1.125rem', fontWeight: 'bold' }}>{statusMessage}</p>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+          maxWidth: 'min(100%, 720px)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleCompleteAndVerify}
+          disabled={isVerifying}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderRadius: '0.35rem',
+            backgroundColor: isVerifying ? '#9aa4b2' : '#0052cc',
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 700,
+            cursor: isVerifying ? 'not-allowed' : 'pointer',
+            alignSelf: 'flex-start',
+          }}
+        >
+          {isVerifying ? '본인인증 진행 중...' : '서명 완료 및 본인인증 하기'}
+        </button>
+
+        {verifyMessage && (
+          <p style={{ margin: 0, color: '#0f5132' }}>{verifyMessage}</p>
+        )}
+
+        {verifyError && (
+          <p style={{ margin: 0, color: '#842029' }}>{verifyError}</p>
+        )}
+      </div>
 
       {error && (
         <div
@@ -344,7 +475,10 @@ function SignContent() {
                 gap: '0.75rem',
               }}
             >
-              <h3 style={{ margin: 0 }}>PDF 미리보기</h3>
+              <h3 style={{ margin: 0 }}>
+                PDF 미리보기
+                {previewPath && filledPreviewUrls[previewPath] ? ' (본인정보 반영)' : ''}
+              </h3>
               <div
                 style={{
                   width: '100%',
@@ -355,7 +489,9 @@ function SignContent() {
                   backgroundColor: '#fff',
                 }}
               >
-                <PdfPreview key={previewPath} fileUrl={buildFileApiUrl(previewPath)} />
+                {previewFileUrl && (
+                  <PdfPreview key={previewFileUrl} fileUrl={previewFileUrl} />
+                )}
               </div>
             </div>
           )}
@@ -398,41 +534,12 @@ function SignContent() {
               {isSaving ? '저장 중...' : '저장 (서명 PDF 다운로드)'}
             </button>
 
-            <button
-              type="button"
-              onClick={handleCompleteAndVerify}
-              disabled={!signatureDataUrl || isSaving || isVerifying}
-              style={{
-                padding: '0.75rem 1.25rem',
-                border: 'none',
-                borderRadius: '0.35rem',
-                backgroundColor:
-                  !signatureDataUrl || isSaving || isVerifying ? '#9aa4b2' : '#0052cc',
-                color: '#fff',
-                fontSize: '1rem',
-                fontWeight: 700,
-                cursor:
-                  !signatureDataUrl || isSaving || isVerifying ? 'not-allowed' : 'pointer',
-                alignSelf: 'flex-start',
-              }}
-            >
-              {isVerifying ? '본인인증 진행 중...' : '서명 완료 및 본인인증 하기'}
-            </button>
-
             {saveMessage && (
               <p style={{ margin: 0, color: '#0f5132' }}>{saveMessage}</p>
             )}
 
             {saveError && (
               <p style={{ margin: 0, color: '#842029' }}>{saveError}</p>
-            )}
-
-            {verifyMessage && (
-              <p style={{ margin: 0, color: '#0f5132' }}>{verifyMessage}</p>
-            )}
-
-            {verifyError && (
-              <p style={{ margin: 0, color: '#842029' }}>{verifyError}</p>
             )}
           </div>
         </section>

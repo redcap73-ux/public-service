@@ -1,10 +1,37 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFRef } from 'pdf-lib';
+import { fillAcroFormIdentity, type IdentityFormValues } from '@/lib/acroform-fill';
 import {
   ensurePdfJs,
   type PdfJsPage,
   type PdfJsTextItem,
   type PdfJsViewport,
 } from '@/lib/pdfjs';
+
+const SIGNATURE_FIELD_ALIASES = [
+  'signature',
+  'sign',
+  '서명',
+  'singature',
+  'signimage',
+  'sign_image',
+];
+
+function normalizeFieldKey(name: string) {
+  return name.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function findSignatureFieldName(fieldNames: string[]) {
+  const aliases = SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey);
+  return (
+    fieldNames.find((fieldName) => aliases.includes(normalizeFieldKey(fieldName))) ?? null
+  );
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
 
 function getFileNameFromPath(filePath: string, index: number) {
   const rawName = filePath.split('/').pop() || `document-${index + 1}.pdf`;
@@ -360,6 +387,93 @@ async function embedSignatureOnLastPage(
   return pdfDoc.save();
 }
 
+/**
+ * If the PDF has an AcroForm signature-like field, draw the signature image
+ * into that widget rect (vector, no full-page rasterization).
+ */
+async function stampSignatureOnAcroFormField(
+  pdfBytes: ArrayBuffer,
+  signatureDataUrl: string
+): Promise<Uint8Array | null> {
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const form = pdfDoc.getForm();
+  const fields = form.getFields();
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  const signatureFieldName = findSignatureFieldName(fields.map((field) => field.getName()));
+
+  if (!signatureFieldName) {
+    return null;
+  }
+
+  const field = fields.find((item) => item.getName() === signatureFieldName);
+  if (!field) {
+    return null;
+  }
+
+  const widgets = field.acroField.getWidgets();
+  if (widgets.length === 0) {
+    return null;
+  }
+
+  const trimmedSignature = await trimSignatureToImage(signatureDataUrl);
+  const signaturePng = dataUrlToBytes(
+    (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = trimmedSignature.width;
+      canvas.height = trimmedSignature.height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('서명 이미지를 준비하지 못했습니다.');
+      }
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(trimmedSignature, 0, 0);
+      return canvas.toDataURL('image/png');
+    })()
+  );
+  const embeddedImage = await pdfDoc.embedPng(signaturePng);
+
+  for (const widget of widgets) {
+    const pageRef = widget.dict.get(PDFName.of('P'));
+    const pages = pdfDoc.getPages();
+    let page = pages[0];
+
+    if (pageRef instanceof PDFRef) {
+      page = pages.find((candidate) => candidate.ref === pageRef) ?? page;
+    }
+
+    if (!page) {
+      continue;
+    }
+
+    const rect = widget.getRectangle();
+    const padding = 2;
+    const maxWidth = Math.max(rect.width - padding * 2, 10);
+    const maxHeight = Math.max(rect.height - padding * 2, 10);
+    const scale = Math.min(maxWidth / embeddedImage.width, maxHeight / embeddedImage.height);
+    const drawWidth = embeddedImage.width * scale;
+    const drawHeight = embeddedImage.height * scale;
+
+    page.drawImage(embeddedImage, {
+      x: rect.x + (rect.width - drawWidth) / 2,
+      y: rect.y + (rect.height - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+    });
+  }
+
+  try {
+    form.removeField(field);
+  } catch {
+    // Signature fields sometimes cannot be removed; stamped image is still visible.
+  }
+
+  return pdfDoc.save();
+}
+
 export type SignedDocumentInput = {
   filePath: string;
   fileUrl: string;
@@ -369,9 +483,10 @@ export type SignedDocumentInput = {
 export async function downloadSignedDocuments(options: {
   documents: SignedDocumentInput[];
   signatureDataUrl: string;
+  identity?: IdentityFormValues | null;
   onProgress?: (message: string) => void;
 }) {
-  const { documents, signatureDataUrl, onProgress } = options;
+  const { documents, signatureDataUrl, identity, onProgress } = options;
 
   if (!signatureDataUrl) {
     throw new Error('서명이 없습니다. 먼저 서명해 주세요.');
@@ -393,8 +508,21 @@ export async function downloadSignedDocuments(options: {
       throw new Error(`${label} PDF를 가져오지 못했습니다. (${response.status})`);
     }
 
-    const pdfBytes = await response.arrayBuffer();
-    const signedBytes = await embedSignatureOnLastPage(pdfBytes, signatureDataUrl);
+    let pdfBytes = await response.arrayBuffer();
+
+    if (identity) {
+      onProgress?.(`(${index + 1}/${documents.length}) ${label} 본인정보 반영 중...`);
+      const filled = await fillAcroFormIdentity(pdfBytes, identity);
+      if (filled) {
+        pdfBytes = toArrayBuffer(filled.bytes);
+      }
+    }
+
+    onProgress?.(`(${index + 1}/${documents.length}) ${label} 서명 넣는 중...`);
+
+    const stamped = await stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl);
+    const signedBytes =
+      stamped ?? (await embedSignatureOnLastPage(pdfBytes, signatureDataUrl));
     const fileName = getFileNameFromPath(document.filePath, index);
 
     if (index > 0) {
