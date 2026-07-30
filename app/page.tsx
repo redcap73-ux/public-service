@@ -1,10 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { callPublicServiceApi } from '@/lib/api';
+import { callPublicServiceApi, PublicServiceApiResponse } from '@/lib/api';
+
+// API 응답에 대한 타입을 정의합니다.
+// 실제 API 응답 구조에 맞게 수정해주세요.
+interface ResponseData extends PublicServiceApiResponse {
+  // 예: id: number; name: string;
+}
 
 export default function Home() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ResponseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +40,7 @@ export default function Home() {
     }}>
       <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>이 곳은 고객동의 웹 서버입니다.</h1>
       <p style={{ fontSize: '1.125rem', textAlign: 'center', margin: 0 }}>
-        향후 이곳에서 고객의 동의 및 인증절차를 진행하는 시스템으로 구현됩니다.
+         이곳에서 고객의 동의 및 인증절차를 진행하는 시스템을 구현 중입니다.
       </p>
       <button 
         onClick={handleApiCall}

@@ -3,8 +3,10 @@
 import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import * as PortOne from '@portone/browser-sdk/v2';
 import SignaturePad from '@/components/SignaturePad';
 import type { SignaturePadHandle } from '@/components/SignaturePad';
+import { verifyCustomerIdentity } from '@/app/actions/verify';
 import { callPublicServiceSignApi } from '@/lib/api';
 import { downloadSignedDocuments } from '@/lib/signed-pdf';
 
@@ -79,6 +81,9 @@ function SignContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const signaturePadRef = useRef<SignaturePadHandle | null>(null);
 
   const documents = useMemo(() => extractDocuments(signData), [signData]);
@@ -114,6 +119,77 @@ function SignContent() {
       setSaveMessage(null);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleCompleteAndVerify() {
+    const capturedSignature =
+      signaturePadRef.current?.getSignatureDataUrl() ?? signatureDataUrl;
+
+    if (!capturedSignature) {
+      setVerifyError('서명이 없습니다. 먼저 서명해 주세요.');
+      setVerifyMessage(null);
+      return;
+    }
+
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
+
+    if (!storeId || !channelKey) {
+      setVerifyError('본인인증 설정(NEXT_PUBLIC_PORTONE_STORE_ID / CHANNEL_KEY)이 없습니다.');
+      setVerifyMessage(null);
+      return;
+    }
+
+    setSignatureDataUrl(capturedSignature);
+    setIsVerifying(true);
+    setVerifyError(null);
+    setVerifyMessage('본인인증을 진행합니다...');
+
+    try {
+      const response = await PortOne.requestIdentityVerification({
+        storeId,
+        channelKey,
+        identityVerificationId: `verification-${Date.now()}`,
+      });
+
+      if (!response) {
+        setVerifyError('본인인증 응답이 없습니다.');
+        setVerifyMessage(null);
+        return;
+      }
+
+      if (response.code !== undefined) {
+        setVerifyError(`인증 취소/실패: ${response.message ?? response.code}`);
+        setVerifyMessage(null);
+        return;
+      }
+
+      if (!response.identityVerificationId) {
+        setVerifyError('본인인증 ID를 받지 못했습니다.');
+        setVerifyMessage(null);
+        return;
+      }
+
+      setVerifyMessage('본인인증 결과를 확인하는 중...');
+      const result = await verifyCustomerIdentity(response.identityVerificationId);
+
+      if (!result.success) {
+        setVerifyError(result.message ?? '본인인증 검증에 실패했습니다.');
+        setVerifyMessage(null);
+        return;
+      }
+
+      setVerifyMessage(
+        `본인인증이 완료되었습니다. (${result.userInfo?.name ?? '이름 없음'} / ${result.userInfo?.phoneNumber ?? '연락처 없음'})`
+      );
+      setVerifyError(null);
+    } catch (err) {
+      console.error(err);
+      setVerifyError(err instanceof Error ? err.message : '본인인증 중 오류가 발생했습니다.');
+      setVerifyMessage(null);
+    } finally {
+      setIsVerifying(false);
     }
   }
 
@@ -290,6 +366,8 @@ function SignContent() {
               setSignatureDataUrl(nextSignature);
               setSaveError(null);
               setSaveMessage(null);
+              setVerifyError(null);
+              setVerifyMessage(null);
             }}
           />
 
@@ -320,12 +398,41 @@ function SignContent() {
               {isSaving ? '저장 중...' : '저장 (서명 PDF 다운로드)'}
             </button>
 
+            <button
+              type="button"
+              onClick={handleCompleteAndVerify}
+              disabled={!signatureDataUrl || isSaving || isVerifying}
+              style={{
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                borderRadius: '0.35rem',
+                backgroundColor:
+                  !signatureDataUrl || isSaving || isVerifying ? '#9aa4b2' : '#0052cc',
+                color: '#fff',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor:
+                  !signatureDataUrl || isSaving || isVerifying ? 'not-allowed' : 'pointer',
+                alignSelf: 'flex-start',
+              }}
+            >
+              {isVerifying ? '본인인증 진행 중...' : '서명 완료 및 본인인증 하기'}
+            </button>
+
             {saveMessage && (
               <p style={{ margin: 0, color: '#0f5132' }}>{saveMessage}</p>
             )}
 
             {saveError && (
               <p style={{ margin: 0, color: '#842029' }}>{saveError}</p>
+            )}
+
+            {verifyMessage && (
+              <p style={{ margin: 0, color: '#0f5132' }}>{verifyMessage}</p>
+            )}
+
+            {verifyError && (
+              <p style={{ margin: 0, color: '#842029' }}>{verifyError}</p>
             )}
           </div>
         </section>
