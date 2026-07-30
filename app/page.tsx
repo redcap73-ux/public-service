@@ -1,16 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { callPublicServiceApi, PublicServiceApiResponse } from '@/lib/api';
-
-// API 응답에 대한 타입을 정의합니다.
-// 실제 API 응답 구조에 맞게 수정해주세요.
-interface ResponseData extends PublicServiceApiResponse {
-  // 예: id: number; name: string;
-}
+import { callPublicServiceApi } from '@/lib/api';
 
 export default function Home() {
-  const [data, setData] = useState<ResponseData | null>(null);
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
