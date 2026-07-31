@@ -1,5 +1,4 @@
-import { PDFDocument, PDFName, PDFRef, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
+import { PDFDocument, PDFName, PDFRef, type PDFPage } from 'pdf-lib';
 
 export type IdentityFormValues = {
   name?: string;
@@ -43,25 +42,6 @@ const DESC_ALIASES = ['desc', 'description', 'audit', 'audittrail', '증적', '�
 
 const KOREAN_FONT_URL = '/fonts/NotoSansKR-Regular.otf';
 
-let cachedFontBytes: ArrayBuffer | null = null;
-
-async function loadKoreanFontBytes() {
-  if (cachedFontBytes) {
-    return cachedFontBytes;
-  }
-
-  const response = await fetch(KOREAN_FONT_URL, { cache: 'force-cache' });
-
-  if (!response.ok) {
-    throw new Error(
-      '한글 폰트를 불러오지 못했습니다. public/fonts/NotoSansKR-Regular.otf 를 확인해 주세요.'
-    );
-  }
-
-  cachedFontBytes = await response.arrayBuffer();
-  return cachedFontBytes;
-}
-
 function normalizeFieldKey(name: string) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, '');
 }
@@ -100,49 +80,194 @@ function formatPhoneNumber(value: string) {
   return value;
 }
 
-function maskPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, '');
+function maskCi(value: string) {
+  const ci = value.trim();
 
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-****-${digits.slice(7)}`;
+  if (ci.length <= 16) {
+    return ci;
   }
 
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-***-${digits.slice(6)}`;
+  return `${ci.slice(0, 8)}...${ci.slice(-6)}`;
+}
+
+function shortenUserAgent(value: string) {
+  // "PC / Windows / Chrome" -> "PC / Chrome"
+  const parts = value.split('/').map((part) => part.trim()).filter(Boolean);
+
+  if (parts.length >= 3) {
+    return `${parts[0]} / ${parts[parts.length - 1]}`;
   }
 
   return value;
 }
 
-function maskCi(value: string) {
-  const ci = value.trim();
+type AuditTrailRow = {
+  left: string;
+  right?: string;
+};
 
-  if (ci.length <= 20) {
-    return `${ci} (마스킹)`;
-  }
-
-  return `${ci.slice(0, 10)}...****************...${ci.slice(-8)} (마스킹)`;
-}
-
-export function buildAuditTrailText(values: IdentityFormValues) {
-  const name = values.name?.trim() || '-';
-  const phone = values.phoneNumber?.trim()
-    ? maskPhoneNumber(values.phoneNumber)
-    : '-';
-  const birthDate = values.birthDate?.trim()
-    ? formatBirthDate(values.birthDate)
-    : '-';
+export function buildAuditTrailRows(values: IdentityFormValues): AuditTrailRow[] {
   const txId = values.txId?.trim() || '-';
   const ci = values.ci?.trim() ? maskCi(values.ci) : '-';
   const clientIp = values.clientIp?.trim() || '-';
-  const userAgent = values.userAgent?.trim() || '-';
+  const userAgent = values.userAgent?.trim()
+    ? shortenUserAgent(values.userAgent)
+    : '-';
 
   return [
-    '[전자서명 및 본인확인 완료 증적 (Audit Trail)]',
-    `• 동의자: ${name} (${phone})   │  생년월일: ${birthDate}`,
-    `• 인증수단: 휴대폰 본인확인 (포트원)  │  인증 거래ID: ${txId}`,
-    `• CI: ${ci}  │  IP: ${clientIp} (${userAgent})`,
-  ].join('\n');
+    { left: '[전자서명 및 본인확인 완료 증적 (Audit Trail)]' },
+    { left: '인증수단: 휴대폰 본인확인 (포트원)', right: `인증 거래ID: ${txId}` },
+    { left: `CI: ${ci}`, right: `IP: ${clientIp} (${userAgent})` },
+  ];
+}
+
+export function buildAuditTrailText(values: IdentityFormValues) {
+  return buildAuditTrailRows(values)
+    .map((row) => (row.right ? `${row.left}  |  ${row.right}` : row.left))
+    .join('\n');
+}
+
+const KOREAN_FONT_FAMILY = 'NotoSansKREmbed';
+let koreanWebFontReady: Promise<void> | null = null;
+
+async function ensureKoreanWebFont() {
+  if (typeof document === 'undefined') {
+    throw new Error('한글 캔버스 렌더링은 브라우저에서만 가능합니다.');
+  }
+
+  if (!koreanWebFontReady) {
+    koreanWebFontReady = (async () => {
+      const fontFace = new FontFace(KOREAN_FONT_FAMILY, `url(${KOREAN_FONT_URL})`);
+      const loaded = await fontFace.load();
+      document.fonts.add(loaded);
+      await document.fonts.ready;
+    })();
+  }
+
+  await koreanWebFontReady;
+}
+
+function dataUrlToUint8Array(dataUrl: string) {
+  const commaIndex = dataUrl.indexOf(',');
+
+  if (commaIndex < 0) {
+    throw new Error('이미지 데이터 형식이 올바르지 않습니다.');
+  }
+
+  const binary = atob(dataUrl.slice(commaIndex + 1));
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+function fitCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+
+  const ellipsis = '...';
+  let low = 0;
+  let high = text.length;
+  let best = ellipsis;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const candidate = `${text.slice(0, mid)}${ellipsis}`;
+
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      best = candidate;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return best;
+}
+
+async function renderAuditTrailPng(
+  rows: AuditTrailRow[],
+  width: number,
+  height: number
+) {
+  await ensureKoreanWebFont();
+
+  const scale = 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(width * scale));
+  canvas.height = Math.max(1, Math.ceil(height * scale));
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('DESC 미리보기 캔버스를 초기화하지 못했습니다.');
+  }
+
+  ctx.scale(scale, scale);
+  ctx.clearRect(0, 0, width, height);
+
+  const paddingX = 4;
+  const paddingY = 3;
+  const contentWidth = Math.max(width - paddingX * 2, 20);
+  const contentHeight = Math.max(height - paddingY * 2, 12);
+  const lineHeight = contentHeight / Math.max(rows.length, 1);
+  const fontSize = Math.min(7.5, Math.max(6, lineHeight - 2));
+  const columnGap = 12;
+  const leftWidth = contentWidth * 0.55;
+  const rightWidth = contentWidth - leftWidth - columnGap;
+
+  ctx.fillStyle = '#222222';
+  ctx.textBaseline = 'top';
+  ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+
+  let y = paddingY;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+
+    if (!row.right) {
+      ctx.fillText(fitCanvasText(ctx, row.left, contentWidth), paddingX, y);
+    } else {
+      ctx.fillText(fitCanvasText(ctx, row.left, leftWidth), paddingX, y);
+      ctx.fillText(
+        fitCanvasText(ctx, row.right, rightWidth),
+        paddingX + leftWidth + columnGap,
+        y
+      );
+    }
+
+    y += lineHeight;
+  }
+
+  return dataUrlToUint8Array(canvas.toDataURL('image/png'));
+}
+
+async function renderSingleLinePng(text: string, width: number, height: number) {
+  await ensureKoreanWebFont();
+
+  const scale = 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(width * scale));
+  canvas.height = Math.max(1, Math.ceil(height * scale));
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('텍스트 캔버스를 초기화하지 못했습니다.');
+  }
+
+  ctx.scale(scale, scale);
+  ctx.clearRect(0, 0, width, height);
+
+  const fontSize = Math.min(11, Math.max(8, height - 4));
+  ctx.fillStyle = '#111111';
+  ctx.textBaseline = 'middle';
+  ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+  ctx.fillText(fitCanvasText(ctx, text, Math.max(width - 4, 10)), 2, height / 2);
+
+  return dataUrlToUint8Array(canvas.toDataURL('image/png'));
 }
 
 function triggerDownload(bytes: Uint8Array, fileName: string) {
@@ -193,23 +318,15 @@ function getPageForWidget(
 }
 
 /**
- * AcroForm appearance streams often break Hangul (default Courier / bad CJK subset).
- * Stamp visible text onto the page at the field rect, then remove the field widget.
+ * Stamp text as a PNG image so Korean glyphs stay intact in all PDF viewers.
  */
-function stampTextField(
+async function stampTextField(
   pdfDoc: PDFDocument,
   fieldName: string,
-  text: string,
-  font: PDFFont,
-  options?: { multiline?: boolean; fontSize?: number }
+  text: string
 ) {
   const form = pdfDoc.getForm();
   const field = form.getTextField(fieldName);
-
-  if (options?.multiline) {
-    field.enableMultiline();
-  }
-
   field.setText(text);
 
   const widgets = field.acroField.getWidgets();
@@ -221,47 +338,54 @@ function stampTextField(
     }
 
     const rect = widget.getRectangle();
-    const lines = options?.multiline ? text.split('\n') : [text];
-    const lineCount = Math.max(lines.length, 1);
-    const availableHeight = Math.max(rect.height - 4, 8);
-    const autoSize = options?.multiline
-      ? Math.min(options.fontSize ?? 7, availableHeight / lineCount - 1)
-      : Math.min(11, Math.max(8, rect.height - 4));
-    const fontSize = Math.max(5.5, autoSize);
-    const lineGap = fontSize + 1.2;
-    const maxWidth = Math.max(rect.width - 4, 10);
+    const pngBytes = await renderSingleLinePng(text, rect.width, rect.height);
+    const image = await pdfDoc.embedPng(pngBytes);
 
-    if (options?.multiline) {
-      let y = rect.y + rect.height - fontSize - 2;
-
-      for (const line of lines) {
-        if (y < rect.y) {
-          break;
-        }
-
-        page.drawText(line, {
-          x: rect.x + 2,
-          y,
-          size: fontSize,
-          font,
-          color: rgb(0, 0, 0),
-          maxWidth,
-        });
-        y -= lineGap;
-      }
-    } else {
-      page.drawText(text, {
-        x: rect.x + 2,
-        y: rect.y + (rect.height - fontSize) / 2,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-        maxWidth,
-      });
-    }
+    page.drawImage(image, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
   }
 
-  // Remove so viewers don't redraw a broken AcroForm appearance on top.
+  form.removeField(field);
+}
+
+/**
+ * Draw audit trail as a PNG image inside the desc field (viewer-safe Korean).
+ */
+async function stampAuditDescField(
+  pdfDoc: PDFDocument,
+  fieldName: string,
+  values: IdentityFormValues
+) {
+  const form = pdfDoc.getForm();
+  const field = form.getTextField(fieldName);
+  const rows = buildAuditTrailRows(values);
+  field.enableMultiline();
+  field.setText(buildAuditTrailText(values));
+
+  const widgets = field.acroField.getWidgets();
+
+  for (const widget of widgets) {
+    const page = getPageForWidget(pdfDoc, widget);
+    if (!page) {
+      continue;
+    }
+
+    const rect = widget.getRectangle();
+    const pngBytes = await renderAuditTrailPng(rows, rect.width, rect.height);
+    const image = await pdfDoc.embedPng(pngBytes);
+
+    page.drawImage(image, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+
   form.removeField(field);
 }
 
@@ -274,7 +398,6 @@ export async function fillAcroFormIdentity(
   values: IdentityFormValues
 ): Promise<{ bytes: Uint8Array; filledFields: string[] } | null> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
-  pdfDoc.registerFontkit(fontkit);
 
   const form = pdfDoc.getForm();
   const fields = form.getFields();
@@ -294,14 +417,8 @@ export async function fillAcroFormIdentity(
   const name = values.name?.trim();
   const phone = values.phoneNumber?.trim();
   const birthDate = values.birthDate?.trim();
-  const auditTrail = buildAuditTrailText(values);
 
-  const toStamp: Array<{
-    fieldName: string;
-    text: string;
-    multiline?: boolean;
-    fontSize?: number;
-  }> = [];
+  const toStamp: Array<{ fieldName: string; text: string }> = [];
 
   if (nameField && name) {
     toStamp.push({ fieldName: nameField, text: name });
@@ -315,27 +432,20 @@ export async function fillAcroFormIdentity(
     toStamp.push({ fieldName: birthdayField, text: formatBirthDate(birthDate) });
   }
 
-  if (descField && (name || phone || birthDate || values.txId || values.ci)) {
-    toStamp.push({
-      fieldName: descField,
-      text: auditTrail,
-      multiline: true,
-      fontSize: 7,
-    });
-  }
+  const shouldFillDesc = !!(descField && (values.txId || values.ci || values.clientIp));
 
-  if (toStamp.length === 0) {
+  if (toStamp.length === 0 && !shouldFillDesc) {
     return null;
   }
 
-  const font = await pdfDoc.embedFont(await loadKoreanFontBytes(), { subset: true });
-
   for (const item of toStamp) {
-    stampTextField(pdfDoc, item.fieldName, item.text, font, {
-      multiline: item.multiline,
-      fontSize: item.fontSize,
-    });
+    await stampTextField(pdfDoc, item.fieldName, item.text);
     filledFields.push(item.fieldName);
+  }
+
+  if (shouldFillDesc && descField) {
+    await stampAuditDescField(pdfDoc, descField, values);
+    filledFields.push(descField);
   }
 
   return {

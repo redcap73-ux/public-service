@@ -347,7 +347,7 @@ async function embedSignatureOnLastPage(
 
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: context, viewport }).promise;
+    await page.render({ canvasContext: context, viewport, annotationMode: 0 }).promise;
 
     const anchor = await findSignatureAnchor(page, viewport);
     renderedPages.push({ canvas, anchor });

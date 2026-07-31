@@ -17,6 +17,7 @@ export type PdfJsPage = {
   render: (params: {
     canvasContext: CanvasRenderingContext2D;
     viewport: PdfJsViewport;
+    annotationMode?: number;
   }) => { promise: Promise<void> };
 };
 

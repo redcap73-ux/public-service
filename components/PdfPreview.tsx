@@ -57,7 +57,13 @@ export default function PdfPreview({ fileUrl }: PdfPreviewProps) {
           canvas.style.height = 'auto';
 
           container.appendChild(canvas);
-          await page.render({ canvasContext: context, viewport }).promise;
+          // Disable annotation/widget rendering so empty AcroForm signature
+          // fields don't show viewer placeholders like "여기에 서명하세요".
+          await page.render({
+            canvasContext: context,
+            viewport,
+            annotationMode: 0,
+          }).promise;
 
           if (cancelled) {
             return;
