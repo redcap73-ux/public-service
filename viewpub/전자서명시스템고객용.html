@@ -37,7 +37,7 @@
     .case-strip{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);background:#f8fafc}
     .case-item{padding:11px 12px;border-right:1px solid var(--line);min-width:0}.case-item:last-child{border-right:0}.case-item small{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.case-item strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#334155}
     .stepper-wrap{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 12px 10px;box-shadow:0 5px 16px rgba(15,31,61,.05);margin-bottom:14px;overflow:auto}
-    .stepper{display:grid;grid-template-columns:repeat(5,minmax(118px,1fr));min-width:630px;gap:6px}
+    .stepper{display:grid;grid-template-columns:repeat(4,minmax(118px,1fr));min-width:500px;gap:6px}
     .step{position:relative;border:1px solid var(--line);border-radius:11px;padding:9px 10px;background:#f8fafc;color:var(--muted)}
     .step .no{width:22px;height:22px;display:inline-grid;place-items:center;border-radius:50%;background:#e2e8f0;font-size:10px;font-weight:900;margin-right:5px}.step strong{font-size:10px}.step small{display:block;font-size:8.5px;margin-top:5px;line-height:1.35}
     .step.active{background:var(--blue-soft);border-color:#9ec0ff;color:#1d4ed8}.step.active .no{background:var(--blue);color:#fff}.step.done{background:var(--green-soft);border-color:#a7f3d0;color:#047857}.step.done .no{background:var(--green);color:#fff}
@@ -45,6 +45,8 @@
     @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
     .card-head{padding:16px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .card-head-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:0 0 auto}
+    .auth-verify-btn{min-height:38px;padding:8px 14px;font-size:11px;white-space:nowrap}
     .card-head h2{margin:0;color:var(--navy);font-size:17px}.card-head p{font-size:10px;color:var(--muted);line-height:1.55;margin:5px 0 0}.card-body{padding:16px 17px}
     .badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:800;white-space:nowrap}.badge.blue{background:var(--blue-soft);color:#1d4ed8}.badge.green{background:var(--green-soft);color:#047857}.badge.orange{background:var(--orange-soft);color:#b45309}.badge.gray{background:#f1f5f9;color:#475569}.badge.red{background:var(--red-soft);color:#be123c}
     .notice{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:12px;padding:12px 13px;font-size:10px;line-height:1.6;margin-bottom:12px}.notice.warn{border-color:#fed7aa;background:#fff7ed;color:#9a3412}.notice.danger{border-color:#fecaca;background:#fff1f2;color:#991b1b}.notice.success{border-color:#a7f3d0;background:#ecfdf5;color:#047857}
@@ -56,7 +58,7 @@
     .doc-overview{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
     .doc-list{display:flex;flex-direction:column;gap:10px}.doc-row{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:11px;align-items:center;transition:.15s}.doc-row.current{border-color:#7aa5fa;box-shadow:0 0 0 3px rgba(43,110,242,.08)}.doc-row.done{border-color:#a7f3d0;background:#fbfffd}.doc-no{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900}.doc-row.done .doc-no{background:#d1fae5;color:#047857}.doc-name{font-size:12px;font-weight:800;color:#1e293b}.doc-meta{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.45}.doc-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:800;white-space:nowrap}
     .progress-panel{border:1px solid var(--line);border-radius:14px;padding:14px;background:#f8fafc;height:max-content;position:sticky;top:92px}.progress-panel h3{font-size:12px;margin:0 0 10px;color:var(--navy)}.progress-bar{height:8px;border-radius:999px;background:#e2e8f0;overflow:hidden}.progress-fill{height:100%;background:linear-gradient(90deg,#2b6ef2,#60a5fa);transition:width .25s}.progress-label{display:flex;justify-content:space-between;margin-top:7px;color:var(--muted);font-size:9px}.mini-status-list{display:flex;flex-direction:column;gap:7px;margin-top:13px}.mini-status{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;color:#475569}.mini-status b{color:#334155}
-    .document-viewer{height:min(58vh,620px);min-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:13px;background:#dbe3ef;padding:15px;scroll-behavior:smooth}.paper{width:min(100%,720px);margin:auto;background:#fff;min-height:980px;padding:48px 45px;box-shadow:0 8px 22px rgba(15,31,61,.16);font-family:"Noto Sans KR",Arial,sans-serif}.paper h1{text-align:center;font-size:22px;margin:0 0 28px}.paper h3{font-size:14px;margin:24px 0 9px}.paper p,.paper li{font-size:11px;line-height:1.9;color:#334155}.paper .meta-table{width:100%;border-collapse:collapse;margin-bottom:20px}.paper .meta-table th,.paper .meta-table td{border:1px solid #dbe3ef;padding:8px;font-size:10px;text-align:left}.paper .meta-table th{background:#f8fafc;width:22%}.paper .agreement-box{border:1px solid #cbd5e1;padding:13px;margin:14px 0;border-radius:8px;background:#fbfdff}.paper .signature-line{margin-top:52px;border-top:1px solid #64748b;padding-top:12px;text-align:right;font-size:11px}.scroll-tip{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px;font-size:9px;color:#64748b}.scroll-tip.ready{color:#047857;font-weight:800}
+    .document-viewer{height:min(58vh,620px);min-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:13px;background:#dbe3ef;padding:15px;scroll-behavior:smooth}.paper{width:min(100%,720px);margin:auto;background:#fff;min-height:980px;padding:48px 45px;box-shadow:0 8px 22px rgba(15,31,61,.16);font-family:"Noto Sans KR",Arial,sans-serif}.paper.pdf-paper{min-height:auto;padding:12px}.paper.pdf-paper .pdf-page-canvas{display:block;width:100%;height:auto;margin:0 auto 12px;box-shadow:0 4px 14px rgba(15,31,61,.12)}.paper.pdf-paper .pdf-page-canvas:last-child{margin-bottom:0}.pdf-status,.pdf-error{padding:24px;text-align:center;font-size:11px;color:#64748b;line-height:1.6}.pdf-error{color:#be123c}.paper h1{text-align:center;font-size:22px;margin:0 0 28px}.paper h3{font-size:14px;margin:24px 0 9px}.paper p,.paper li{font-size:11px;line-height:1.9;color:#334155}.paper .meta-table{width:100%;border-collapse:collapse;margin-bottom:20px}.paper .meta-table th,.paper .meta-table td{border:1px solid #dbe3ef;padding:8px;font-size:10px;text-align:left}.paper .meta-table th{background:#f8fafc;width:22%}.paper .agreement-box{border:1px solid #cbd5e1;padding:13px;margin:14px 0;border-radius:8px;background:#fbfdff}.paper .signature-line{margin-top:52px;border-top:1px solid #64748b;padding-top:12px;text-align:right;font-size:11px}.scroll-tip{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px;font-size:9px;color:#64748b}.scroll-tip.ready{color:#047857;font-weight:800}
     .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:11px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800}.choice input{accent-color:var(--blue)}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}
     .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}
     .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
@@ -69,11 +71,19 @@
     .footer{padding:18px 15px 28px;text-align:center;color:#64748b;font-size:9px;line-height:1.6}.footer a{color:#475569;text-decoration:underline}
     .toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,16px);background:#0f172a;color:#fff;border-radius:11px;padding:11px 14px;font-size:10px;opacity:0;pointer-events:none;transition:.2s;z-index:80;max-width:calc(100vw - 32px);text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}
     .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:18px;z-index:70}.modal-backdrop.show{display:flex}.modal{background:#fff;border-radius:18px;width:min(520px,100%);max-height:88vh;overflow:auto;box-shadow:0 28px 80px rgba(0,0,0,.28)}.modal-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}.modal-head h3{margin:0;font-size:15px;color:var(--navy)}.modal-close{border:0;background:transparent;font-size:18px;color:#64748b}.modal-body{padding:16px 17px}.modal-actions{padding:12px 17px;border-top:1px solid var(--line);display:flex;gap:8px}.modal-actions button{flex:1}
-    .security-points{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.security-point{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}.security-point strong{display:block;font-size:10px;color:#334155}.security-point small{display:block;font-size:8.5px;line-height:1.45;color:#64748b;margin-top:4px}
+    .auth-entry-btn{width:100%;display:flex;align-items:center;gap:12px;border:1px solid #9ec0ff;background:linear-gradient(135deg,#eff6ff,#f8fbff);border-radius:14px;padding:14px 16px;text-align:left;transition:.15s}
+    .auth-entry-btn:hover{border-color:#7aa5fa;background:var(--blue-soft);box-shadow:0 0 0 3px rgba(43,110,242,.08)}
+    .auth-entry-btn:active{transform:translateY(1px)}
+    .auth-entry-btn:disabled{cursor:not-allowed;opacity:.48;box-shadow:none;transform:none}
+    .auth-entry-icon{font-size:22px;flex:0 0 auto;line-height:1}
+    .auth-entry-text{flex:1;min-width:0}
+    .auth-entry-text strong{display:block;font-size:12px;color:var(--navy)}
+    .auth-entry-text small{display:block;font-size:9px;line-height:1.45;color:#64748b;margin-top:4px}
+    .auth-entry-arrow{font-size:16px;color:#1d4ed8;font-weight:900;flex:0 0 auto}
     .hidden{display:none!important}
     @media(max-width:760px){
       .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
-      .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.security-points{grid-template-columns:1fr}.sticky-inner .button.back{max-width:110px}.demo-bar{align-items:flex-start}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}
+      .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.demo-bar{align-items:flex-start}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}
     }
     @media(max-width:390px){.brand-text small{max-width:190px}.status-summary h1{font-size:18px}.case-item{padding:10px 9px}.button{font-size:11px}.paper{padding:28px 18px}.input-row{grid-template-columns:1fr 96px}}
     @media print{.site-header,.demo-bar,.stepper-wrap,.sticky-actions,.footer,.toast{display:none!important}.main{max-width:none;padding:0}.screen{display:none!important}.screen#printScreen{display:block!important}.card{box-shadow:none;border:0}.certificate{border:0}.app-shell{display:block}}
@@ -113,10 +123,9 @@
     <div class="stepper-wrap">
       <div class="stepper" id="stepper">
         <div class="step active" data-step="1"><span class="no">1</span><strong>요청 확인</strong><small>링크·서명자 확인</small></div>
-        <div class="step" data-step="2"><span class="no">2</span><strong>본인인증</strong><small>휴대폰 본인확인</small></div>
-        <div class="step" data-step="3"><span class="no">3</span><strong>문서 확인</strong><small>문서별 열람·동의</small></div>
-        <div class="step" data-step="4"><span class="no">4</span><strong>자필서명</strong><small>서명 입력·최종 확인</small></div>
-        <div class="step" data-step="5"><span class="no">5</span><strong>제출 완료</strong><small>무결성·증적 생성</small></div>
+        <div class="step" data-step="2"><span class="no">2</span><strong>문서 확인</strong><small>문서별 열람·동의</small></div>
+        <div class="step" data-step="3"><span class="no">3</span><strong>자필서명</strong><small>서명 입력·최종 확인</small></div>
+        <div class="step" data-step="4"><span class="no">4</span><strong>제출 완료</strong><small>무결성·증적 생성</small></div>
       </div>
     </div>
 
@@ -126,52 +135,28 @@
         <div class="card-body">
           <div class="notice">문자 또는 알림톡으로 받은 링크는 <b>본인만 사용</b>해야 합니다. 링크나 인증번호를 담당자 또는 다른 사람에게 전달하지 마세요.</div>
           <table class="summary-table">
-            <tr><th>서명 요청자</th><td>T&G 손해사정 · 담당 김수현</td></tr>
+            <tr><th>서명 요청자</th><td id="introSender">T&G 손해사정 · 담당 김수현</td></tr>
             <tr><th>서명 대상자</th><td><span id="introSignerName">홍*동</span> · <span id="introRole">피보험자</span></td></tr>
-            <tr><th>요청 목적</th><td>누수사고 손해사정 조사 및 관련 개인정보 처리 동의</td></tr>
+            <tr><th>요청 목적</th><td id="introPurpose">누수사고 손해사정 조사 및 관련 개인정보 처리 동의</td></tr>
             <tr><th>요청 문서</th><td id="introDocs">개인정보 수집·이용 동의서 외 3건</td></tr>
             <tr><th>링크 유효기간</th><td id="introExpiry">2026-07-23 10:30까지</td></tr>
           </table>
           <div style="height:12px"></div>
           <label class="check-line"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
           <div style="height:11px"></div>
-          <div class="security-points">
-            <div class="security-point"><strong>본인인증</strong><small>휴대폰 본인확인 거래번호와 인증 결과를 기록합니다.</small></div>
-            <div class="security-point"><strong>문서 무결성</strong><small>요청 당시 양식 버전과 내용을 Snapshot으로 고정합니다.</small></div>
-            <div class="security-point"><strong>서명 증적</strong><small>접속·동의·서명 시각과 최종 해시를 저장합니다.</small></div>
-          </div>
+          <button type="button" class="auth-entry-btn" id="authEntryBtn">
+            <span class="auth-entry-icon">📱</span>
+            <span class="auth-entry-text">
+              <strong>본인인증</strong>
+              <small>휴대폰 본인확인 거래번호와 인증 결과를 기록합니다.</small>
+            </span>
+            <span class="auth-entry-arrow">→</span>
+          </button>
         </div>
       </div>
     </section>
 
     <section class="screen" data-screen="2" id="screen2">
-      <div class="card">
-        <div class="card-head"><div><h2>휴대폰 본인인증</h2><p>전자서명을 요청받은 본인이 맞는지 인증합니다.</p></div><span class="badge orange" id="authStatusBadge">인증 전</span></div>
-        <div class="card-body">
-          <div class="notice warn">관리자에게 등록된 서명자 성명·휴대폰번호와 인증기관에서 확인된 정보가 일치해야 다음 단계로 진행됩니다.</div>
-          <div class="form-grid">
-            <div class="field"><label for="authName">성명</label><input id="authName" value="홍길동" autocomplete="name" /></div>
-            <div class="field"><label for="authBirth">생년월일</label><input id="authBirth" value="19850314" inputmode="numeric" maxlength="8" placeholder="YYYYMMDD" /></div>
-            <div class="field"><label for="authCarrier">통신사</label><select id="authCarrier"><option>SKT</option><option>KT</option><option>LG U+</option><option>알뜰폰</option></select></div>
-            <div class="field"><label for="authPhone">휴대폰번호</label><input id="authPhone" value="01012341234" inputmode="tel" maxlength="11" /></div>
-            <div class="field full"><label>본인인증 기관</label>
-              <div class="provider-list" id="providerList">
-                <button class="provider selected" type="button" data-provider="NICE"><span>📱</span>NICE</button>
-                <button class="provider" type="button" data-provider="PASS"><span>🛡️</span>PASS</button>
-                <button class="provider" type="button" data-provider="카카오"><span>💬</span>카카오</button>
-                <button class="provider" type="button" data-provider="네이버"><span>Ⓝ</span>네이버</button>
-              </div>
-            </div>
-            <div class="field full"><label for="authCode">인증번호</label><div class="input-row"><input id="authCode" inputmode="numeric" maxlength="6" placeholder="인증번호 6자리" /><button type="button" class="inline-btn" id="sendCodeBtn">인증번호 받기</button></div></div>
-          </div>
-          <div style="height:12px"></div>
-          <label class="check-line"><input type="checkbox" id="authConsent" /> 본인확인을 위해 성명, 생년월일, 휴대폰번호가 인증기관에 제공되는 것에 동의합니다.</label>
-          <div class="auth-result notice success" id="authResult"><b>본인확인 완료</b><br/>성명과 휴대폰번호가 요청 정보와 일치합니다. 인증 거래번호 <span id="authTx">NICE_TX_DEMO</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="screen" data-screen="3" id="screen3">
       <div class="card">
         <div class="card-head"><div><h2>전자문서 확인 및 동의</h2><p>각 문서를 끝까지 확인한 뒤 문서별로 동의 여부를 선택해 주세요.</p></div><span class="badge blue"><span id="reviewDoneCount">0</span>/<span id="reviewTotalCount">4</span> 확인</span></div>
         <div class="card-body">
@@ -204,7 +189,7 @@
       </div>
     </section>
 
-    <section class="screen" data-screen="4" id="screen4">
+    <section class="screen" data-screen="3" id="screen3">
       <div class="card">
         <div class="card-head"><div><h2>자필서명 및 최종 제출</h2><p>입력한 서명은 동의한 모든 전자문서의 지정된 서명 영역에 적용됩니다.</p></div><span class="badge green">문서 확인 완료</span></div>
         <div class="card-body">
@@ -239,7 +224,7 @@
       </div>
     </section>
 
-    <section class="screen" data-screen="5" id="screen5">
+    <section class="screen" data-screen="4" id="screen4">
       <div class="card" id="printScreen">
         <div class="complete-hero"><div class="complete-icon">✓</div><h2>전자서명이 완료되었습니다</h2><p>서명된 문서는 무결성 봉인 후 담당 손해사정 시스템으로 안전하게 전달됩니다.</p></div>
         <div class="card-body">
@@ -300,6 +285,7 @@
     insurer: 'DB손해보험',
     claimNo: 'DB-2026-123456',
     maskedClaimNo: 'DB-2026-12****',
+    purpose: '누수사고 손해사정 조사 및 관련 개인정보 처리 동의',
     signer: { name: '홍길동', maskedName: '홍*동', role: '피보험자', phone: '01012341234', birth: '19850314' },
     sender: 'T&G 손해사정 · 김수현',
     issuedAt: '2026-07-21 10:30:00',
@@ -359,10 +345,8 @@
     currentStep: 1,
     verified: false,
     provider: 'NICE',
-    sentCode: false,
-    authCode: null,
     currentDocIndex: 0,
-    docs: request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null})),
+    docs: [],
     strokes: [],
     hasSignature: false,
     submitted: false,
@@ -370,6 +354,12 @@
     signTransactionId: null,
     finalHash: null
   };
+
+  function resetDocState(){
+    state.docs = request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null}));
+  }
+
+  resetDocState();
 
   const $ = (id) => document.getElementById(id);
   const screens = [...document.querySelectorAll('.screen')];
@@ -382,6 +372,12 @@
   let ctx;
   let canvas;
   let resizeTimer;
+  let pdfRenderGeneration = 0;
+  let pdfJsPromise = null;
+  let portOneModulePromise = null;
+  let isPortOneVerifying = false;
+  const PDFJS_VERSION = '3.11.174';
+  const PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
 
   function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
   function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2300);}
@@ -396,20 +392,138 @@
     return values.join('');
   }
 
+  function maskClaimNo(claimNo){
+    if(!claimNo)return '-';
+    const parts=String(claimNo).split('-');
+    if(parts.length>=3){
+      const last=parts[parts.length-1];
+      parts[parts.length-1]=`${last.slice(0,Math.max(0,last.length-4))}****`;
+      return parts.join('-');
+    }
+    return claimNo.length>4?`${claimNo.slice(0,-4)}****`:claimNo;
+  }
+
+  function maskName(name){
+    if(!name)return '-';
+    if(name.length===1)return name;
+    if(name.length===2)return `${name[0]}*`;
+    return `${name[0]}${'*'.repeat(name.length-2)}${name[name.length-1]}`;
+  }
+
+  function extractInsurerFromPath(filePath){
+    const parts=String(filePath||'').split('/');
+    if(parts.length>=2 && parts[0]==='sign-template')return parts[1];
+    return '보험사';
+  }
+
+  function formatIntroDocs(documents){
+    if(!documents.length)return '-';
+    const names=documents.map(doc=>doc.name).filter(Boolean);
+    if(!names.length)return '-';
+    if(names.length===1)return names[0];
+    if(names.length<=3)return names.join(', ');
+    return `${names[0]} 외 ${names.length-1}건`;
+  }
+
+  function buildRequestPurpose(req,documents,insurer){
+    if(req.request_title)return req.request_title;
+    if(req.memo)return req.memo;
+    const docNames=[...new Set(documents.map(doc=>doc.document_name||doc.document_type).filter(Boolean))];
+    if(docNames.length)return `${insurer} 손해사정 조사 및 ${docNames.join(', ')} 관련 동의`;
+    if(req.document_type)return `${insurer} 손해사정 조사 및 ${req.document_type} 관련 동의`;
+    return '손해사정 조사 및 관련 개인정보 처리 동의';
+  }
+
+  function formatLinkValidity(issuedAt,expiresAt){
+    const expiresText=formatExpiry(expiresAt);
+    if(!issuedAt)return `${expiresText}까지`;
+    const issuedDate=issuedAt instanceof Date?issuedAt:new Date(issuedAt);
+    if(Number.isNaN(issuedDate.getTime()))return `${expiresText}까지`;
+    return `${formatExpiry(issuedDate)} ~ ${expiresText}`;
+  }
+
+  function mapApiDocument(doc,insurer){
+    const name=doc.document_name||doc.document_type||'동의서';
+    return {
+      id:String(doc.id),
+      code:doc.template_code||doc.document_type||'',
+      version:doc.template_version||'v1.0',
+      insurer,
+      name,
+      category:doc.document_type||'동의서',
+      required:true,
+      summary:name,
+      file_path:doc.file_path||'',
+      sections:[
+        ['1. 문서 안내', `${name}의 내용을 확인해 주세요.`],
+        ['2. 전자적 처리', '본 문서는 요청 시점의 내용과 버전이 고정되며, 본인확인·열람·동의·서명 정보가 전자서명 증적에 포함됩니다.']
+      ]
+    };
+  }
+
+  async function loadRequestFromApi(token){
+    const response=await fetch(`/api/public-service/sign?token=${encodeURIComponent(token)}`,{cache:'no-store'});
+    if(!response.ok){
+      const errorBody=await response.json().catch(()=>null);
+      throw new Error(errorBody?.error||`API 호출 실패 (${response.status})`);
+    }
+
+    const data=await response.json();
+    if(!data?.ok || !data.request)throw new Error('요청 정보를 찾을 수 없습니다.');
+
+    const req=data.request;
+    const apiDocuments=Array.isArray(data.documents)?data.documents:[];
+    const insurer=apiDocuments[0]?.file_path?extractInsurerFromPath(apiDocuments[0].file_path):'보험사';
+    const expiresAt=req.expires_at?new Date(req.expires_at):new Date(Date.now()+48*60*60*1000);
+
+    if(expiresAt.getTime()<=Date.now()){
+      showError('expired');
+      return false;
+    }
+    if(req.status==='COMPLETED'||req.completed_at){
+      showError('used');
+      return false;
+    }
+
+    request.requestNo=req.request_no||request.requestNo;
+    request.token=token;
+    request.insurer=insurer;
+    request.claimNo=req.claim_no||request.claimNo;
+    request.maskedClaimNo=maskClaimNo(req.claim_no);
+    request.signer={
+      name:req.signer_name||request.signer.name,
+      maskedName:maskName(req.signer_name),
+      role:req.signer_role||request.signer.role,
+      phone:req.signer_phone||request.signer.phone,
+      birth:request.signer.birth
+    };
+    request.sender=`T&G 손해사정 · ${req.created_by||'담당자'}`;
+    request.purpose=buildRequestPurpose(req,apiDocuments,insurer);
+    request.issuedAt=req.issued_at||request.issuedAt;
+    request.expiresAt=expiresAt;
+    request.authProvider=req.auth_provider||request.authProvider;
+    request.documents=apiDocuments.length?apiDocuments.map(doc=>mapApiDocument(doc,insurer)):request.documents;
+    resetDocState();
+    return true;
+  }
+
   function hydrateRequest(){
     $('summaryRequestNo').textContent=request.requestNo;
     $('summaryInsurer').textContent=request.insurer;
     $('summaryClaimNo').textContent=request.maskedClaimNo;
     $('summaryDocCount').textContent=request.documents.length;
+    $('introSender').textContent=request.sender;
     $('introSignerName').textContent=request.signer.maskedName;
     $('introRole').textContent=request.signer.role;
-    $('introDocs').textContent=`${request.documents[0].name} 외 ${request.documents.length-1}건`;
-    $('introExpiry').textContent=`${formatExpiry(request.expiresAt)}까지`;
+    $('introPurpose').textContent=request.purpose;
+    $('introDocs').textContent=formatIntroDocs(request.documents);
+    $('introExpiry').textContent=formatLinkValidity(request.issuedAt,request.expiresAt);
     $('reviewTotalCount').textContent=request.documents.length;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     $('finalRequestNo').textContent=request.requestNo;
     $('typedName').value=request.signer.name;
     $('typedPreview').textContent=request.signer.name;
+    updateAuthVerifyButton();
     renderDocList();
     selectDocument(0,false);
     startCountdown();
@@ -429,52 +543,153 @@
     state.currentStep=step;
     screens.forEach(s=>s.classList.toggle('active',String(s.dataset.screen)===String(step)));
     steps.forEach(el=>{const n=Number(el.dataset.step);el.classList.toggle('active',n===step);el.classList.toggle('done',n<step);});
-    $('stickyActions').classList.toggle('hidden',step===5 || step==='error');
+    $('stickyActions').classList.toggle('hidden',step===4 || step==='error');
     $('backBtn').classList.toggle('hidden',step===1);
-    const labels={1:'본인인증 진행',2:'본인인증 확인',3:'문서 확인 완료',4:'전자서명 제출'};
+    const labels={1:'본인인증 진행',2:'문서 확인 완료',3:'전자서명 제출'};
     $('nextBtn').textContent=labels[step]||'다음';
-    if(step===3){renderDocList();selectDocument(state.currentDocIndex,false);}
-    if(step===4){updateFinalSummary();setTimeout(resizeCanvas,30);}
+    if(step===2){renderDocList();selectDocument(state.currentDocIndex,false);}
+    if(step===3){updateFinalSummary();setTimeout(resizeCanvas,30);}
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
   function next(){
     if(state.currentStep===1){
-      if(!$('requestOwnerCheck').checked){toast('본인 전자서명 진행 확인에 체크해 주세요.');return;}
-      setStep(2);return;
+      goToIdentityVerification();
+      return;
     }
-    if(state.currentStep===2){verifyIdentity();return;}
-    if(state.currentStep===3){
+    if(state.currentStep===2){
       const incomplete=state.docs.filter(d=>!d.consent);
       if(incomplete.length){toast(`확인하지 않은 문서가 ${incomplete.length}건 있습니다.`);const idx=state.docs.findIndex(d=>!d.consent);selectDocument(idx,true);return;}
       const rejectedRequired=state.docs.findIndex((d,i)=>request.documents[i].required && d.consent==='reject');
       if(rejectedRequired>=0){toast('필수 동의서에 미동의하여 전자서명을 진행할 수 없습니다.');selectDocument(rejectedRequired,true);return;}
-      setStep(4);return;
+      setStep(3);return;
     }
-    if(state.currentStep===4){validateAndOpenSubmit();}
+    if(state.currentStep===3){validateAndOpenSubmit();}
   }
 
-  function back(){if(state.currentStep>1 && state.currentStep<5)setStep(state.currentStep-1);}
+  function back(){if(state.currentStep>1 && state.currentStep<4)setStep(state.currentStep-1);}
 
-  function sendCode(){
-    const name=$('authName').value.trim(),birth=$('authBirth').value.replace(/\D/g,''),phone=$('authPhone').value.replace(/\D/g,'');
-    if(!name || birth.length!==8 || phone.length<10){toast('성명, 생년월일, 휴대폰번호를 정확히 입력해 주세요.');return;}
-    if(!$('authConsent').checked){toast('본인인증 정보 제공 동의가 필요합니다.');return;}
-    state.sentCode=true;state.authCode='123456';$('authCode').value='';$('sendCodeBtn').textContent='재전송';toast('인증번호를 발송했습니다. 프로토타입 인증번호는 123456입니다.');
+  function updateAuthVerifyButton(){
+    const entryBtn=$('authEntryBtn');
+    if(!entryBtn)return;
+    const titleEl=entryBtn.querySelector('.auth-entry-text strong');
+    if(isPortOneVerifying){
+      entryBtn.disabled=true;
+      if(titleEl)titleEl.textContent='인증 진행 중...';
+      return;
+    }
+    entryBtn.disabled=false;
+    if(titleEl)titleEl.textContent=state.verified?'본인인증 완료':'본인인증';
   }
 
-  function verifyIdentity(){
-    if(state.verified){setStep(3);return;}
-    if(!state.sentCode){toast('먼저 인증번호를 받아 주세요.');return;}
-    if($('authCode').value.trim()!==state.authCode){toast('인증번호가 일치하지 않습니다.');return;}
-    const name=$('authName').value.trim(),phone=$('authPhone').value.replace(/\D/g,''),birth=$('authBirth').value.replace(/\D/g,'');
-    if(name!==request.signer.name || phone!==request.signer.phone || birth!==request.signer.birth){
-      $('authResult').className='auth-result notice danger show';$('authResult').innerHTML='<b>본인확인 실패</b><br/>전자서명 요청 정보와 인증 정보가 일치하지 않습니다.';$('authStatusBadge').className='badge red';$('authStatusBadge').textContent='인증 실패';toast('서명자 정보가 일치하지 않습니다.');return;
+  function ensurePortOne(){
+    if(!portOneModulePromise){
+      portOneModulePromise=import('/api/portone/browser-sdk');
     }
-    state.verified=true;request.authProvider=state.provider;request.authTransactionId=`${state.provider.replace(/\s/g,'')}_TX_${Date.now().toString().slice(-9)}`;request.identityVerifiedAt=new Date();
-    $('authTx').textContent=request.authTransactionId;$('authResult').className='auth-result notice success show';$('authStatusBadge').className='badge green';$('authStatusBadge').textContent='인증 완료';
-    $('finalAuth').textContent=`${state.provider} 인증 완료`;
-    setTimeout(()=>setStep(3),500);
+    return portOneModulePromise;
+  }
+
+  function applyVerifiedIdentity(userInfo){
+    state.verified=true;
+    request.authProvider='PortOne';
+    request.authTransactionId=userInfo.txId||`PORTONE_TX_${Date.now()}`;
+    request.identityVerifiedAt=new Date();
+
+    if(userInfo.name){
+      request.signer.name=userInfo.name;
+      request.signer.maskedName=maskName(userInfo.name);
+      $('typedName').value=userInfo.name;
+      $('typedPreview').textContent=userInfo.name;
+      $('introSignerName').textContent=request.signer.maskedName;
+      $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
+    }
+    if(userInfo.phoneNumber){
+      request.signer.phone=String(userInfo.phoneNumber).replace(/\D/g,'');
+    }
+    if(userInfo.birthDate){
+      request.signer.birth=String(userInfo.birthDate).replace(/\D/g,'');
+    }
+
+    $('finalAuth').textContent='PortOne 인증 완료';
+    updateAuthVerifyButton();
+    toast(`본인인증이 완료되었습니다. (${userInfo.name||'이름 없음'})`);
+  }
+
+  async function startPortOneIdentityVerification(options={}){
+    const requireOwnerCheck=options.requireOwnerCheck===true;
+    const advanceToStep=typeof options.advanceToStep==='number'?options.advanceToStep:null;
+
+    if(isPortOneVerifying)return;
+    if(requireOwnerCheck && !$('requestOwnerCheck').checked){
+      toast('본인 전자서명 진행 확인에 체크해 주세요.');
+      return;
+    }
+    if(state.verified){
+      setStep(advanceToStep ?? (state.currentStep===1?2:state.currentStep));
+      return;
+    }
+
+    const config=window.__APP_CONFIG__?.portone;
+    if(!config?.storeId || !config?.channelKey){
+      toast('본인인증 설정(NEXT_PUBLIC_PORTONE_STORE_ID / CHANNEL_KEY)이 없습니다.');
+      return;
+    }
+
+    isPortOneVerifying=true;
+    updateAuthVerifyButton();
+    toast('본인인증을 진행합니다...');
+
+    try{
+      const portOneModule=await ensurePortOne();
+      const requestIdentityVerification=portOneModule.requestIdentityVerification||portOneModule.default?.requestIdentityVerification;
+      if(typeof requestIdentityVerification!=='function'){
+        throw new Error('PortOne 본인인증 모듈을 불러오지 못했습니다.');
+      }
+      const response=await requestIdentityVerification({
+        storeId:config.storeId,
+        channelKey:config.channelKey,
+        identityVerificationId:`verification-${Date.now()}`,
+      });
+
+      if(!response){
+        toast('본인인증 응답이 없습니다.');
+        return;
+      }
+      if(response.code!==undefined){
+        toast(`인증 취소/실패: ${response.message??response.code}`);
+        return;
+      }
+      if(!response.identityVerificationId){
+        toast('본인인증 ID를 받지 못했습니다.');
+        return;
+      }
+
+      toast('본인인증 결과를 확인하는 중...');
+      const verifyResponse=await fetch('/api/identity/verify',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({identityVerificationId:response.identityVerificationId}),
+      });
+      const result=await verifyResponse.json();
+
+      if(!result.success){
+        toast(result.message||'본인인증 검증에 실패했습니다.');
+        return;
+      }
+
+      applyVerifiedIdentity(result.userInfo||{});
+      setTimeout(()=>setStep(advanceToStep ?? 2),500);
+    }catch(error){
+      console.error(error);
+      toast(error instanceof Error?error.message:'본인인증 중 오류가 발생했습니다.');
+    }finally{
+      isPortOneVerifying=false;
+      updateAuthVerifyButton();
+    }
+  }
+
+  function goToIdentityVerification(){
+    void startPortOneIdentityVerification({requireOwnerCheck:true,advanceToStep:2});
   }
 
   function renderDocList(){
@@ -487,6 +702,112 @@
     }).join('');
     document.querySelectorAll('[data-open-doc]').forEach(btn=>btn.addEventListener('click',()=>selectDocument(Number(btn.dataset.openDoc),true)));
     updateDocProgress();
+  }
+
+  function buildFileApiUrl(filePath){
+    return `/api/files?${new URLSearchParams({path:filePath}).toString()}`;
+  }
+
+  function loadScript(src){
+    return new Promise((resolve,reject)=>{
+      const existing=document.querySelector(`script[src="${src}"]`);
+      if(existing){
+        if(existing.dataset.loaded==='true'){resolve();return;}
+        existing.addEventListener('load',()=>resolve(),{once:true});
+        existing.addEventListener('error',()=>reject(new Error(`스크립트 로드 실패: ${src}`)),{once:true});
+        return;
+      }
+      const script=document.createElement('script');
+      script.src=src;
+      script.async=true;
+      script.onload=()=>{script.dataset.loaded='true';resolve();};
+      script.onerror=()=>reject(new Error(`스크립트 로드 실패: ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  function ensurePdfJs(){
+    if(!pdfJsPromise){
+      pdfJsPromise=loadScript(`${PDFJS_CDN}/pdf.min.js`).then(()=>{
+        const pdfjsLib=window['pdfjsLib'];
+        if(!pdfjsLib)throw new Error('pdf.js를 초기화하지 못했습니다.');
+        pdfjsLib.GlobalWorkerOptions.workerSrc=`${PDFJS_CDN}/pdf.worker.min.js`;
+        return pdfjsLib;
+      });
+    }
+    return pdfJsPromise;
+  }
+
+  function markDocumentScrolled(){
+    const st=state.docs[state.currentDocIndex];
+    if(st.scrolled)return;
+    st.scrolled=true;
+    radios.forEach(r=>r.disabled=false);
+    $('consentBox').classList.remove('locked');
+    $('consentLockBadge').className='badge blue';
+    $('consentLockBadge').textContent='선택 가능';
+    $('viewerBadge').className='badge orange';
+    $('viewerBadge').textContent='동의 선택 가능';
+    $('scrollTip').className='scroll-tip ready';
+    $('scrollTip').textContent='✓ 문서 끝까지 확인했습니다.';
+    renderDocList();
+    toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
+  }
+
+  function checkViewerScrollComplete(){
+    const el=$('documentViewer'),st=state.docs[state.currentDocIndex];
+    if(st.scrolled)return;
+    if(el.scrollHeight<=el.clientHeight+24 || el.scrollTop+el.clientHeight>=el.scrollHeight-24){
+      markDocumentScrolled();
+    }
+  }
+
+  async function renderPdfIntoPaper(filePath,paperEl,generation){
+    paperEl.className='paper pdf-paper';
+    paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
+    try{
+      const pdfjsLib=await ensurePdfJs();
+      if(generation!==pdfRenderGeneration)return;
+      const pdf=await pdfjsLib.getDocument({url:buildFileApiUrl(filePath)}).promise;
+      if(generation!==pdfRenderGeneration)return;
+      paperEl.replaceChildren();
+      const containerWidth=Math.max(Math.min(paperEl.clientWidth || 690,720),280);
+      const pixelRatio=Math.min(window.devicePixelRatio||1,3);
+      for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber+=1){
+        if(generation!==pdfRenderGeneration)return;
+        const page=await pdf.getPage(pageNumber);
+        const unscaledViewport=page.getViewport({scale:1});
+        const scale=(containerWidth/unscaledViewport.width)*pixelRatio;
+        const viewport=page.getViewport({scale});
+        const canvasEl=document.createElement('canvas');
+        const context=canvasEl.getContext('2d');
+        if(!context)throw new Error('캔버스를 초기화하지 못했습니다.');
+        canvasEl.width=viewport.width;
+        canvasEl.height=viewport.height;
+        canvasEl.className='pdf-page-canvas';
+        paperEl.appendChild(canvasEl);
+        await page.render({canvasContext:context,viewport,annotationMode:0}).promise;
+      }
+      if(generation!==pdfRenderGeneration)return;
+      requestAnimationFrame(()=>checkViewerScrollComplete());
+    }catch(error){
+      if(generation!==pdfRenderGeneration)return;
+      paperEl.innerHTML=`<p class="pdf-error">PDF를 불러오지 못했습니다.<br/>${escapeHtml(error instanceof Error?error.message:'알 수 없는 오류')}</p>`;
+    }
+  }
+
+  function renderDocumentContent(doc,index){
+    const paperEl=$('paperContent');
+    pdfRenderGeneration+=1;
+    const generation=pdfRenderGeneration;
+    if(doc.file_path){
+      $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF 원본`;
+      void renderPdfIntoPaper(doc.file_path,paperEl,generation);
+      return;
+    }
+    paperEl.className='paper';
+    paperEl.innerHTML=buildPaper(doc,index);
+    $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · 요청 Snapshot`;
   }
 
   function buildPaper(doc,index){
@@ -505,8 +826,7 @@
     const doc=request.documents[state.currentDocIndex],st=state.docs[state.currentDocIndex];
     st.viewed=true;
     $('viewerTitle').textContent=`${state.currentDocIndex+1}. ${doc.name}`;
-    $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · 요청 Snapshot`;
-    $('paperContent').innerHTML=buildPaper(doc,state.currentDocIndex);
+    renderDocumentContent(doc,state.currentDocIndex);
     $('documentViewer').scrollTop=0;
     $('viewerBadge').className=`badge ${st.consent==='agree'?'green':st.consent==='reject'?'red':st.scrolled?'orange':'gray'}`;
     $('viewerBadge').textContent=st.consent==='agree'?'동의 완료':st.consent==='reject'?'미동의':st.scrolled?'동의 선택 가능':'미확인';
@@ -522,10 +842,7 @@
   }
 
   function onViewerScroll(){
-    const el=$('documentViewer'),st=state.docs[state.currentDocIndex];
-    if(el.scrollTop+el.clientHeight>=el.scrollHeight-24 && !st.scrolled){
-      st.scrolled=true;radios.forEach(r=>r.disabled=false);$('consentBox').classList.remove('locked');$('consentLockBadge').className='badge blue';$('consentLockBadge').textContent='선택 가능';$('viewerBadge').className='badge orange';$('viewerBadge').textContent='동의 선택 가능';$('scrollTip').className='scroll-tip ready';$('scrollTip').textContent='✓ 문서 끝까지 확인했습니다.';renderDocList();toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
-    }
+    checkViewerScrollComplete();
   }
 
   function saveDocumentConsent(){
@@ -583,7 +900,7 @@
     closeModal('submitModal');$('confirmSubmitBtn').disabled=false;$('confirmSubmitBtn').textContent='최종 제출';
     $('completeRequestNo').textContent=request.requestNo;$('completeClaimNo').textContent=request.maskedClaimNo;$('completeSigner').textContent=`${request.signer.name} / ${request.signer.role}`;$('completeDocs').textContent=`${agreedDocs.length}건 (${agreedDocs.map(d=>d.name).join(', ')})`;$('completeAuthTx').textContent=request.authTransactionId;$('completeAt').textContent=formatDate(state.completedAt);$('completeSignTx').textContent=state.signTransactionId;$('completeHash').textContent=state.finalHash;
     try{localStorage.setItem(`tng-esign-${request.requestNo}`,JSON.stringify({status:'SIGNED',completedAt:state.completedAt.toISOString(),signTransactionId:state.signTransactionId,hash:state.finalHash}));}catch(e){}
-    setStep(5);
+    setStep(4);
   }
 
   function openModal(id){$(id).classList.add('show');}
@@ -593,20 +910,37 @@
     const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
   }
   function resetFlow(){
-    state.currentStep=1;state.verified=false;state.sentCode=false;state.authCode=null;state.currentDocIndex=0;state.docs=request.documents.map(d=>({id:d.id,viewed:false,scrolled:false,consent:null,reviewedAt:null}));state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;$('authCode').value='';$('authResult').className='auth-result notice success';$('authStatusBadge').className='badge orange';$('authStatusBadge').textContent='인증 전';$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].forEach(x=>x.checked=false);clearSignature();closeModal('demoModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
+    state.currentStep=1;state.verified=false;state.currentDocIndex=0;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;updateAuthVerifyButton();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].forEach(x=>x.checked=false);clearSignature();closeModal('demoModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
-  $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);$('sendCodeBtn').addEventListener('click',sendCode);
-  $('providerList').addEventListener('click',e=>{const btn=e.target.closest('.provider');if(!btn)return;document.querySelectorAll('.provider').forEach(p=>p.classList.remove('selected'));btn.classList.add('selected');state.provider=btn.dataset.provider;});
+  async function init(){
+    const token=new URLSearchParams(location.search).get('token');
+    if(token){
+      try{
+        $('requestDescription').textContent='동의 정보를 불러오는 중…';
+        const loaded=await loadRequestFromApi(token);
+        if(!loaded)return;
+      }catch(error){
+        console.error(error);
+        showError('invalid');
+        return;
+      }
+    }
+    hydrateRequest();
+    setupCanvas();
+    setStep(1);
+  }
+
+  $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);$('authEntryBtn').addEventListener('click',goToIdentityVerification);
   $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveDocumentConsent);$('prevDocBtn').addEventListener('click',()=>selectDocument(state.currentDocIndex-1,true));
   $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
   $('demoModeBtn').addEventListener('click',()=>openModal('demoModal'));document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));
   document.querySelectorAll('.demo-error').forEach(b=>b.addEventListener('click',()=>showError(b.dataset.error)));$('resetDemoBtn').addEventListener('click',resetFlow);$('retryLinkBtn').addEventListener('click',resetFlow);
   window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(resizeCanvas,120)});
-  window.addEventListener('beforeunload',e=>{if(state.currentStep>1 && state.currentStep<5 && !state.submitted){e.preventDefault();e.returnValue='';}});
+  window.addEventListener('beforeunload',e=>{if(state.currentStep>1 && state.currentStep<4 && !state.submitted){e.preventDefault();e.returnValue='';}});
 
-  hydrateRequest();setupCanvas();setStep(1);
+  init();
 })();
 </script>
 </body>
