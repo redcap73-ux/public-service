@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1f3d" />
+  <title>T&G 비대면 전자서명 고객용 v0.1</title>
+  <style>
+    :root{
+      --navy:#0f1f3d;--navy2:#172b51;--blue:#2b6ef2;--blue-dark:#1e56c8;
+      --blue-soft:#eaf2ff;--bg:#eef3f9;--card:#fff;--line:#dfe6f2;--text:#1e293b;
+      --muted:#64748b;--green:#0f9f6e;--green-soft:#ecfdf5;--orange:#d97706;
+      --orange-soft:#fff7ed;--red:#dc2626;--red-soft:#fff1f2;--shadow:0 12px 34px rgba(15,31,61,.10);
+      --radius:18px;--safe-bottom:env(safe-area-inset-bottom,0px);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:linear-gradient(180deg,#e9f0fb 0,#f6f8fc 45%,#eef3f9 100%);color:var(--text);font-family:Inter,"Pretendard","Noto Sans KR",Segoe UI,Arial,sans-serif;min-height:100vh}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.48}
+    .app-shell{min-height:100vh;display:flex;flex-direction:column}
+    .site-header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:16px 20px;position:sticky;top:0;z-index:30;box-shadow:0 5px 18px rgba(15,31,61,.18)}
+    .header-inner{max-width:980px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .brand{display:flex;gap:11px;align-items:center;min-width:0}
+    .brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#4e89ff,#86aefc);display:grid;place-items:center;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
+    .brand-text{min-width:0}.brand-text strong{display:block;font-size:15px;white-space:nowrap}.brand-text small{display:block;color:rgba(255,255,255,.66);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .secure-badge{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);border-radius:999px;font-size:10px;white-space:nowrap}
+    .main{width:100%;max-width:980px;margin:0 auto;padding:18px 18px calc(105px + var(--safe-bottom))}
+    .demo-bar{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #f5d0a5;background:#fffaf2;color:#92400e;border-radius:13px;padding:10px 12px;margin-bottom:12px;font-size:11px;line-height:1.45}
+    .demo-bar button{border:1px solid #fdba74;background:#fff;color:#9a3412;border-radius:8px;padding:6px 8px;font-size:10px;font-weight:800;white-space:nowrap}
+    .status-top{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+    .status-summary{padding:17px 18px 15px;background:linear-gradient(135deg,#fff,#f7faff);display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+    .status-summary h1{font-size:20px;line-height:1.3;margin:0;color:var(--navy)}
+    .status-summary p{font-size:11px;line-height:1.55;color:var(--muted);margin:7px 0 0}
+    .expires{border-radius:12px;padding:9px 11px;background:var(--orange-soft);color:#9a3412;text-align:right;min-width:115px}.expires small{display:block;font-size:9px}.expires strong{font-size:13px;display:block;margin-top:2px}
+    .case-strip{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);background:#f8fafc}
+    .case-item{padding:11px 12px;border-right:1px solid var(--line);min-width:0}.case-item:last-child{border-right:0}.case-item small{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.case-item strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#334155}
+    .stepper-wrap{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 12px 10px;box-shadow:0 5px 16px rgba(15,31,61,.05);margin-bottom:14px;overflow:auto}
+    .stepper{display:grid;grid-template-columns:repeat(5,minmax(118px,1fr));min-width:630px;gap:6px}
+    .step{position:relative;border:1px solid var(--line);border-radius:11px;padding:9px 10px;background:#f8fafc;color:var(--muted)}
+    .step .no{width:22px;height:22px;display:inline-grid;place-items:center;border-radius:50%;background:#e2e8f0;font-size:10px;font-weight:900;margin-right:5px}.step strong{font-size:10px}.step small{display:block;font-size:8.5px;margin-top:5px;line-height:1.35}
+    .step.active{background:var(--blue-soft);border-color:#9ec0ff;color:#1d4ed8}.step.active .no{background:var(--blue);color:#fff}.step.done{background:var(--green-soft);border-color:#a7f3d0;color:#047857}.step.done .no{background:var(--green);color:#fff}
+    .screen{display:none}.screen.active{display:block;animation:fadeIn .22s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+    .card-head{padding:16px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .card-head h2{margin:0;color:var(--navy);font-size:17px}.card-head p{font-size:10px;color:var(--muted);line-height:1.55;margin:5px 0 0}.card-body{padding:16px 17px}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:800;white-space:nowrap}.badge.blue{background:var(--blue-soft);color:#1d4ed8}.badge.green{background:var(--green-soft);color:#047857}.badge.orange{background:var(--orange-soft);color:#b45309}.badge.gray{background:#f1f5f9;color:#475569}.badge.red{background:var(--red-soft);color:#be123c}
+    .notice{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:12px;padding:12px 13px;font-size:10px;line-height:1.6;margin-bottom:12px}.notice.warn{border-color:#fed7aa;background:#fff7ed;color:#9a3412}.notice.danger{border-color:#fecaca;background:#fff1f2;color:#991b1b}.notice.success{border-color:#a7f3d0;background:#ecfdf5;color:#047857}
+    .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.field.full{grid-column:1/-1}.field label{display:block;font-size:10px;color:#475569;font-weight:800;margin-bottom:6px}.field input,.field select{width:100%;height:44px;border:1px solid #cbd5e1;border-radius:11px;padding:0 12px;background:#fff;color:#1f2937;outline:none}.field input:focus,.field select:focus{border-color:#7aa5fa;box-shadow:0 0 0 3px rgba(43,110,242,.10)}
+    .input-row{display:grid;grid-template-columns:1fr 108px;gap:8px}.inline-btn{border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;border-radius:11px;font-weight:800;font-size:11px}
+    .check-line{display:flex;align-items:flex-start;gap:9px;font-size:10px;line-height:1.5;color:#334155}.check-line input{margin-top:2px;width:16px;height:16px;flex:0 0 auto;accent-color:var(--blue)}
+    .provider-list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.provider{border:1px solid var(--line);background:#fff;border-radius:11px;padding:10px 6px;text-align:center;font-size:10px;font-weight:800;color:#475569}.provider.selected{border-color:#7aa5fa;background:var(--blue-soft);color:#1d4ed8}.provider span{display:block;font-size:17px;margin-bottom:4px}
+    .auth-result{display:none;margin-top:12px}.auth-result.show{display:block}
+    .doc-overview{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
+    .doc-list{display:flex;flex-direction:column;gap:10px}.doc-row{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:11px;align-items:center;transition:.15s}.doc-row.current{border-color:#7aa5fa;box-shadow:0 0 0 3px rgba(43,110,242,.08)}.doc-row.done{border-color:#a7f3d0;background:#fbfffd}.doc-no{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900}.doc-row.done .doc-no{background:#d1fae5;color:#047857}.doc-name{font-size:12px;font-weight:800;color:#1e293b}.doc-meta{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.45}.doc-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:800;white-space:nowrap}
+    .progress-panel{border:1px solid var(--line);border-radius:14px;padding:14px;background:#f8fafc;height:max-content;position:sticky;top:92px}.progress-panel h3{font-size:12px;margin:0 0 10px;color:var(--navy)}.progress-bar{height:8px;border-radius:999px;background:#e2e8f0;overflow:hidden}.progress-fill{height:100%;background:linear-gradient(90deg,#2b6ef2,#60a5fa);transition:width .25s}.progress-label{display:flex;justify-content:space-between;margin-top:7px;color:var(--muted);font-size:9px}.mini-status-list{display:flex;flex-direction:column;gap:7px;margin-top:13px}.mini-status{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;color:#475569}.mini-status b{color:#334155}
+    .document-viewer{height:min(58vh,620px);min-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:13px;background:#dbe3ef;padding:15px;scroll-behavior:smooth}.paper{width:min(100%,720px);margin:auto;background:#fff;min-height:980px;padding:48px 45px;box-shadow:0 8px 22px rgba(15,31,61,.16);font-family:"Noto Sans KR",Arial,sans-serif}.paper h1{text-align:center;font-size:22px;margin:0 0 28px}.paper h3{font-size:14px;margin:24px 0 9px}.paper p,.paper li{font-size:11px;line-height:1.9;color:#334155}.paper .meta-table{width:100%;border-collapse:collapse;margin-bottom:20px}.paper .meta-table th,.paper .meta-table td{border:1px solid #dbe3ef;padding:8px;font-size:10px;text-align:left}.paper .meta-table th{background:#f8fafc;width:22%}.paper .agreement-box{border:1px solid #cbd5e1;padding:13px;margin:14px 0;border-radius:8px;background:#fbfdff}.paper .signature-line{margin-top:52px;border-top:1px solid #64748b;padding-top:12px;text-align:right;font-size:11px}.scroll-tip{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px;font-size:9px;color:#64748b}.scroll-tip.ready{color:#047857;font-weight:800}
+    .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:11px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800}.choice input{accent-color:var(--blue)}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}
+    .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}
+    .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
+    .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:10px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
+    .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+    .button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;color:#334155;padding:10px 14px;font-size:12px;font-weight:800}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.primary:hover{background:var(--blue-dark)}.button.secondary{background:#fff}.button.danger{background:#fff1f2;color:#be123c;border-color:#fecaca}.button.success{background:var(--green);color:#fff;border-color:var(--green)}
+    .sticky-actions{position:fixed;left:0;right:0;bottom:0;z-index:35;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:11px 18px calc(11px + var(--safe-bottom));box-shadow:0 -8px 28px rgba(15,31,61,.09)}.sticky-inner{max-width:944px;margin:auto;display:flex;gap:9px}.sticky-inner .button{flex:1}.sticky-inner .button.back{max-width:160px}
+    .complete-hero{text-align:center;padding:18px 14px 8px}.complete-icon{width:72px;height:72px;border-radius:50%;margin:0 auto 13px;background:#d1fae5;color:#047857;display:grid;place-items:center;font-size:34px;box-shadow:0 0 0 9px #ecfdf5}.complete-hero h2{margin:0;color:var(--navy);font-size:21px}.complete-hero p{font-size:10px;line-height:1.6;color:var(--muted)}
+    .certificate{border:1px solid var(--line);border-radius:14px;background:#fbfdff;padding:14px}.certificate-head{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:9px}.certificate-head strong{font-size:13px;color:var(--navy)}
+    .footer{padding:18px 15px 28px;text-align:center;color:#64748b;font-size:9px;line-height:1.6}.footer a{color:#475569;text-decoration:underline}
+    .toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,16px);background:#0f172a;color:#fff;border-radius:11px;padding:11px 14px;font-size:10px;opacity:0;pointer-events:none;transition:.2s;z-index:80;max-width:calc(100vw - 32px);text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:18px;z-index:70}.modal-backdrop.show{display:flex}.modal{background:#fff;border-radius:18px;width:min(520px,100%);max-height:88vh;overflow:auto;box-shadow:0 28px 80px rgba(0,0,0,.28)}.modal-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}.modal-head h3{margin:0;font-size:15px;color:var(--navy)}.modal-close{border:0;background:transparent;font-size:18px;color:#64748b}.modal-body{padding:16px 17px}.modal-actions{padding:12px 17px;border-top:1px solid var(--line);display:flex;gap:8px}.modal-actions button{flex:1}
+    .security-points{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.security-point{border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff}.security-point strong{display:block;font-size:10px;color:#334155}.security-point small{display:block;font-size:8.5px;line-height:1.45;color:#64748b;margin-top:4px}
+    .hidden{display:none!important}
+    @media(max-width:760px){
+      .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
+      .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.security-points{grid-template-columns:1fr}.sticky-inner .button.back{max-width:110px}.demo-bar{align-items:flex-start}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}
+    }
+    @media(max-width:390px){.brand-text small{max-width:190px}.status-summary h1{font-size:18px}.case-item{padding:10px 9px}.button{font-size:11px}.paper{padding:28px 18px}.input-row{grid-template-columns:1fr 96px}}
+    @media print{.site-header,.demo-bar,.stepper-wrap,.sticky-actions,.footer,.toast{display:none!important}.main{max-width:none;padding:0}.screen{display:none!important}.screen#printScreen{display:block!important}.card{box-shadow:none;border:0}.certificate{border:0}.app-shell{display:block}}
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">T&G</div>
+        <div class="brand-text"><strong>비대면 전자서명</strong><small>손해사정 동의문서 고객 전용 화면</small></div>
+      </div>
+      <div class="secure-badge">🔒 <span>보안 접속</span><span>· TLS 암호화</span></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="demo-bar" id="demoBar">
+      <span><b>프로토타입 안내</b> — 관리자 시스템에서 발송된 보안 URL로 접속한 상황을 재현합니다. 실제 본인인증·PDF/TSA 저장은 서버 API 연동이 필요합니다.</span>
+      <button type="button" id="demoModeBtn">오류 화면 테스트</button>
+    </div>
+
+    <section class="status-top" id="requestSummary">
+      <div class="status-summary">
+        <div><h1 id="requestTitle">전자서명 요청을 확인해 주세요</h1><p id="requestDescription">본인확인 후 요청된 여러 동의문서를 차례대로 확인하고 한 번의 자필서명으로 제출할 수 있습니다.</p></div>
+        <div class="expires"><small>링크 남은 시간</small><strong id="expiryCountdown">47:59:59</strong></div>
+      </div>
+      <div class="case-strip">
+        <div class="case-item"><small>요청번호</small><strong id="summaryRequestNo">CON-20260721-0101</strong></div>
+        <div class="case-item"><small>보험사</small><strong id="summaryInsurer">DB손해보험</strong></div>
+        <div class="case-item"><small>사고번호</small><strong id="summaryClaimNo">DB-2026-12****</strong></div>
+        <div class="case-item"><small>요청 문서</small><strong><span id="summaryDocCount">4</span>건</strong></div>
+      </div>
+    </section>
+
+    <div class="stepper-wrap">
+      <div class="stepper" id="stepper">
+        <div class="step active" data-step="1"><span class="no">1</span><strong>요청 확인</strong><small>링크·서명자 확인</small></div>
+        <div class="step" data-step="2"><span class="no">2</span><strong>본인인증</strong><small>휴대폰 본인확인</small></div>
+        <div class="step" data-step="3"><span class="no">3</span><strong>문서 확인</strong><small>문서별 열람·동의</small></div>
+        <div class="step" data-step="4"><span class="no">4</span><strong>자필서명</strong><small>서명 입력·최종 확인</small></div>
+        <div class="step" data-step="5"><span class="no">5</span><strong>제출 완료</strong><small>무결성·증적 생성</small></div>
+      </div>
+    </div>
+
+    <section class="screen active" data-screen="1" id="screen1">
+      <div class="card">
+        <div class="card-head"><div><h2>전자서명 요청 안내</h2><p>요청 정보가 본인의 손해사정 건과 일치하는지 먼저 확인해 주세요.</p></div><span class="badge blue">URL 검증 완료</span></div>
+        <div class="card-body">
+          <div class="notice">문자 또는 알림톡으로 받은 링크는 <b>본인만 사용</b>해야 합니다. 링크나 인증번호를 담당자 또는 다른 사람에게 전달하지 마세요.</div>
+          <table class="summary-table">
+            <tr><th>서명 요청자</th><td>T&G 손해사정 · 담당 김수현</td></tr>
+            <tr><th>서명 대상자</th><td><span id="introSignerName">홍*동</span> · <span id="introRole">피보험자</span></td></tr>
+            <tr><th>요청 목적</th><td>누수사고 손해사정 조사 및 관련 개인정보 처리 동의</td></tr>
+            <tr><th>요청 문서</th><td id="introDocs">개인정보 수집·이용 동의서 외 3건</td></tr>
+            <tr><th>링크 유효기간</th><td id="introExpiry">2026-07-23 10:30까지</td></tr>
+          </table>
+          <div style="height:12px"></div>
+          <label class="check-line"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
+          <div style="height:11px"></div>
+          <div class="security-points">
+            <div class="security-point"><strong>본인인증</strong><small>휴대폰 본인확인 거래번호와 인증 결과를 기록합니다.</small></div>
+            <div class="security-point"><strong>문서 무결성</strong><small>요청 당시 양식 버전과 내용을 Snapshot으로 고정합니다.</small></div>
+            <div class="security-point"><strong>서명 증적</strong><small>접속·동의·서명 시각과 최종 해시를 저장합니다.</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="2" id="screen2">
+      <div class="card">
+        <div class="card-head"><div><h2>휴대폰 본인인증</h2><p>전자서명을 요청받은 본인이 맞는지 인증합니다.</p></div><span class="badge orange" id="authStatusBadge">인증 전</span></div>
+        <div class="card-body">
+          <div class="notice warn">관리자에게 등록된 서명자 성명·휴대폰번호와 인증기관에서 확인된 정보가 일치해야 다음 단계로 진행됩니다.</div>
+          <div class="form-grid">
+            <div class="field"><label for="authName">성명</label><input id="authName" value="홍길동" autocomplete="name" /></div>
+            <div class="field"><label for="authBirth">생년월일</label><input id="authBirth" value="19850314" inputmode="numeric" maxlength="8" placeholder="YYYYMMDD" /></div>
+            <div class="field"><label for="authCarrier">통신사</label><select id="authCarrier"><option>SKT</option><option>KT</option><option>LG U+</option><option>알뜰폰</option></select></div>
+            <div class="field"><label for="authPhone">휴대폰번호</label><input id="authPhone" value="01012341234" inputmode="tel" maxlength="11" /></div>
+            <div class="field full"><label>본인인증 기관</label>
+              <div class="provider-list" id="providerList">
+                <button class="provider selected" type="button" data-provider="NICE"><span>📱</span>NICE</button>
+                <button class="provider" type="button" data-provider="PASS"><span>🛡️</span>PASS</button>
+                <button class="provider" type="button" data-provider="카카오"><span>💬</span>카카오</button>
+                <button class="provider" type="button" data-provider="네이버"><span>Ⓝ</span>네이버</button>
+              </div>
+            </div>
+            <div class="field full"><label for="authCode">인증번호</label><div class="input-row"><input id="authCode" inputmode="numeric" maxlength="6" placeholder="인증번호 6자리" /><button type="button" class="inline-btn" id="sendCodeBtn">인증번호 받기</button></div></div>
+          </div>
+          <div style="height:12px"></div>
+          <label class="check-line"><input type="checkbox" id="authConsent" /> 본인확인을 위해 성명, 생년월일, 휴대폰번호가 인증기관에 제공되는 것에 동의합니다.</label>
+          <div class="auth-result notice success" id="authResult"><b>본인확인 완료</b><br/>성명과 휴대폰번호가 요청 정보와 일치합니다. 인증 거래번호 <span id="authTx">NICE_TX_DEMO</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="3" id="screen3">
+      <div class="card">
+        <div class="card-head"><div><h2>전자문서 확인 및 동의</h2><p>각 문서를 끝까지 확인한 뒤 문서별로 동의 여부를 선택해 주세요.</p></div><span class="badge blue"><span id="reviewDoneCount">0</span>/<span id="reviewTotalCount">4</span> 확인</span></div>
+        <div class="card-body">
+          <div class="doc-overview">
+            <div class="doc-list" id="docList"></div>
+            <aside class="progress-panel">
+              <h3>문서 확인 진행률</h3>
+              <div class="progress-bar"><div class="progress-fill" id="docProgressFill" style="width:0%"></div></div>
+              <div class="progress-label"><span id="docProgressText">0건 완료</span><b id="docProgressPercent">0%</b></div>
+              <div class="mini-status-list" id="docMiniStatus"></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="viewerCard">
+        <div class="card-head"><div><h2 id="viewerTitle">문서를 선택해 주세요</h2><p id="viewerMeta">요청 당시 고정된 최신 유효 양식입니다.</p></div><span class="badge gray" id="viewerBadge">미확인</span></div>
+        <div class="card-body">
+          <div class="document-viewer" id="documentViewer" tabindex="0"><div class="paper" id="paperContent"></div></div>
+          <div class="scroll-tip" id="scrollTip">↧ 문서를 끝까지 내려 확인해 주세요.</div>
+          <div class="consent-box locked" id="consentBox">
+            <div class="consent-title"><strong id="consentQuestion">위 문서의 내용을 확인하고 동의하십니까?</strong><span class="badge gray" id="consentLockBadge">열람 필요</span></div>
+            <div class="choice-row">
+              <label class="choice agree"><input type="radio" name="docConsent" value="agree" disabled /> 동의함</label>
+              <label class="choice reject"><input type="radio" name="docConsent" value="reject" disabled /> 동의하지 않음</label>
+            </div>
+          </div>
+          <div class="doc-nav"><button class="button secondary" type="button" id="prevDocBtn">이전 문서</button><button class="button primary" type="button" id="saveDocBtn">동의 저장 · 다음 문서</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="4" id="screen4">
+      <div class="card">
+        <div class="card-head"><div><h2>자필서명 및 최종 제출</h2><p>입력한 서명은 동의한 모든 전자문서의 지정된 서명 영역에 적용됩니다.</p></div><span class="badge green">문서 확인 완료</span></div>
+        <div class="card-body">
+          <div class="signature-layout">
+            <div>
+              <div class="canvas-card">
+                <div class="consent-title"><strong>화면에 직접 서명해 주세요</strong><span class="badge blue">필수</span></div>
+                <div class="canvas-shell" id="canvasShell"><canvas id="signatureCanvas"></canvas><div class="canvas-placeholder" id="canvasPlaceholder">손가락 또는 마우스로 서명</div></div>
+                <div class="canvas-tools"><button type="button" id="clearSignatureBtn">서명 지우기</button><button type="button" id="undoSignatureBtn">한 획 되돌리기</button></div>
+                <div class="typed-sign"><label for="typedName">서명자 성명 확인</label><input id="typedName" value="홍길동" /></div>
+                <div class="sign-preview" id="typedPreview">홍길동</div>
+              </div>
+              <div class="final-checks">
+                <label class="check-line"><input type="checkbox" id="finalOwnerCheck" /> 위 서명은 본인이 직접 작성했으며, 타인에게 인증번호 또는 링크를 전달하지 않았습니다.</label>
+                <label class="check-line"><input type="checkbox" id="finalContentCheck" /> 동의한 전자문서의 내용, 문서 버전 및 동의 결과를 최종 확인했습니다.</label>
+                <label class="check-line"><input type="checkbox" id="finalEvidenceCheck" /> 서명 시각, 접속환경, 인증 거래번호, 문서 해시 등이 전자서명 증적에 포함되는 것에 동의합니다.</label>
+              </div>
+            </div>
+            <aside class="progress-panel">
+              <h3>최종 제출 정보</h3>
+              <table class="summary-table">
+                <tr><th>서명자</th><td id="finalSigner">홍길동 / 피보험자</td></tr>
+                <tr><th>본인인증</th><td id="finalAuth">NICE 인증 완료</td></tr>
+                <tr><th>동의 문서</th><td id="finalDocs">4건</td></tr>
+                <tr><th>미동의 문서</th><td id="finalRejected">0건</td></tr>
+                <tr><th>요청번호</th><td id="finalRequestNo">CON-20260721-0101</td></tr>
+              </table>
+              <div class="notice warn" style="margin:12px 0 0">제출 후에는 문서 내용과 서명을 수정할 수 없습니다. 수정이 필요하면 담당자에게 새 요청을 받아야 합니다.</div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="5" id="screen5">
+      <div class="card" id="printScreen">
+        <div class="complete-hero"><div class="complete-icon">✓</div><h2>전자서명이 완료되었습니다</h2><p>서명된 문서는 무결성 봉인 후 담당 손해사정 시스템으로 안전하게 전달됩니다.</p></div>
+        <div class="card-body">
+          <div class="certificate">
+            <div class="certificate-head"><strong>전자서명 완료 확인</strong><span class="badge green">제출 완료</span></div>
+            <table class="summary-table">
+              <tr><th>요청번호</th><td id="completeRequestNo">-</td></tr>
+              <tr><th>사고번호</th><td id="completeClaimNo">-</td></tr>
+              <tr><th>서명자</th><td id="completeSigner">-</td></tr>
+              <tr><th>완료 문서</th><td id="completeDocs">-</td></tr>
+              <tr><th>본인확인 거래번호</th><td id="completeAuthTx">-</td></tr>
+              <tr><th>서명 완료 시각</th><td id="completeAt">-</td></tr>
+              <tr><th>전자서명 거래 ID</th><td id="completeSignTx">-</td></tr>
+              <tr><th>최종 SHA-256</th><td class="hash" id="completeHash">-</td></tr>
+            </table>
+          </div>
+          <div class="notice success" style="margin-top:12px"><b>안내</b><br/>완료된 전자문서 사본 제공 방식은 보험사·손해사정사의 정책에 따라 문자 링크, 이메일 또는 담당자를 통해 안내됩니다.</div>
+          <div class="doc-nav"><button class="button secondary" type="button" id="printBtn">완료 확인서 인쇄</button><button class="button primary" type="button" id="closeBtn">화면 종료</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="error" id="screenError">
+      <div class="card"><div class="complete-hero"><div class="complete-icon" style="background:#fee2e2;color:#b91c1c;box-shadow:0 0 0 9px #fff1f2">!</div><h2 id="errorTitle">링크를 사용할 수 없습니다</h2><p id="errorMessage">보안 링크가 만료되었거나 이미 사용되었습니다.</p></div><div class="card-body"><div class="notice danger" id="errorDetail">담당 손해사정사에게 새 전자서명 요청을 보내 달라고 요청해 주세요.</div><button class="button primary" type="button" style="width:100%" id="retryLinkBtn">정상 화면으로 돌아가기</button></div></div>
+    </section>
+  </main>
+
+  <div class="sticky-actions" id="stickyActions">
+    <div class="sticky-inner"><button class="button secondary back" type="button" id="backBtn">이전</button><button class="button primary" type="button" id="nextBtn">본인인증 진행</button></div>
+  </div>
+
+  <footer class="footer">T&G 손해사정 비대면 전자서명 시스템 · 고객지원 02-0000-0000<br/>개인정보 처리방침 · 전자서명 이용약관 · 시스템 버전 customer v0.1</footer>
+</div>
+
+<div class="modal-backdrop" id="submitModal">
+  <div class="modal">
+    <div class="modal-head"><h3>전자서명을 최종 제출하시겠습니까?</h3><button class="modal-close" type="button" data-close="submitModal">×</button></div>
+    <div class="modal-body"><div class="notice warn">제출과 동시에 문서 Snapshot, 동의 결과, 자필서명, 본인인증 거래정보를 결합해 전자서명 증적을 생성합니다.</div><table class="summary-table"><tr><th>동의 문서</th><td id="modalAgreedDocs">-</td></tr><tr><th>미동의 문서</th><td id="modalRejectedDocs">-</td></tr><tr><th>서명자</th><td id="modalSigner">-</td></tr></table></div>
+    <div class="modal-actions"><button class="button secondary" type="button" data-close="submitModal">취소</button><button class="button primary" type="button" id="confirmSubmitBtn">최종 제출</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="demoModal">
+  <div class="modal">
+    <div class="modal-head"><h3>링크 상태 테스트</h3><button class="modal-close" type="button" data-close="demoModal">×</button></div>
+    <div class="modal-body"><p style="font-size:11px;color:#64748b;line-height:1.6">실제 서비스에서는 서버가 URL 토큰 해시, 만료시각, 1회 사용 여부, 요청 상태를 확인해 아래 화면으로 분기합니다.</p><div class="doc-nav"><button class="button danger demo-error" data-error="expired" type="button">만료 링크</button><button class="button danger demo-error" data-error="used" type="button">이미 완료</button></div><div class="doc-nav"><button class="button danger demo-error" data-error="invalid" type="button">잘못된 토큰</button><button class="button secondary" id="resetDemoBtn" type="button">진행 초기화</button></div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const request = {
+    requestNo: 'CON-20260721-0101',
+    token: new URLSearchParams(location.search).get('token') || 'demo-c3f8e4a9-82bc-4a11-b1e9',
+    insurer: 'DB손해보험',
+    claimNo: 'DB-2026-123456',
+    maskedClaimNo: 'DB-2026-12****',
+    signer: { name: '홍길동', maskedName: '홍*동', role: '피보험자', phone: '01012341234', birth: '19850314' },
+    sender: 'T&G 손해사정 · 김수현',
+    issuedAt: '2026-07-21 10:30:00',
+    expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    authProvider: 'NICE',
+    authTransactionId: null,
+    identityVerifiedAt: null,
+    documents: [
+      {
+        id: 'TPL-DB-PI-001-v1.3', code: 'DB_PERSONAL_001', version: 'v1.3', insurer: 'DB손해보험',
+        name: '개인정보 수집·이용 동의서', category: '개인정보', required: true,
+        summary: '손해사정 업무 수행을 위한 일반 개인정보의 수집·이용',
+        sections: [
+          ['1. 수집·이용 목적','보험사고 조사, 손해액 및 보험금 산정, 조사 결과 보고, 민원 및 분쟁 대응을 위해 개인정보를 수집·이용합니다.'],
+          ['2. 수집 항목','성명, 생년월일, 주소, 연락처, 보험계약 정보, 사고 및 피해 관련 정보, 보험금 지급 관련 정보'],
+          ['3. 보유·이용 기간','동의일로부터 손해사정 업무 종료 및 관련 법령상 보존기간까지 보유·이용합니다.'],
+          ['4. 동의 거부 권리','귀하는 동의를 거부할 권리가 있습니다. 다만 필수정보 동의를 거부하면 손해사정 업무 수행이 제한될 수 있습니다.']
+        ]
+      },
+      {
+        id: 'TPL-DB-SENS-001-v1.1', code: 'DB_SENSITIVE_001', version: 'v1.1', insurer: 'DB손해보험',
+        name: '민감정보 및 고유식별정보 처리 동의서', category: '민감·고유식별정보', required: true,
+        summary: '질병·상해 정보와 고유식별정보 처리에 대한 별도 동의',
+        sections: [
+          ['1. 민감정보 처리','질병·상해 정보, 진료기록, 기왕증, 상병명 및 사고 조사기록을 보상 심사와 손해사정 업무를 위해 처리합니다.'],
+          ['2. 고유식별정보 처리','관련 법령에 따라 업무 수행에 불가피한 범위에서 주민등록번호 등 고유식별정보를 처리할 수 있습니다.'],
+          ['3. 제3자 제공 및 위탁','보험회사, 의료기관, 조사기관 및 인증기관에 업무 목적 범위에서 제공하거나 처리를 위탁할 수 있습니다.'],
+          ['4. 별도 동의','일반 개인정보 동의와 구분하여 민감정보 및 고유식별정보 처리에 별도로 동의합니다.']
+        ]
+      },
+      {
+        id: 'TPL-DB-SITE-001-v2.0', code: 'DB_SITE_001', version: 'v2.0', insurer: 'DB손해보험',
+        name: '현장조사 및 사진 촬영 동의서', category: '현장조사', required: true,
+        summary: '사고 현장 출입, 조사, 사진 촬영 및 분석 이용 동의',
+        sections: [
+          ['1. 현장조사 동의','누수 원인과 피해 범위를 확인하기 위해 담당자가 사고 현장에 출입하고 필요한 조사를 수행하는 것에 동의합니다.'],
+          ['2. 사진·영상 촬영','손해사정 증빙을 위해 사고 현장, 피해물 및 관련 설비의 사진 또는 영상을 촬영할 수 있습니다.'],
+          ['3. 분석 목적 이용','촬영 자료는 손해액 산정, 피해 범위 확인, 보고서 작성 및 품질 검증 목적으로 이용됩니다.'],
+          ['4. 주의사항','사생활과 무관한 영역은 촬영하지 않으며, 업무 목적을 달성한 뒤 관련 정책에 따라 파기 또는 분리 보관합니다.']
+        ]
+      },
+      {
+        id: 'TPL-DB-DELEGATE-001-v1.0', code: 'DB_DELEGATE_001', version: 'v1.0', insurer: 'DB손해보험',
+        name: '손해사정 조사 업무 위임 및 확인서', category: '위임·확인', required: false,
+        summary: '자료 열람·제출과 조사 협조에 관한 위임 및 확인',
+        sections: [
+          ['1. 위임 범위','보험사고와 관련된 자료의 열람·확인, 현장조사, 관계기관 사실조회 및 조사 결과 제출 업무를 위임합니다.'],
+          ['2. 위임 제한','본 위임은 해당 사고의 손해사정 업무에 한하며, 업무 목적을 벗어난 권한은 포함하지 않습니다.'],
+          ['3. 철회 방법','업무 완료 전 담당자에게 서면 또는 전자적 방법으로 위임 철회를 요청할 수 있습니다.'],
+          ['4. 확인 사항','본인은 위임 범위와 처리 절차에 대한 설명을 확인하였으며 자발적인 의사에 따라 선택합니다.']
+        ]
+      }
+    ]
+  };
+
+  const state = {
+    currentStep: 1,
+    verified: false,
+    provider: 'NICE',
+    sentCode: false,
+    authCode: null,
+    currentDocIndex: 0,
+    docs: request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null})),
+    strokes: [],
+    hasSignature: false,
+    submitted: false,
+    completedAt: null,
+    signTransactionId: null,
+    finalHash: null
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const screens = [...document.querySelectorAll('.screen')];
+  const steps = [...document.querySelectorAll('.step')];
+  const radios = [...document.querySelectorAll('input[name="docConsent"]')];
+  let toastTimer;
+  let countdownTimer;
+  let drawing = false;
+  let currentStroke = [];
+  let ctx;
+  let canvas;
+  let resizeTimer;
+
+  function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+  function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2300);}
+  function maskPhone(phone){return phone.replace(/(\d{3})(\d{4})(\d{4})/,'$1-****-$3');}
+  function formatDate(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
+  function formatExpiry(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
+  async function sha256(text){
+    if(window.crypto?.subtle){const data=new TextEncoder().encode(text);const digest=await crypto.subtle.digest('SHA-256',data);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+    // 로컬 파일처럼 Web Crypto를 사용할 수 없는 환경을 위한 프로토타입용 256비트 대체값.
+    const seeds=[0x811c9dc5,0x9e3779b9,0x85ebca6b,0xc2b2ae35,0x27d4eb2f,0x165667b1,0xd3a2646c,0xfd7046c5];
+    const values=seeds.map((seed,index)=>{let h=seed>>>0;for(let i=0;i<text.length;i++){h^=(text.charCodeAt(i)+(index+1)*17)&0xffff;h=Math.imul(h,0x01000193);h^=h>>>13;h=Math.imul(h,0x85ebca6b);h^=h>>>16;}return (h>>>0).toString(16).padStart(8,'0');});
+    return values.join('');
+  }
+
+  function hydrateRequest(){
+    $('summaryRequestNo').textContent=request.requestNo;
+    $('summaryInsurer').textContent=request.insurer;
+    $('summaryClaimNo').textContent=request.maskedClaimNo;
+    $('summaryDocCount').textContent=request.documents.length;
+    $('introSignerName').textContent=request.signer.maskedName;
+    $('introRole').textContent=request.signer.role;
+    $('introDocs').textContent=`${request.documents[0].name} 외 ${request.documents.length-1}건`;
+    $('introExpiry').textContent=`${formatExpiry(request.expiresAt)}까지`;
+    $('reviewTotalCount').textContent=request.documents.length;
+    $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
+    $('finalRequestNo').textContent=request.requestNo;
+    $('typedName').value=request.signer.name;
+    $('typedPreview').textContent=request.signer.name;
+    renderDocList();
+    selectDocument(0,false);
+    startCountdown();
+  }
+
+  function startCountdown(){
+    clearInterval(countdownTimer);
+    const update=()=>{
+      const ms=request.expiresAt-Date.now();
+      if(ms<=0){$('expiryCountdown').textContent='만료';showError('expired');clearInterval(countdownTimer);return;}
+      const total=Math.floor(ms/1000),h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;
+      $('expiryCountdown').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    };update();countdownTimer=setInterval(update,1000);
+  }
+
+  function setStep(step){
+    state.currentStep=step;
+    screens.forEach(s=>s.classList.toggle('active',String(s.dataset.screen)===String(step)));
+    steps.forEach(el=>{const n=Number(el.dataset.step);el.classList.toggle('active',n===step);el.classList.toggle('done',n<step);});
+    $('stickyActions').classList.toggle('hidden',step===5 || step==='error');
+    $('backBtn').classList.toggle('hidden',step===1);
+    const labels={1:'본인인증 진행',2:'본인인증 확인',3:'문서 확인 완료',4:'전자서명 제출'};
+    $('nextBtn').textContent=labels[step]||'다음';
+    if(step===3){renderDocList();selectDocument(state.currentDocIndex,false);}
+    if(step===4){updateFinalSummary();setTimeout(resizeCanvas,30);}
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function next(){
+    if(state.currentStep===1){
+      if(!$('requestOwnerCheck').checked){toast('본인 전자서명 진행 확인에 체크해 주세요.');return;}
+      setStep(2);return;
+    }
+    if(state.currentStep===2){verifyIdentity();return;}
+    if(state.currentStep===3){
+      const incomplete=state.docs.filter(d=>!d.consent);
+      if(incomplete.length){toast(`확인하지 않은 문서가 ${incomplete.length}건 있습니다.`);const idx=state.docs.findIndex(d=>!d.consent);selectDocument(idx,true);return;}
+      const rejectedRequired=state.docs.findIndex((d,i)=>request.documents[i].required && d.consent==='reject');
+      if(rejectedRequired>=0){toast('필수 동의서에 미동의하여 전자서명을 진행할 수 없습니다.');selectDocument(rejectedRequired,true);return;}
+      setStep(4);return;
+    }
+    if(state.currentStep===4){validateAndOpenSubmit();}
+  }
+
+  function back(){if(state.currentStep>1 && state.currentStep<5)setStep(state.currentStep-1);}
+
+  function sendCode(){
+    const name=$('authName').value.trim(),birth=$('authBirth').value.replace(/\D/g,''),phone=$('authPhone').value.replace(/\D/g,'');
+    if(!name || birth.length!==8 || phone.length<10){toast('성명, 생년월일, 휴대폰번호를 정확히 입력해 주세요.');return;}
+    if(!$('authConsent').checked){toast('본인인증 정보 제공 동의가 필요합니다.');return;}
+    state.sentCode=true;state.authCode='123456';$('authCode').value='';$('sendCodeBtn').textContent='재전송';toast('인증번호를 발송했습니다. 프로토타입 인증번호는 123456입니다.');
+  }
+
+  function verifyIdentity(){
+    if(state.verified){setStep(3);return;}
+    if(!state.sentCode){toast('먼저 인증번호를 받아 주세요.');return;}
+    if($('authCode').value.trim()!==state.authCode){toast('인증번호가 일치하지 않습니다.');return;}
+    const name=$('authName').value.trim(),phone=$('authPhone').value.replace(/\D/g,''),birth=$('authBirth').value.replace(/\D/g,'');
+    if(name!==request.signer.name || phone!==request.signer.phone || birth!==request.signer.birth){
+      $('authResult').className='auth-result notice danger show';$('authResult').innerHTML='<b>본인확인 실패</b><br/>전자서명 요청 정보와 인증 정보가 일치하지 않습니다.';$('authStatusBadge').className='badge red';$('authStatusBadge').textContent='인증 실패';toast('서명자 정보가 일치하지 않습니다.');return;
+    }
+    state.verified=true;request.authProvider=state.provider;request.authTransactionId=`${state.provider.replace(/\s/g,'')}_TX_${Date.now().toString().slice(-9)}`;request.identityVerifiedAt=new Date();
+    $('authTx').textContent=request.authTransactionId;$('authResult').className='auth-result notice success show';$('authStatusBadge').className='badge green';$('authStatusBadge').textContent='인증 완료';
+    $('finalAuth').textContent=`${state.provider} 인증 완료`;
+    setTimeout(()=>setStep(3),500);
+  }
+
+  function renderDocList(){
+    $('docList').innerHTML=request.documents.map((doc,i)=>{
+      const st=state.docs[i];const status=st.consent==='agree'?'동의 완료':st.consent==='reject'?'미동의':st.scrolled?'동의 선택 필요':'열람 필요';
+      const badge=st.consent==='agree'?'green':st.consent==='reject'?'red':st.scrolled?'orange':'gray';
+      return `<div class="doc-row ${i===state.currentDocIndex?'current':''} ${st.consent?'done':''}" data-doc-index="${i}">
+        <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)} ${doc.required?'<span class="badge orange">필수</span>':'<span class="badge gray">선택</span>'}</div><div class="doc-meta">${escapeHtml(doc.category)} · ${escapeHtml(doc.code)} · ${escapeHtml(doc.version)}<br/>${escapeHtml(doc.summary)}</div></div>
+        <button class="doc-action" type="button" data-open-doc="${i}">${status} · 열기</button></div>`;
+    }).join('');
+    document.querySelectorAll('[data-open-doc]').forEach(btn=>btn.addEventListener('click',()=>selectDocument(Number(btn.dataset.openDoc),true)));
+    updateDocProgress();
+  }
+
+  function buildPaper(doc,index){
+    return `<h1>${escapeHtml(doc.name)}</h1>
+      <table class="meta-table"><tr><th>사고번호</th><td>${escapeHtml(request.maskedClaimNo)}</td><th>서명자</th><td>${escapeHtml(request.signer.maskedName)}</td></tr><tr><th>보험사</th><td>${escapeHtml(request.insurer)}</td><th>양식 버전</th><td>${escapeHtml(doc.version)}</td></tr></table>
+      <p>본 동의서는 ${escapeHtml(request.insurer)} 보험사고의 손해사정 조사 업무와 관련하여 필요한 사항을 안내하고 정보주체의 동의를 받기 위한 전자문서입니다.</p>
+      ${doc.sections.map(([title,body])=>`<h3>${escapeHtml(title)}</h3><div class="agreement-box"><p>${escapeHtml(body)}</p></div>`).join('')}
+      <h3>${doc.sections.length+1}. 전자적 처리와 증적</h3><p>본 문서는 요청 시점의 내용과 버전이 고정되며, 본인확인 결과, 문서 열람·동의 시각, 자필서명 및 최종 문서 해시가 전자서명 증적에 포함됩니다.</p>
+      <h3>${doc.sections.length+2}. 확인 문구</h3><p>본인은 위 내용을 충분히 읽고 이해하였으며, 아래에서 동의 또는 미동의를 직접 선택합니다.</p>
+      <div class="signature-line">${formatExpiry(new Date())}<br/>서명자: ${escapeHtml(request.signer.maskedName)} (전자서명 예정)</div>
+      <div style="height:260px"></div><p style="text-align:center;color:#94a3b8">— 문서 끝 (${index+1}/${request.documents.length}) —</p>`;
+  }
+
+  function selectDocument(index,scrollToViewer){
+    state.currentDocIndex=Math.max(0,Math.min(index,request.documents.length-1));
+    const doc=request.documents[state.currentDocIndex],st=state.docs[state.currentDocIndex];
+    st.viewed=true;
+    $('viewerTitle').textContent=`${state.currentDocIndex+1}. ${doc.name}`;
+    $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · 요청 Snapshot`;
+    $('paperContent').innerHTML=buildPaper(doc,state.currentDocIndex);
+    $('documentViewer').scrollTop=0;
+    $('viewerBadge').className=`badge ${st.consent==='agree'?'green':st.consent==='reject'?'red':st.scrolled?'orange':'gray'}`;
+    $('viewerBadge').textContent=st.consent==='agree'?'동의 완료':st.consent==='reject'?'미동의':st.scrolled?'동의 선택 가능':'미확인';
+    $('consentQuestion').textContent=`“${doc.name}” 내용을 확인하고 동의하십니까?`;
+    radios.forEach(r=>{r.disabled=!st.scrolled;r.checked=r.value===st.consent;});
+    $('consentBox').classList.toggle('locked',!st.scrolled);
+    $('consentLockBadge').className=`badge ${st.scrolled?'blue':'gray'}`;$('consentLockBadge').textContent=st.scrolled?'선택 가능':'열람 필요';
+    $('scrollTip').className=`scroll-tip ${st.scrolled?'ready':''}`;$('scrollTip').textContent=st.scrolled?'✓ 문서 끝까지 확인했습니다.':'↧ 문서를 끝까지 내려 확인해 주세요.';
+    $('prevDocBtn').disabled=state.currentDocIndex===0;
+    $('saveDocBtn').textContent=state.currentDocIndex===request.documents.length-1?'동의 저장':'동의 저장 · 다음 문서';
+    renderDocList();
+    if(scrollToViewer)$('viewerCard').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function onViewerScroll(){
+    const el=$('documentViewer'),st=state.docs[state.currentDocIndex];
+    if(el.scrollTop+el.clientHeight>=el.scrollHeight-24 && !st.scrolled){
+      st.scrolled=true;radios.forEach(r=>r.disabled=false);$('consentBox').classList.remove('locked');$('consentLockBadge').className='badge blue';$('consentLockBadge').textContent='선택 가능';$('viewerBadge').className='badge orange';$('viewerBadge').textContent='동의 선택 가능';$('scrollTip').className='scroll-tip ready';$('scrollTip').textContent='✓ 문서 끝까지 확인했습니다.';renderDocList();toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
+    }
+  }
+
+  function saveDocumentConsent(){
+    const st=state.docs[state.currentDocIndex];
+    if(!st.scrolled){toast('문서를 끝까지 확인해 주세요.');return;}
+    const selected=radios.find(r=>r.checked);
+    if(!selected){toast('동의 또는 미동의를 선택해 주세요.');return;}
+    st.consent=selected.value;st.reviewedAt=new Date();renderDocList();
+    if(selected.value==='reject' && request.documents[state.currentDocIndex].required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
+    if(state.currentDocIndex<request.documents.length-1)selectDocument(state.currentDocIndex+1,true);else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 동의 결과를 저장했습니다.');}
+  }
+
+  function updateDocProgress(){
+    const done=state.docs.filter(d=>d.consent).length,total=state.docs.length,pct=Math.round(done/total*100);
+    $('reviewDoneCount').textContent=done;$('docProgressFill').style.width=`${pct}%`;$('docProgressText').textContent=`${done}건 완료`;$('docProgressPercent').textContent=`${pct}%`;
+    $('docMiniStatus').innerHTML=request.documents.map((doc,i)=>{const st=state.docs[i],label=st.consent==='agree'?'동의':st.consent==='reject'?'미동의':st.scrolled?'선택 대기':'열람 대기';return `<div class="mini-status"><b>${i+1}. ${escapeHtml(doc.name.length>18?doc.name.slice(0,18)+'…':doc.name)}</b><span>${label}</span></div>`}).join('');
+  }
+
+  function updateFinalSummary(){
+    const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
+    $('finalDocs').textContent=`${agreed}건`;$('finalRejected').textContent=`${rejected}건`;$('finalAuth').textContent=`${request.authProvider} 인증 완료`;
+  }
+
+  function setupCanvas(){
+    canvas=$('signatureCanvas');ctx=canvas.getContext('2d');
+    const pointer=(e)=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*(canvas.width/rect.width),y:(e.clientY-rect.top)*(canvas.height/rect.height)};};
+    canvas.addEventListener('pointerdown',e=>{e.preventDefault();drawing=true;currentStroke=[pointer(e)];canvas.setPointerCapture?.(e.pointerId);$('canvasPlaceholder').classList.add('hidden');});
+    canvas.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=pointer(e);currentStroke.push(p);drawSegment(currentStroke[currentStroke.length-2],p);});
+    const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;};
+    canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('pointerleave',e=>{if(drawing)end(e)});
+    resizeCanvas();
+  }
+  function resizeCanvas(){
+    if(!canvas)return;const rect=canvas.getBoundingClientRect();if(rect.width===0||rect.height===0)return;const snapshot=state.strokes.map(st=>st.map(p=>({...p})));canvas.width=Math.max(1,Math.round(rect.width*devicePixelRatio));canvas.height=Math.max(1,Math.round(rect.height*devicePixelRatio));ctx=canvas.getContext('2d');ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111827';ctx.fillStyle='#111827';ctx.lineWidth=Math.max(3,3.1*devicePixelRatio);state.strokes=snapshot;redraw();
+  }
+  function drawSegment(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  function redraw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111827';ctx.fillStyle='#111827';ctx.lineWidth=Math.max(3,3.1*devicePixelRatio);state.strokes.forEach(st=>{if(st.length===1){ctx.beginPath();ctx.arc(st[0].x,st[0].y,2.2,0,Math.PI*2);ctx.fill();return;}for(let i=1;i<st.length;i++)drawSegment(st[i-1],st[i]);});state.hasSignature=state.strokes.length>0;$('canvasPlaceholder').classList.toggle('hidden',state.hasSignature);}
+  function clearSignature(){state.strokes=[];state.hasSignature=false;redraw();}
+  function undoSignature(){state.strokes.pop();redraw();}
+
+  function validateAndOpenSubmit(){
+    if(!state.hasSignature){toast('자필서명을 입력해 주세요.');return;}
+    if($('typedName').value.trim()!==request.signer.name){toast('서명자 성명이 본인인증 정보와 일치하지 않습니다.');return;}
+    if(![$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].every(x=>x.checked)){toast('최종 확인 항목에 모두 체크해 주세요.');return;}
+    const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
+    $('modalAgreedDocs').textContent=`${agreed}건`;$('modalRejectedDocs').textContent=`${rejected}건`;$('modalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;openModal('submitModal');
+  }
+
+  async function submitSignature(){
+    $('confirmSubmitBtn').disabled=true;$('confirmSubmitBtn').textContent='증적 생성 중…';
+    const agreedDocs=request.documents.filter((_,i)=>state.docs[i].consent==='agree');
+    const evidence={requestNo:request.requestNo,tokenHash:await sha256(request.token),claimNo:request.claimNo,signer:request.signer.name,role:request.signer.role,authProvider:request.authProvider,authTransactionId:request.authTransactionId,identityVerifiedAt:request.identityVerifiedAt?.toISOString(),documents:request.documents.map((d,i)=>({id:d.id,code:d.code,version:d.version,consent:state.docs[i].consent,reviewedAt:state.docs[i].reviewedAt?.toISOString()})),signaturePointCount:state.strokes.reduce((n,s)=>n+s.length,0),userAgent:navigator.userAgent,language:navigator.language,screen:`${screen.width}x${screen.height}`,completedAt:new Date().toISOString()};
+    await new Promise(r=>setTimeout(r,900));
+    state.completedAt=new Date();state.signTransactionId=`ESIGN-${state.completedAt.toISOString().slice(0,10).replaceAll('-','')}-${String(Date.now()).slice(-8)}`;state.finalHash=await sha256(JSON.stringify(evidence)+canvas.toDataURL('image/png'));state.submitted=true;
+    closeModal('submitModal');$('confirmSubmitBtn').disabled=false;$('confirmSubmitBtn').textContent='최종 제출';
+    $('completeRequestNo').textContent=request.requestNo;$('completeClaimNo').textContent=request.maskedClaimNo;$('completeSigner').textContent=`${request.signer.name} / ${request.signer.role}`;$('completeDocs').textContent=`${agreedDocs.length}건 (${agreedDocs.map(d=>d.name).join(', ')})`;$('completeAuthTx').textContent=request.authTransactionId;$('completeAt').textContent=formatDate(state.completedAt);$('completeSignTx').textContent=state.signTransactionId;$('completeHash').textContent=state.finalHash;
+    try{localStorage.setItem(`tng-esign-${request.requestNo}`,JSON.stringify({status:'SIGNED',completedAt:state.completedAt.toISOString(),signTransactionId:state.signTransactionId,hash:state.finalHash}));}catch(e){}
+    setStep(5);
+  }
+
+  function openModal(id){$(id).classList.add('show');}
+  function closeModal(id){$(id).classList.remove('show');}
+  function showError(type){
+    const map={expired:['서명 링크가 만료되었습니다','이 보안 링크의 유효시간이 종료되었습니다.','담당 손해사정사에게 새 전자서명 요청을 보내 달라고 요청해 주세요.'],used:['이미 전자서명이 완료되었습니다','이 링크는 1회 사용이 완료되어 다시 사용할 수 없습니다.','완료 문서 사본 또는 처리 결과는 담당 손해사정사에게 문의해 주세요.'],invalid:['잘못된 접근입니다','전자서명 요청 토큰을 확인할 수 없습니다.','문자 또는 알림톡에 포함된 원래 링크를 다시 열어 주세요.']};
+    const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function resetFlow(){
+    state.currentStep=1;state.verified=false;state.sentCode=false;state.authCode=null;state.currentDocIndex=0;state.docs=request.documents.map(d=>({id:d.id,viewed:false,scrolled:false,consent:null,reviewedAt:null}));state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;$('authCode').value='';$('authResult').className='auth-result notice success';$('authStatusBadge').className='badge orange';$('authStatusBadge').textContent='인증 전';$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].forEach(x=>x.checked=false);clearSignature();closeModal('demoModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
+  }
+
+  $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);$('sendCodeBtn').addEventListener('click',sendCode);
+  $('providerList').addEventListener('click',e=>{const btn=e.target.closest('.provider');if(!btn)return;document.querySelectorAll('.provider').forEach(p=>p.classList.remove('selected'));btn.classList.add('selected');state.provider=btn.dataset.provider;});
+  $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveDocumentConsent);$('prevDocBtn').addEventListener('click',()=>selectDocument(state.currentDocIndex-1,true));
+  $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
+  $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
+  $('demoModeBtn').addEventListener('click',()=>openModal('demoModal'));document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));
+  document.querySelectorAll('.demo-error').forEach(b=>b.addEventListener('click',()=>showError(b.dataset.error)));$('resetDemoBtn').addEventListener('click',resetFlow);$('retryLinkBtn').addEventListener('click',resetFlow);
+  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(resizeCanvas,120)});
+  window.addEventListener('beforeunload',e=>{if(state.currentStep>1 && state.currentStep<5 && !state.submitted){e.preventDefault();e.returnValue='';}});
+
+  hydrateRequest();setupCanvas();setStep(1);
+})();
+</script>
+</body>
+</html>
