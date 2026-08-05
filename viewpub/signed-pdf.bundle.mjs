@@ -20363,6 +20363,24 @@ async function generateSignedPdfBytes(options) {
     signedHash
   };
 }
+async function mergePdfByteList(pdfBytesList) {
+  if (pdfBytesList.length === 0) {
+    throw new Error("\uBCD1\uD569\uD560 PDF\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  }
+  if (pdfBytesList.length === 1) {
+    return pdfBytesList[0];
+  }
+  const merged = await PDFDocument_default.create();
+  for (const bytes of pdfBytesList) {
+    const source = await PDFDocument_default.load(bytes);
+    const pageIndices = source.getPageIndices();
+    const copiedPages = await merged.copyPages(source, pageIndices);
+    for (const page of copiedPages) {
+      merged.addPage(page);
+    }
+  }
+  return merged.save();
+}
 async function downloadSignedDocuments(options) {
   const { documents, signatureDataUrl, identity, onProgress } = options;
   if (!signatureDataUrl) {
@@ -20396,6 +20414,7 @@ async function downloadSignedDocuments(options) {
 export {
   downloadSignedDocuments,
   generateSignedPdfBytes,
+  mergePdfByteList,
   sha256HexFromBytes,
   sha256HexFromText
 };

@@ -15,7 +15,7 @@ export async function GET() {
       status: 200,
       headers: {
         'Content-Type': 'application/javascript; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'no-store',
       },
     });
   } catch (error) {

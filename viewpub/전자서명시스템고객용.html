@@ -603,7 +603,7 @@
 
   function ensureSignedPdf(){
     if(!signedPdfModulePromise){
-      signedPdfModulePromise=import('/api/signed-pdf/browser');
+      signedPdfModulePromise=import(`/api/signed-pdf/browser?v=${Date.now()}`);
     }
     return signedPdfModulePromise;
   }
@@ -999,16 +999,16 @@
       },
       completedAt:completedAt.toISOString(),
       tsa:null,
+      signed_file_path:null,
     };
   }
 
-  async function uploadSignedPdf(documentId,signedBytes,signedHash){
+  async function uploadSignedPdf(signedBytes,signedHash){
     const formData=new FormData();
     formData.append('token',request.token);
     formData.append('requestNo',request.requestNo);
-    formData.append('documentId',documentId);
     formData.append('signedHash',signedHash);
-    formData.append('file',new Blob([signedBytes],{type:'application/pdf'}),`${documentId}-signed.pdf`);
+    formData.append('file',new Blob([signedBytes],{type:'application/pdf'}),`${request.requestNo}-signed.pdf`);
     const response=await fetch('/api/sign/upload',{method:'POST',body:formData});
     const result=await response.json().catch(()=>null);
     if(!response.ok){
@@ -1055,22 +1055,32 @@
       const signatureImageSha256=await sha256(signatureDataUrl);
       const completedAt=new Date();
       const evidence=await buildEvidencePayload(signatureImageSha256,completedAt);
-      const {generateSignedPdfBytes}=await ensureSignedPdf();
+      const {generateSignedPdfBytes,mergePdfByteList,sha256HexFromBytes}=await ensureSignedPdf();
       const agreeDocsWithPdf=request.documents
         .map((doc,index)=>({doc,index,consent:state.docs[index].consent}))
         .filter(item=>item.consent==='agree' && item.doc.file_path);
 
+      const signedParts=[];
       for(let i=0;i<agreeDocsWithPdf.length;i+=1){
-        const {doc,index}=agreeDocsWithPdf[i];
+        const {doc}=agreeDocsWithPdf[i];
         submitBtn.textContent=`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 생성 중…`;
-        const {bytes,signedHash}=await generateSignedPdfBytes({
+        const {bytes}=await generateSignedPdfBytes({
           filePath:doc.file_path,
           fileUrl:buildFileApiUrl(doc.file_path),
           signatureDataUrl,
           identity:verifiedUserInfo,
         });
-        submitBtn.textContent=`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 업로드 중…`;
-        const uploaded=await uploadSignedPdf(doc.id,bytes,signedHash);
+        signedParts.push(bytes);
+      }
+
+      submitBtn.textContent='서명 PDF 병합 중…';
+      const mergedBytes=await mergePdfByteList(signedParts);
+      const mergedHash=await sha256HexFromBytes(mergedBytes);
+      submitBtn.textContent='서명 PDF 업로드 중…';
+      const uploaded=await uploadSignedPdf(mergedBytes,mergedHash);
+
+      evidence.signed_file_path=uploaded.objectKey;
+      for(const {index} of agreeDocsWithPdf){
         evidence.documents[index].signedObjectKey=uploaded.objectKey;
         evidence.documents[index].signedHash=uploaded.signedHash;
       }

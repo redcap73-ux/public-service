@@ -54,17 +54,30 @@ function buildEvidenceObjectKey(requestNo: string, signTransactionId: string) {
   return `evidence/${requestNo}/${signTransactionId}.json`;
 }
 
-function buildCompletionMarkerKey(requestNo: string) {
-  return `completed/${requestNo}.json`;
-}
-
 export function computeEvidenceHash(evidence: SignEvidencePayload): string {
   return sha256HexFromText(JSON.stringify(evidence));
 }
 
-export function computeFinalHash(evidenceHash: string, signedHashes: string[]): string {
+/**
+ * finalHash = 서명된 PDF 파일들의 해시로만 구성합니다.
+ * - 문서 1개: 해당 signedHash 그대로
+ * - 문서 여러 개: 정렬 후 이어 붙인 값의 SHA-256
+ */
+export function computeFinalHash(signedHashes: string[]): string {
   const sorted = [...signedHashes].filter(Boolean).sort();
-  return sha256HexFromText(`${evidenceHash}${sorted.join('')}`);
+
+  if (sorted.length === 0) {
+    throw new CompleteSignError(
+      'VALIDATION_FAILED',
+      '서명 PDF 해시가 없어 finalHash를 만들 수 없습니다.'
+    );
+  }
+
+  if (sorted.length === 1) {
+    return sorted[0];
+  }
+
+  return sha256HexFromText(sorted.join(''));
 }
 
 function validateEvidenceAgainstSignData(
@@ -186,15 +199,25 @@ export async function completeSignRequestFromServer(
   };
 
   const evidenceHash = computeEvidenceHash(evidence);
-  const signedHashes = evidence.documents
-    .filter((doc) => doc.consent === 'agree')
-    .map((doc) => doc.signedHash ?? '')
-    .filter(Boolean);
-  const finalHash = computeFinalHash(evidenceHash, signedHashes);
+  const signedHashes = [
+    ...new Set(
+      evidence.documents
+        .filter((doc) => doc.consent === 'agree')
+        .map((doc) => doc.signedHash ?? '')
+        .filter(Boolean)
+    ),
+  ];
+  const finalHash = computeFinalHash(signedHashes);
   const evidenceObjectKey = buildEvidenceObjectKey(evidence.requestNo, signTransactionId);
+  const signedFilePath =
+    evidence.signed_file_path ||
+    evidence.documents.find((doc) => doc.consent === 'agree' && doc.signedObjectKey)
+      ?.signedObjectKey ||
+    '';
 
   const evidenceRecord = {
     ...evidence,
+    signed_file_path: signedFilePath,
     signTransactionId,
     evidenceHash,
     finalHash,
@@ -206,36 +229,21 @@ export async function completeSignRequestFromServer(
     contentType: 'application/json; charset=utf-8',
   });
 
-  await putObjectToNcp({
-    objectKey: buildCompletionMarkerKey(evidence.requestNo),
-    body: Buffer.from(
-      JSON.stringify(
-        {
-          requestNo: evidence.requestNo,
-          signTransactionId,
-          finalHash,
-          completedAt: completedAt.toISOString(),
-          tokenHash: evidence.tokenHash,
-        },
-        null,
-        2
-      ),
-      'utf8'
-    ),
-    contentType: 'application/json; charset=utf-8',
-  });
-
   let backendSynced = false;
 
   try {
     await completePublicServiceSignFromServer({
       token: body.token,
+      requestNo: evidence.requestNo,
       signTransactionId,
       finalHash,
       evidenceHash,
       completedAt: completedAt.toISOString(),
       evidenceObjectKey,
-      evidence,
+      signedFilePath,
+      name: evidence.signer.name,
+      phone: evidence.signer.phone,
+      ci: evidence.auth.ci,
     });
     backendSynced = true;
   } catch (error) {
@@ -257,12 +265,15 @@ export async function completeSignRequestFromServer(
   };
 }
 
-export function buildSignedObjectKey(requestNo: string, documentId: string) {
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/[-:TZ.]/g, '')
-    .slice(0, 14);
-  return `signed/${requestNo}/${documentId}/${timestamp}-signed.pdf`;
+export function buildSignedObjectKey(requestNo: string) {
+  const dateFolder = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+  return `signed/${dateFolder}/${requestNo}/signed.pdf`;
 }
 
 export function verifySignedUploadHash(fileBuffer: Buffer, signedHash: string) {

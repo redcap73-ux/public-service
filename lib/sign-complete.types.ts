@@ -43,6 +43,8 @@ export type SignEvidencePayload = {
   };
   completedAt: string;
   tsa: null;
+  /** NCP 서명 PDF 전체 경로 (예: signed/2026-08-05/REQ-xxx/signed.pdf) */
+  signed_file_path?: string | null;
 };
 
 export type CompleteSignRequestBody = {

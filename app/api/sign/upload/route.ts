@@ -2,36 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   CompleteSignError,
   buildSignedObjectKey,
-  completeSignRequestFromServer,
   verifySignedUploadHash,
 } from '@/lib/sign-complete.server';
-import type { CompleteSignRequestBody } from '@/lib/sign-complete.types';
 import { fetchPublicServiceSignFromServer } from '@/lib/public-service.server';
 import { putObjectToNcp } from '@/lib/ncp-storage.server';
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-
-function getClientIp(request: NextRequest) {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0]?.trim() || undefined;
-  }
-
-  return request.headers.get('x-real-ip') ?? undefined;
-}
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const token = String(formData.get('token') ?? '').trim();
     const requestNo = String(formData.get('requestNo') ?? '').trim();
-    const documentId = String(formData.get('documentId') ?? '').trim();
     const signedHash = String(formData.get('signedHash') ?? '').trim();
     const file = formData.get('file');
 
-    if (!token || !requestNo || !documentId || !signedHash) {
+    if (!token || !requestNo || !signedHash) {
       return NextResponse.json(
-        { error: 'token, requestNo, documentId, signedHash 값이 필요합니다.' },
+        { error: 'token, requestNo, signedHash 값이 필요합니다.' },
         { status: 400 }
       );
     }
@@ -58,10 +46,8 @@ export async function POST(request: NextRequest) {
         status?: string;
         completed_at?: string | null;
       };
-      documents?: Array<{ id?: string | number }>;
     };
     const apiRequest = signPayload?.request;
-    const apiDocuments = Array.isArray(signPayload?.documents) ? signPayload.documents : [];
 
     if (!signPayload?.ok || !apiRequest) {
       return NextResponse.json({ error: '요청 정보를 찾을 수 없습니다.' }, { status: 404 });
@@ -78,15 +64,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'requestNo가 일치하지 않습니다.' }, { status: 422 });
     }
 
-    const apiDocument = apiDocuments.find((doc) => String(doc.id) === documentId);
-    if (!apiDocument) {
-      return NextResponse.json({ error: '문서 ID를 찾을 수 없습니다.' }, { status: 422 });
-    }
-
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     verifySignedUploadHash(fileBuffer, signedHash);
 
-    const objectKey = buildSignedObjectKey(requestNo, documentId);
+    const objectKey = buildSignedObjectKey(requestNo);
     const uploaded = await putObjectToNcp({
       objectKey,
       body: fileBuffer,
@@ -95,7 +76,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      documentId,
       objectKey: uploaded.objectKey,
       signedHash,
       contentType: uploaded.contentType,
