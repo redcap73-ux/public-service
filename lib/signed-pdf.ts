@@ -480,6 +480,69 @@ export type SignedDocumentInput = {
   label?: string;
 };
 
+export async function sha256HexFromBytes(bytes: Uint8Array): Promise<string> {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const normalized = new Uint8Array(bytes.byteLength);
+    normalized.set(bytes);
+    const digest = await crypto.subtle.digest('SHA-256', normalized);
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  throw new Error('SHA-256 계산을 위해 Web Crypto API가 필요합니다.');
+}
+
+export async function sha256HexFromText(text: string): Promise<string> {
+  return sha256HexFromBytes(new TextEncoder().encode(text));
+}
+
+export async function generateSignedPdfBytes(options: {
+  filePath: string;
+  fileUrl: string;
+  signatureDataUrl: string;
+  identity?: IdentityFormValues | null;
+  pdfBytes?: ArrayBuffer;
+}): Promise<{ bytes: Uint8Array; signedHash: string }> {
+  const { filePath, fileUrl, signatureDataUrl, identity, pdfBytes: providedPdfBytes } = options;
+
+  if (!signatureDataUrl) {
+    throw new Error('서명이 없습니다. 먼저 서명해 주세요.');
+  }
+
+  if (!filePath.trim()) {
+    throw new Error('PDF file_path가 없습니다.');
+  }
+
+  let pdfBytes = providedPdfBytes;
+
+  if (!pdfBytes) {
+    const response = await fetch(fileUrl, { cache: 'no-store' });
+
+    if (!response.ok) {
+      throw new Error(`PDF를 가져오지 못했습니다. (${response.status})`);
+    }
+
+    pdfBytes = await response.arrayBuffer();
+  }
+
+  if (identity) {
+    const filled = await fillAcroFormIdentity(pdfBytes, identity);
+
+    if (filled) {
+      pdfBytes = toArrayBuffer(filled.bytes);
+    }
+  }
+
+  const stamped = await stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl);
+  const signedBytes =
+    stamped ?? (await embedSignatureOnLastPage(pdfBytes, signatureDataUrl));
+  const signedHash = await sha256HexFromBytes(signedBytes);
+
+  return {
+    bytes: signedBytes,
+    signedHash,
+  };
+}
+
 export async function downloadSignedDocuments(options: {
   documents: SignedDocumentInput[];
   signatureDataUrl: string;
@@ -502,27 +565,18 @@ export async function downloadSignedDocuments(options: {
 
     onProgress?.(`(${index + 1}/${documents.length}) ${label} 서명본 생성 중...`);
 
-    const response = await fetch(document.fileUrl, { cache: 'no-store' });
-
-    if (!response.ok) {
-      throw new Error(`${label} PDF를 가져오지 못했습니다. (${response.status})`);
-    }
-
-    let pdfBytes = await response.arrayBuffer();
-
     if (identity) {
       onProgress?.(`(${index + 1}/${documents.length}) ${label} 본인정보 반영 중...`);
-      const filled = await fillAcroFormIdentity(pdfBytes, identity);
-      if (filled) {
-        pdfBytes = toArrayBuffer(filled.bytes);
-      }
     }
 
     onProgress?.(`(${index + 1}/${documents.length}) ${label} 서명 넣는 중...`);
 
-    const stamped = await stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl);
-    const signedBytes =
-      stamped ?? (await embedSignatureOnLastPage(pdfBytes, signatureDataUrl));
+    const { bytes: signedBytes } = await generateSignedPdfBytes({
+      filePath: document.filePath,
+      fileUrl: document.fileUrl,
+      signatureDataUrl,
+      identity,
+    });
     const fileName = getFileNameFromPath(document.filePath, index);
 
     if (index > 0) {

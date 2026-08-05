@@ -2,6 +2,9 @@ import 'server-only';
 
 const TEST_URL = 'http://100.65.181.94/api/publicservice/test';
 const SIGN_URL = 'http://100.65.181.94/api/publicservice/sign';
+const COMPLETE_URL =
+  process.env.PUBLIC_SERVICE_COMPLETE_URL ??
+  'http://100.65.181.94/api/publicservice/sign/complete';
 
 function getApiKey() {
   const apiKey = process.env.MY_SECRET_API_KEY;
@@ -13,11 +16,12 @@ function getApiKey() {
   return apiKey;
 }
 
-async function fetchWithApiKey(url: string) {
+async function fetchWithApiKey(url: string, init?: RequestInit) {
   const response = await fetch(url, {
-    method: 'GET',
+    ...init,
     headers: {
       'x-api-key': getApiKey(),
+      ...(init?.headers ?? {}),
     },
     cache: 'no-store',
   });
@@ -26,7 +30,16 @@ async function fetchWithApiKey(url: string) {
     throw new Error(`외부 API 호출 실패: 상태 코드 ${response.status}`);
   }
 
-  return response.json();
+  if (response.status === 204) {
+    return null;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return response.json();
+  }
+
+  return response.text();
 }
 
 export async function fetchPublicServiceTestFromServer() {
@@ -38,4 +51,22 @@ export async function fetchPublicServiceSignFromServer(token: string) {
   requestUrl.searchParams.set('token', token);
 
   return fetchWithApiKey(requestUrl.toString());
+}
+
+export async function completePublicServiceSignFromServer(body: {
+  token: string;
+  signTransactionId: string;
+  finalHash: string;
+  evidenceHash: string;
+  completedAt: string;
+  evidenceObjectKey: string;
+  evidence: unknown;
+}) {
+  return fetchWithApiKey(COMPLETE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }

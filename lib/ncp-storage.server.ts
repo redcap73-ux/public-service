@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 function getRequiredEnv(name: string) {
   const value = process.env[name];
@@ -105,5 +105,32 @@ export async function getObjectFromNcp(filePath: string) {
     contentType: response.ContentType || getContentTypeFromKey(objectKey),
     contentLength: response.ContentLength,
     fileName: getFileNameFromKey(objectKey),
+  };
+}
+
+export async function putObjectToNcp(options: {
+  objectKey: string;
+  body: Buffer | Uint8Array;
+  contentType?: string;
+}) {
+  const objectKey = normalizeObjectKey(options.objectKey);
+  const client = getS3Client();
+  const bucket = getNcpBucketName();
+  const body =
+    options.body instanceof Buffer ? options.body : Buffer.from(options.body);
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: body,
+      ContentType: options.contentType || getContentTypeFromKey(objectKey),
+    })
+  );
+
+  return {
+    objectKey,
+    sizeBytes: body.length,
+    contentType: options.contentType || getContentTypeFromKey(objectKey),
   };
 }

@@ -375,7 +375,11 @@
   let pdfRenderGeneration = 0;
   let pdfJsPromise = null;
   let portOneModulePromise = null;
+  let acroformModulePromise = null;
+  let signedPdfModulePromise = null;
   let isPortOneVerifying = false;
+  let verifiedUserInfo = null;
+  const filledPdfUrls = {};
   const PDFJS_VERSION = '3.11.174';
   const PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
 
@@ -454,6 +458,7 @@
       required:true,
       summary:name,
       file_path:doc.file_path||'',
+      document_hash:doc.document_hash||'',
       sections:[
         ['1. 문서 안내', `${name}의 내용을 확인해 주세요.`],
         ['2. 전자적 처리', '본 문서는 요청 시점의 내용과 버전이 고정되며, 본인확인·열람·동의·서명 정보가 전자서명 증적에 포함됩니다.']
@@ -589,6 +594,60 @@
     return portOneModulePromise;
   }
 
+  function ensureAcroformFill(){
+    if(!acroformModulePromise){
+      acroformModulePromise=import('/api/acroform/browser');
+    }
+    return acroformModulePromise;
+  }
+
+  function ensureSignedPdf(){
+    if(!signedPdfModulePromise){
+      signedPdfModulePromise=import('/api/signed-pdf/browser');
+    }
+    return signedPdfModulePromise;
+  }
+
+  function revokeFilledPdfUrls(){
+    Object.values(filledPdfUrls).forEach(url=>URL.revokeObjectURL(url));
+    Object.keys(filledPdfUrls).forEach(key=>delete filledPdfUrls[key]);
+  }
+
+  function buildIdentityFormValues(userInfo){
+    return {
+      name:userInfo.name,
+      phoneNumber:userInfo.phoneNumber,
+      birthDate:userInfo.birthDate,
+      ci:userInfo.ci,
+      txId:userInfo.txId,
+      clientIp:userInfo.clientIp,
+      userAgent:userInfo.userAgent,
+    };
+  }
+
+  async function buildFilledPreviewUrls(userInfo){
+    const {fillAcroFormIdentity}=await ensureAcroformFill();
+    revokeFilledPdfUrls();
+    let filledCount=0;
+
+    for(const doc of request.documents){
+      if(!doc.file_path)continue;
+      const response=await fetch(buildFileApiUrl(doc.file_path),{cache:'no-store'});
+      if(!response.ok)continue;
+      const pdfBytes=await response.arrayBuffer();
+      const filled=await fillAcroFormIdentity(pdfBytes,buildIdentityFormValues(userInfo));
+      if(!filled)continue;
+      filledPdfUrls[doc.file_path]=URL.createObjectURL(new Blob([filled.bytes],{type:'application/pdf'}));
+      filledCount+=1;
+    }
+
+    return filledCount;
+  }
+
+  function getPdfPreviewUrl(filePath){
+    return filledPdfUrls[filePath]??buildFileApiUrl(filePath);
+  }
+
   function applyVerifiedIdentity(userInfo){
     state.verified=true;
     request.authProvider='PortOne';
@@ -610,9 +669,10 @@
       request.signer.birth=String(userInfo.birthDate).replace(/\D/g,'');
     }
 
+    verifiedUserInfo=buildIdentityFormValues(userInfo);
+
     $('finalAuth').textContent='PortOne 인증 완료';
     updateAuthVerifyButton();
-    toast(`본인인증이 완료되었습니다. (${userInfo.name||'이름 없음'})`);
   }
 
   async function startPortOneIdentityVerification(options={}){
@@ -678,6 +738,21 @@
       }
 
       applyVerifiedIdentity(result.userInfo||{});
+      const userInfo=verifiedUserInfo||buildIdentityFormValues(result.userInfo||{});
+      let filledCount=0;
+      try{
+        toast('본인인증 완료. 미리보기에 정보를 반영하는 중...');
+        filledCount=await buildFilledPreviewUrls(userInfo);
+      }catch(fillError){
+        console.error(fillError);
+        toast('본인인증은 완료되었으나 PDF 미리보기 반영에 실패했습니다.');
+      }
+      toast(
+        `본인인증이 완료되었습니다. (${userInfo.name||'이름 없음'})` +
+        (filledCount>0
+          ? ` AcroForm 문서 ${filledCount}개 미리보기에 반영했습니다.`
+          : ' AcroForm 필드가 있는 문서가 없어 미리보기 반영을 건너뛰었습니다.')
+      );
       setTimeout(()=>setStep(advanceToStep ?? 2),500);
     }catch(error){
       console.error(error);
@@ -768,7 +843,7 @@
     try{
       const pdfjsLib=await ensurePdfJs();
       if(generation!==pdfRenderGeneration)return;
-      const pdf=await pdfjsLib.getDocument({url:buildFileApiUrl(filePath)}).promise;
+      const pdf=await pdfjsLib.getDocument({url:getPdfPreviewUrl(filePath)}).promise;
       if(generation!==pdfRenderGeneration)return;
       paperEl.replaceChildren();
       const containerWidth=Math.max(Math.min(paperEl.clientWidth || 690,720),280);
@@ -801,7 +876,7 @@
     pdfRenderGeneration+=1;
     const generation=pdfRenderGeneration;
     if(doc.file_path){
-      $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF 원본`;
+      $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF ${filledPdfUrls[doc.file_path]?'본인정보 반영':'원본'}`;
       void renderPdfIntoPaper(doc.file_path,paperEl,generation);
       return;
     }
@@ -883,7 +958,82 @@
   function clearSignature(){state.strokes=[];state.hasSignature=false;redraw();}
   function undoSignature(){state.strokes.pop();redraw();}
 
+  async function buildEvidencePayload(signatureImageSha256,completedAt){
+    return {
+      schemaVersion:'1.0',
+      requestNo:request.requestNo,
+      claimNo:request.claimNo,
+      tokenHash:await sha256(request.token),
+      signer:{
+        name:request.signer.name,
+        role:request.signer.role,
+        phone:request.signer.phone,
+        birth:request.signer.birth,
+      },
+      auth:{
+        provider:request.authProvider||'PortOne',
+        transactionId:request.authTransactionId,
+        identityVerifiedAt:request.identityVerifiedAt?.toISOString(),
+        ci:verifiedUserInfo?.ci,
+      },
+      documents:request.documents.map((doc,i)=>({
+        id:doc.id,
+        templateCode:doc.code,
+        version:doc.version,
+        consent:state.docs[i].consent,
+        reviewedAt:state.docs[i].reviewedAt?.toISOString(),
+        originalFilePath:doc.file_path||'',
+        originalHash:doc.document_hash||null,
+        signedObjectKey:null,
+        signedHash:null,
+      })),
+      signature:{
+        typedName:$('typedName').value.trim(),
+        imageSha256:signatureImageSha256,
+        pointCount:state.strokes.reduce((n,s)=>n+s.length,0),
+      },
+      client:{
+        userAgent:navigator.userAgent,
+        language:navigator.language,
+        screen:`${screen.width}x${screen.height}`,
+      },
+      completedAt:completedAt.toISOString(),
+      tsa:null,
+    };
+  }
+
+  async function uploadSignedPdf(documentId,signedBytes,signedHash){
+    const formData=new FormData();
+    formData.append('token',request.token);
+    formData.append('requestNo',request.requestNo);
+    formData.append('documentId',documentId);
+    formData.append('signedHash',signedHash);
+    formData.append('file',new Blob([signedBytes],{type:'application/pdf'}),`${documentId}-signed.pdf`);
+    const response=await fetch('/api/sign/upload',{method:'POST',body:formData});
+    const result=await response.json().catch(()=>null);
+    if(!response.ok){
+      throw new Error(result?.error||`서명 PDF 업로드 실패 (${response.status})`);
+    }
+    return result;
+  }
+
+  async function completeSignRequest(evidence,evidenceHash){
+    const response=await fetch('/api/public-service/sign/complete',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:request.token,evidence,evidenceHash}),
+    });
+    const result=await response.json().catch(()=>null);
+    if(!response.ok){
+      if(result?.code==='ALREADY_COMPLETED'){showError('used');return null;}
+      if(result?.code==='TOKEN_EXPIRED'){showError('expired');return null;}
+      throw new Error(result?.error||`전자서명 완료 처리 실패 (${response.status})`);
+    }
+    return result;
+  }
+
   function validateAndOpenSubmit(){
+    if(!state.verified||!request.authTransactionId){toast('본인인증을 먼저 완료해 주세요.');return;}
     if(!state.hasSignature){toast('자필서명을 입력해 주세요.');return;}
     if($('typedName').value.trim()!==request.signer.name){toast('서명자 성명이 본인인증 정보와 일치하지 않습니다.');return;}
     if(![$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].every(x=>x.checked)){toast('최종 확인 항목에 모두 체크해 주세요.');return;}
@@ -892,15 +1042,80 @@
   }
 
   async function submitSignature(){
-    $('confirmSubmitBtn').disabled=true;$('confirmSubmitBtn').textContent='증적 생성 중…';
-    const agreedDocs=request.documents.filter((_,i)=>state.docs[i].consent==='agree');
-    const evidence={requestNo:request.requestNo,tokenHash:await sha256(request.token),claimNo:request.claimNo,signer:request.signer.name,role:request.signer.role,authProvider:request.authProvider,authTransactionId:request.authTransactionId,identityVerifiedAt:request.identityVerifiedAt?.toISOString(),documents:request.documents.map((d,i)=>({id:d.id,code:d.code,version:d.version,consent:state.docs[i].consent,reviewedAt:state.docs[i].reviewedAt?.toISOString()})),signaturePointCount:state.strokes.reduce((n,s)=>n+s.length,0),userAgent:navigator.userAgent,language:navigator.language,screen:`${screen.width}x${screen.height}`,completedAt:new Date().toISOString()};
-    await new Promise(r=>setTimeout(r,900));
-    state.completedAt=new Date();state.signTransactionId=`ESIGN-${state.completedAt.toISOString().slice(0,10).replaceAll('-','')}-${String(Date.now()).slice(-8)}`;state.finalHash=await sha256(JSON.stringify(evidence)+canvas.toDataURL('image/png'));state.submitted=true;
-    closeModal('submitModal');$('confirmSubmitBtn').disabled=false;$('confirmSubmitBtn').textContent='최종 제출';
-    $('completeRequestNo').textContent=request.requestNo;$('completeClaimNo').textContent=request.maskedClaimNo;$('completeSigner').textContent=`${request.signer.name} / ${request.signer.role}`;$('completeDocs').textContent=`${agreedDocs.length}건 (${agreedDocs.map(d=>d.name).join(', ')})`;$('completeAuthTx').textContent=request.authTransactionId;$('completeAt').textContent=formatDate(state.completedAt);$('completeSignTx').textContent=state.signTransactionId;$('completeHash').textContent=state.finalHash;
-    try{localStorage.setItem(`tng-esign-${request.requestNo}`,JSON.stringify({status:'SIGNED',completedAt:state.completedAt.toISOString(),signTransactionId:state.signTransactionId,hash:state.finalHash}));}catch(e){}
-    setStep(4);
+    const submitBtn=$('confirmSubmitBtn');
+    submitBtn.disabled=true;
+    submitBtn.textContent='증적 생성 중…';
+
+    try{
+      if(!state.verified||!request.authTransactionId){
+        throw new Error('본인인증을 먼저 완료해 주세요.');
+      }
+
+      const signatureDataUrl=canvas.toDataURL('image/png');
+      const signatureImageSha256=await sha256(signatureDataUrl);
+      const completedAt=new Date();
+      const evidence=await buildEvidencePayload(signatureImageSha256,completedAt);
+      const {generateSignedPdfBytes}=await ensureSignedPdf();
+      const agreeDocsWithPdf=request.documents
+        .map((doc,index)=>({doc,index,consent:state.docs[index].consent}))
+        .filter(item=>item.consent==='agree' && item.doc.file_path);
+
+      for(let i=0;i<agreeDocsWithPdf.length;i+=1){
+        const {doc,index}=agreeDocsWithPdf[i];
+        submitBtn.textContent=`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 생성 중…`;
+        const {bytes,signedHash}=await generateSignedPdfBytes({
+          filePath:doc.file_path,
+          fileUrl:buildFileApiUrl(doc.file_path),
+          signatureDataUrl,
+          identity:verifiedUserInfo,
+        });
+        submitBtn.textContent=`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 업로드 중…`;
+        const uploaded=await uploadSignedPdf(doc.id,bytes,signedHash);
+        evidence.documents[index].signedObjectKey=uploaded.objectKey;
+        evidence.documents[index].signedHash=uploaded.signedHash;
+      }
+
+      submitBtn.textContent='전자서명 제출 중…';
+      const evidenceHash=await sha256(JSON.stringify(evidence));
+      const result=await completeSignRequest(evidence,evidenceHash);
+      if(!result)return;
+
+      state.completedAt=new Date(result.completedAt);
+      state.signTransactionId=result.signTransactionId;
+      state.finalHash=result.finalHash;
+      state.submitted=true;
+
+      const agreedDocs=request.documents.filter((_,i)=>state.docs[i].consent==='agree');
+      closeModal('submitModal');
+      $('completeRequestNo').textContent=request.requestNo;
+      $('completeClaimNo').textContent=request.maskedClaimNo;
+      $('completeSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
+      $('completeDocs').textContent=`${agreedDocs.length}건 (${agreedDocs.map(d=>d.name).join(', ')})`;
+      $('completeAuthTx').textContent=request.authTransactionId;
+      $('completeAt').textContent=formatDate(state.completedAt);
+      $('completeSignTx').textContent=state.signTransactionId;
+      $('completeHash').textContent=state.finalHash;
+
+      try{
+        localStorage.setItem(`tng-esign-${request.requestNo}`,JSON.stringify({
+          status:'SIGNED',
+          completedAt:state.completedAt.toISOString(),
+          signTransactionId:state.signTransactionId,
+          hash:state.finalHash,
+          evidenceObjectKey:result.evidenceObjectKey,
+          backendSynced:result.backendSynced,
+        }));
+      }catch(e){}
+
+      toast(result.backendSynced?'전자서명이 완료되었습니다.':'전자서명이 저장되었습니다. (백엔드 동기화는 보류)');
+      setStep(4);
+    }catch(error){
+      console.error(error);
+      toast(error instanceof Error?error.message:'전자서명 제출 중 오류가 발생했습니다.');
+    }finally{
+      submitBtn.disabled=false;
+      submitBtn.textContent='최종 제출';
+    }
   }
 
   function openModal(id){$(id).classList.add('show');}
@@ -910,7 +1125,7 @@
     const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
   }
   function resetFlow(){
-    state.currentStep=1;state.verified=false;state.currentDocIndex=0;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;updateAuthVerifyButton();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].forEach(x=>x.checked=false);clearSignature();closeModal('demoModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
+    state.currentStep=1;state.verified=false;state.currentDocIndex=0;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;revokeFilledPdfUrls();updateAuthVerifyButton();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].forEach(x=>x.checked=false);clearSignature();closeModal('demoModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
   async function init(){
