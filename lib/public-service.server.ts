@@ -101,6 +101,8 @@ export async function completePublicServiceSignFromServer(body: {
   ci?: string;
   ip?: string;
   userAgent?: string;
+  /** PortOne 본인인증 Transaction ID (identityVerificationId) */
+  transactionId?: string;
 }) {
   const payload = {
     token: body.token,
@@ -116,6 +118,7 @@ export async function completePublicServiceSignFromServer(body: {
       signed_file_path: body.signedFilePath ?? '',
       ip: body.ip ?? '',
       user_agent: body.userAgent ?? '',
+      transactionId: body.transactionId ?? '',
     },
     evidenceHash: body.evidenceHash,
   };

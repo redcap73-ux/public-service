@@ -250,6 +250,7 @@ export async function completeSignRequestFromServer(
       ci: evidence.auth.ci,
       ip: clientIpValue,
       userAgent: userAgentValue,
+      transactionId: evidence.auth.transactionId,
     });
     backendSynced = true;
   } catch (error) {
