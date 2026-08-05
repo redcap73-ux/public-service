@@ -99,6 +99,8 @@ export async function completePublicServiceSignFromServer(body: {
   name?: string;
   phone?: string;
   ci?: string;
+  ip?: string;
+  userAgent?: string;
 }) {
   const payload = {
     token: body.token,
@@ -112,6 +114,8 @@ export async function completePublicServiceSignFromServer(body: {
       finalHash: body.finalHash,
       evidenceObjectKey: body.evidenceObjectKey,
       signed_file_path: body.signedFilePath ?? '',
+      ip: body.ip ?? '',
+      user_agent: body.userAgent ?? '',
     },
     evidenceHash: body.evidenceHash,
   };

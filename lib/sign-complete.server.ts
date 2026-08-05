@@ -214,10 +214,14 @@ export async function completeSignRequestFromServer(
     evidence.documents.find((doc) => doc.consent === 'agree' && doc.signedObjectKey)
       ?.signedObjectKey ||
     '';
+  const clientIpValue = evidence.client.ip ?? clientIp ?? '';
+  const userAgentValue = evidence.client.userAgent ?? '';
 
   const evidenceRecord = {
     ...evidence,
     signed_file_path: signedFilePath,
+    ip: clientIpValue,
+    user_agent: userAgentValue,
     signTransactionId,
     evidenceHash,
     finalHash,
@@ -244,6 +248,8 @@ export async function completeSignRequestFromServer(
       name: evidence.signer.name,
       phone: evidence.signer.phone,
       ci: evidence.auth.ci,
+      ip: clientIpValue,
+      userAgent: userAgentValue,
     });
     backendSynced = true;
   } catch (error) {
