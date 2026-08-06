@@ -57,7 +57,7 @@
     .doc-list{display:flex;flex-direction:column;gap:10px}.doc-row{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:11px;align-items:center;transition:.15s;cursor:pointer}.doc-row .doc-action{cursor:pointer}.doc-row.current{border-color:#7aa5fa;box-shadow:0 0 0 3px rgba(43,110,242,.08)}.doc-row.done{border-color:#a7f3d0;background:#fbfffd}.doc-no{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900}.doc-row.done .doc-no{background:#d1fae5;color:#047857}.doc-name{font-size:12px;font-weight:800;color:#1e293b}.doc-meta{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.45}.doc-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:800;white-space:nowrap}.doc-action.download{border-color:#cbd5e1;background:#f8fafc;color:#334155}
     .progress-panel{border:1px solid var(--line);border-radius:14px;padding:14px;background:#f8fafc;height:max-content;position:sticky;top:92px}.progress-panel h3{font-size:12px;margin:0 0 10px;color:var(--navy)}.progress-bar{height:8px;border-radius:999px;background:#e2e8f0;overflow:hidden}.progress-fill{height:100%;background:linear-gradient(90deg,#2b6ef2,#60a5fa);transition:width .25s}.progress-label{display:flex;justify-content:space-between;margin-top:7px;color:var(--muted);font-size:9px}.mini-status-list{display:flex;flex-direction:column;gap:7px;margin-top:13px}.mini-status{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;color:#475569}.mini-status b{color:#334155}
     .document-viewer{height:min(58vh,620px);min-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:13px;background:#dbe3ef;padding:15px;scroll-behavior:smooth}.paper{width:min(100%,720px);margin:auto;background:#fff;min-height:980px;padding:48px 45px;box-shadow:0 8px 22px rgba(15,31,61,.16);font-family:"Noto Sans KR",Arial,sans-serif}.paper.pdf-paper{min-height:auto;padding:12px}.paper.pdf-paper .pdf-page-canvas{display:block;width:100%;height:auto;margin:0 auto 12px;box-shadow:0 4px 14px rgba(15,31,61,.12)}.paper.pdf-paper .pdf-page-canvas:last-child{margin-bottom:0}.pdf-status,.pdf-error{padding:24px;text-align:center;font-size:11px;color:#64748b;line-height:1.6}.pdf-error{color:#be123c}.paper h1{text-align:center;font-size:22px;margin:0 0 28px}.paper h3{font-size:14px;margin:24px 0 9px}.paper p,.paper li{font-size:11px;line-height:1.9;color:#334155}.paper .meta-table{width:100%;border-collapse:collapse;margin-bottom:20px}.paper .meta-table th,.paper .meta-table td{border:1px solid #dbe3ef;padding:8px;font-size:10px;text-align:left}.paper .meta-table th{background:#f8fafc;width:22%}.paper .agreement-box{border:1px solid #cbd5e1;padding:13px;margin:14px 0;border-radius:8px;background:#fbfdff}.paper .signature-line{margin-top:52px;border-top:1px solid #64748b;padding-top:12px;text-align:right;font-size:11px}.scroll-tip{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px;font-size:9px;color:#64748b}.scroll-tip.ready{color:#047857;font-weight:800}
-    .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:11px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800}.choice input{accent-color:var(--blue)}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}
+    .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc}.doc-form-panel{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.doc-form-panel.locked{background:#f8fafc}.form-item-box{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;margin-top:10px}.form-item-box:first-child{margin-top:0}.form-item-title{margin-bottom:8px}.form-item-title strong{font-size:11px;color:#1e293b;line-height:1.5}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:11px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice-stack{display:flex;flex-direction:column;gap:8px}.checkbox-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800}.choice input{accent-color:var(--blue)}.choice:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}.form-text-input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-size:11px;color:#1f2937;background:#fff}.form-text-input:disabled{background:#f8fafc;color:#94a3b8}
     .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}
     .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:10px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
@@ -174,6 +174,10 @@
         <div class="card-body">
           <div class="document-viewer" id="documentViewer" tabindex="0"><div class="paper" id="paperContent"></div></div>
           <div class="scroll-tip" id="scrollTip">↧ 문서를 끝까지 내려 확인해 주세요.</div>
+          <div class="doc-form-panel locked hidden" id="docFormPanel">
+            <div class="consent-title"><strong>문서 확인 질문</strong><span class="badge gray" id="docFormLockBadge">열람 필요</span></div>
+            <div id="docFormItems"></div>
+          </div>
           <div class="consent-box locked" id="consentBox">
             <div class="consent-title"><strong id="consentQuestion">위 문서의 내용을 확인하고 동의하십니까?</strong><span class="badge gray" id="consentLockBadge">열람 필요</span></div>
             <div class="choice-row">
@@ -358,7 +362,7 @@
   };
 
   function resetDocState(){
-    state.docs = request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null}));
+    state.docs = request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null, answers:{}}));
   }
 
   resetDocState();
@@ -472,9 +476,70 @@
     return getDocumentDownloadType(doc)===1;
   }
 
+  function normalizeTemplateCategory(category){
+    return String(category||'').trim().toUpperCase();
+  }
+
+  function mapTemplateCategory(category){
+    const normalized=normalizeTemplateCategory(category);
+    if(normalized==='RADIO')return 'radio';
+    if(normalized==='CHECKBOX')return 'checkbox';
+    if(normalized==='YES_NO')return 'yes_no';
+    if(normalized==='AGREE_DISAGREE')return 'agree_disagree';
+    if(normalized==='TEXT')return 'text';
+    return 'text';
+  }
+
+  function parseManyConOptions(manyCon){
+    return String(manyCon||'').split(',').map(part=>part.trim()).filter(Boolean).map(label=>({value:label,label}));
+  }
+
+  function buildTemplateItemOptions(item){
+    const category=normalizeTemplateCategory(item.category);
+    if(category==='YES_NO')return [{value:'예',label:'예'},{value:'아니오',label:'아니오'}];
+    if(category==='AGREE_DISAGREE')return [{value:'동의함',label:'동의함'},{value:'동의하지 않음',label:'동의하지 않음'}];
+    return parseManyConOptions(item.many_con);
+  }
+
+  function mapTemplateItems(items){
+    if(!Array.isArray(items)||!items.length)return [];
+    return items.map((item,index)=>({
+      id:String(item.id),
+      order:index+1,
+      label:item.content||'',
+      category:normalizeTemplateCategory(item.category),
+      input_type:mapTemplateCategory(item.category),
+      required:mapTemplateCategory(item.category)!=='text',
+      options:buildTemplateItemOptions(item),
+      selection_mode:normalizeTemplateCategory(item.category)==='CHECKBOX'?'multiple':'single',
+      block_submit_values:normalizeTemplateCategory(item.category)==='AGREE_DISAGREE'?['동의하지 않음']:[],
+    }));
+  }
+
+  function hasTemplateItems(doc){
+    return Array.isArray(doc?.questions)&&doc.questions.length>0;
+  }
+
+  function deriveConsentFromAnswers(doc,answers){
+    if(!hasTemplateItems(doc))return null;
+    const agreeItem=doc.questions.find(q=>q.input_type==='agree_disagree');
+    if(!agreeItem)return 'agree';
+    const value=answers?.[agreeItem.id];
+    if(value==='동의함')return 'agree';
+    if(value==='동의하지 않음')return 'reject';
+    return null;
+  }
+
+  function isDocumentComplete(doc,st){
+    if(getDocumentDownloadType(doc)===2)return Boolean(st.viewed);
+    if(hasTemplateItems(doc))return Boolean(st.reviewedAt);
+    return Boolean(st.consent);
+  }
+
   function mapApiDocument(doc,insurer){
     const name=doc.document_name||doc.document_type||'동의서';
     const downloadType=getDocumentDownloadType(doc);
+    const questions=mapTemplateItems(doc.template_items);
     return {
       id:String(doc.id),
       code:doc.template_code||doc.document_type||'',
@@ -487,6 +552,7 @@
       summary:name,
       file_path:doc.file_path||'',
       document_hash:doc.document_hash||'',
+      questions,
       sections:[
         ['1. 문서 안내', `${name}의 내용을 확인해 주세요.`],
         ['2. 전자적 처리', '본 문서는 요청 시점의 내용과 버전이 고정되며, 본인확인·열람·동의·서명 정보가 전자서명 증적에 포함됩니다.']
@@ -591,8 +657,8 @@
       return;
     }
     if(state.currentStep===2){
-      const incomplete=state.docs.filter((d,i)=>isConsentDocument(request.documents[i]) && !d.consent);
-      if(incomplete.length){toast(`확인하지 않은 문서가 ${incomplete.length}건 있습니다.`);const idx=state.docs.findIndex((d,i)=>isConsentDocument(request.documents[i]) && !d.consent);selectDocument(idx,true);return;}
+      const incomplete=state.docs.filter((d,i)=>isConsentDocument(request.documents[i]) && !isDocumentComplete(request.documents[i],d));
+      if(incomplete.length){toast(`확인하지 않은 문서가 ${incomplete.length}건 있습니다.`);const idx=state.docs.findIndex((d,i)=>isConsentDocument(request.documents[i]) && !isDocumentComplete(request.documents[i],d));selectDocument(idx,true);return;}
       const rejectedRequired=state.docs.findIndex((d,i)=>request.documents[i].required && d.consent==='reject');
       if(rejectedRequired>=0){toast('필수 동의서에 미동의하여 전자서명을 진행할 수 없습니다.');selectDocument(rejectedRequired,true);return;}
       setStep(3);return;
@@ -797,6 +863,10 @@
 
   function getDocActionLabel(doc,st){
     if(getDocumentDownloadType(doc)===2)return '다운로드 파일';
+    if(hasTemplateItems(doc)){
+      const status=st.reviewedAt?'응답 완료':st.scrolled?'질문 응답 필요':'열람 필요';
+      return `${status} · 열기`;
+    }
     const status=st.consent==='agree'?'동의 완료':st.consent==='reject'?'미동의':st.scrolled?'동의 선택 필요':'열람 필요';
     return `${status} · 열기`;
   }
@@ -811,7 +881,7 @@
         : `<button class="doc-action" type="button" data-open-doc="${i}">${escapeHtml(actionLabel)}</button>`;
       const badgeLabel=downloadType===2?'다운로드':doc.required?'필수':'선택';
       const badgeClass=downloadType===2?'gray':doc.required?'orange':'gray';
-      return `<div class="doc-row ${i===state.currentDocIndex?'current':''} ${st.consent?'done':''}" data-doc-index="${i}">
+      return `<div class="doc-row ${i===state.currentDocIndex?'current':''} ${isDocumentComplete(doc,st)?'done':''}" data-doc-index="${i}">
         <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)} <span class="badge ${badgeClass}">${badgeLabel}</span></div><div class="doc-meta">${escapeHtml(doc.category)} · ${escapeHtml(doc.code)} · ${escapeHtml(doc.version)}<br/>${escapeHtml(doc.summary)}</div></div>
         ${actionButton}</div>`;
     }).join('');
@@ -906,18 +976,28 @@
 
   function markDocumentScrolled(){
     const st=state.docs[state.currentDocIndex];
+    const doc=request.documents[state.currentDocIndex];
     if(st.scrolled)return;
     st.scrolled=true;
-    radios.forEach(r=>r.disabled=false);
-    $('consentBox').classList.remove('locked');
-    $('consentLockBadge').className='badge blue';
-    $('consentLockBadge').textContent='선택 가능';
-    $('viewerBadge').className='badge orange';
-    $('viewerBadge').textContent='동의 선택 가능';
-    $('scrollTip').className='scroll-tip ready';
-    $('scrollTip').textContent='✓ 문서 끝까지 확인했습니다.';
+    if(hasTemplateItems(doc)){
+      $('viewerBadge').className='badge orange';
+      $('viewerBadge').textContent='질문 응답 가능';
+      $('scrollTip').className='scroll-tip ready';
+      $('scrollTip').textContent='✓ 문서 확인 완료. 아래 질문에 답해 주세요.';
+      renderDocFormPanel(doc,state.currentDocIndex,st);
+      toast('문서 확인이 완료되었습니다. 아래 질문에 답해 주세요.');
+    }else{
+      radios.forEach(r=>r.disabled=false);
+      $('consentBox').classList.remove('locked');
+      $('consentLockBadge').className='badge blue';
+      $('consentLockBadge').textContent='선택 가능';
+      $('viewerBadge').className='badge orange';
+      $('viewerBadge').textContent='동의 선택 가능';
+      $('scrollTip').className='scroll-tip ready';
+      $('scrollTip').textContent='✓ 문서 끝까지 확인했습니다.';
+      toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
+    }
     renderDocList();
-    toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
   }
 
   function checkViewerScrollComplete(){
@@ -987,10 +1067,110 @@
       <div style="height:260px"></div><p style="text-align:center;color:#94a3b8">— 문서 끝 (${index+1}/${request.documents.length}) —</p>`;
   }
 
+  function renderDocFormPanel(doc,index,st){
+    const panel=$('docFormPanel');
+    if(!hasTemplateItems(doc)){
+      panel.classList.add('hidden');
+      $('docFormItems').innerHTML='';
+      return;
+    }
+    panel.classList.remove('hidden');
+    const locked=!st.scrolled;
+    panel.classList.toggle('locked',locked);
+    $('docFormLockBadge').className=`badge ${locked?'gray':'blue'}`;
+    $('docFormLockBadge').textContent=locked?'열람 필요':'응답 가능';
+    $('docFormItems').innerHTML=doc.questions.map(q=>{
+      const qId=escapeHtml(q.id);
+      const inputName=`doc-q-${index}-${qId}`;
+      let inputHtml='';
+      if(q.input_type==='radio' || q.input_type==='yes_no' || q.input_type==='agree_disagree'){
+        const containerClass=q.options.length<=3?'choice-row':'choice-stack';
+        inputHtml=`<div class="${containerClass}">${q.options.map(opt=>{
+          const value=escapeHtml(opt.value);
+          const checked=st.answers?.[q.id]===opt.value?' checked':'';
+          return `<label class="choice"><input type="radio" name="${inputName}" value="${value}" data-qid="${qId}"${checked}${locked?' disabled':''} /> ${escapeHtml(opt.label)}</label>`;
+        }).join('')}</div>`;
+      }else if(q.input_type==='checkbox'){
+        const selected=Array.isArray(st.answers?.[q.id])?st.answers[q.id]:[];
+        inputHtml=`<div class="checkbox-row">${q.options.map(opt=>{
+          const value=escapeHtml(opt.value);
+          const checked=selected.includes(opt.value)?' checked':'';
+          return `<label class="choice checkbox"><input type="checkbox" name="${inputName}" value="${value}" data-qid="${qId}"${checked}${locked?' disabled':''} /> ${escapeHtml(opt.label)}</label>`;
+        }).join('')}</div>`;
+      }else{
+        const value=escapeHtml(st.answers?.[q.id]??'');
+        inputHtml=`<input class="form-text-input" type="text" data-qid="${qId}" value="${value}" placeholder="입력해 주세요"${locked?' disabled':''} />`;
+      }
+      return `<div class="form-item-box"><div class="form-item-title"><strong>Q${q.order}. ${escapeHtml(q.label)}</strong></div>${inputHtml}</div>`;
+    }).join('');
+  }
+
+  function collectDocFormAnswers(docIndex){
+    const doc=request.documents[docIndex];
+    const answers={};
+    if(!hasTemplateItems(doc))return answers;
+    doc.questions.forEach(q=>{
+      if(q.input_type==='checkbox'){
+        answers[q.id]=[...document.querySelectorAll(`#docFormItems input[data-qid="${q.id}"]:checked`)].map(el=>el.value);
+      }else if(q.input_type==='text'){
+        const el=document.querySelector(`#docFormItems input[data-qid="${q.id}"]`);
+        answers[q.id]=el?el.value.trim():'';
+      }else{
+        const el=document.querySelector(`#docFormItems input[data-qid="${q.id}"]:checked`);
+        answers[q.id]=el?el.value:'';
+      }
+    });
+    return answers;
+  }
+
+  function validateDocAnswers(doc,answers){
+    for(const q of doc.questions){
+      if(!q.required)continue;
+      if(q.input_type==='checkbox'){
+        if(!Array.isArray(answers[q.id])||!answers[q.id].length){
+          return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`};
+        }
+        continue;
+      }
+      if(q.input_type==='text')continue;
+      if(!answers[q.id]){
+        return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`};
+      }
+    }
+    for(const q of doc.questions){
+      const value=answers[q.id];
+      if(!q.block_submit_values?.length)continue;
+      if(Array.isArray(value)){
+        if(value.some(item=>q.block_submit_values.includes(item))){
+          return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.'};
+        }
+      }else if(q.block_submit_values.includes(value)){
+        return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.'};
+      }
+    }
+    return {ok:true};
+  }
+
+  function saveDocumentAnswers(){
+    const st=state.docs[state.currentDocIndex];
+    const doc=request.documents[state.currentDocIndex];
+    if(!st.scrolled){toast('문서를 끝까지 확인해 주세요.');return;}
+    const answers=collectDocFormAnswers(state.currentDocIndex);
+    const validation=validateDocAnswers(doc,answers);
+    if(!validation.ok){toast(validation.message);return;}
+    st.answers=answers;
+    st.consent=deriveConsentFromAnswers(doc,answers);
+    st.reviewedAt=new Date();
+    renderDocList();
+    if(st.consent==='reject' && doc.required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
+    if(state.currentDocIndex<request.documents.length-1)selectDocument(state.currentDocIndex+1,true);else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 응답을 저장했습니다.');}
+  }
+
   function selectDocument(index,scrollToViewer){
     state.currentDocIndex=Math.max(0,Math.min(index,request.documents.length-1));
     const doc=request.documents[state.currentDocIndex],st=state.docs[state.currentDocIndex];
     const isDownloadOnly=getDocumentDownloadType(doc)===2;
+    const usesTemplateItems=hasTemplateItems(doc);
     st.viewed=true;
     $('viewerTitle').textContent=`${state.currentDocIndex+1}. ${doc.name}`;
     renderDocumentContent(doc,state.currentDocIndex);
@@ -998,10 +1178,22 @@
     if(isDownloadOnly){
       $('viewerBadge').className='badge gray';
       $('viewerBadge').textContent='다운로드';
+      $('docFormPanel').classList.add('hidden');
       $('consentBox').classList.add('hidden');
       $('scrollTip').classList.add('hidden');
       $('saveDocBtn').classList.add('hidden');
+    }else if(usesTemplateItems){
+      $('consentBox').classList.add('hidden');
+      $('scrollTip').classList.remove('hidden');
+      $('saveDocBtn').classList.remove('hidden');
+      $('viewerBadge').className=`badge ${st.reviewedAt?'green':st.scrolled?'orange':'gray'}`;
+      $('viewerBadge').textContent=st.reviewedAt?'응답 완료':st.scrolled?'질문 응답 가능':'미확인';
+      $('scrollTip').className=`scroll-tip ${st.scrolled?'ready':''}`;
+      $('scrollTip').textContent=st.scrolled?'✓ 문서 확인 완료. 아래 질문에 답해 주세요.':'↧ 문서를 끝까지 내려 확인해 주세요.';
+      renderDocFormPanel(doc,state.currentDocIndex,st);
+      $('saveDocBtn').textContent=state.currentDocIndex===request.documents.length-1?'응답 저장':'응답 저장 · 다음 문서';
     }else{
+      $('docFormPanel').classList.add('hidden');
       $('consentBox').classList.remove('hidden');
       $('scrollTip').classList.remove('hidden');
       $('saveDocBtn').classList.remove('hidden');
@@ -1035,11 +1227,11 @@
 
   function updateDocProgress(){
     const consentIndexes=state.docs.map((_,i)=>i).filter(i=>isConsentDocument(request.documents[i]));
-    const done=consentIndexes.filter(i=>state.docs[i].consent).length;
+    const done=consentIndexes.filter(i=>isDocumentComplete(request.documents[i],state.docs[i])).length;
     const total=consentIndexes.length||state.docs.length;
     const pct=total?Math.round(done/total*100):100;
     $('reviewDoneCount').textContent=done;$('docProgressFill').style.width=`${pct}%`;$('docProgressText').textContent=`${done}건 완료`;$('docProgressPercent').textContent=`${pct}%`;
-    $('docMiniStatus').innerHTML=request.documents.map((doc,i)=>{const st=state.docs[i],label=getDocumentDownloadType(doc)===2?'다운로드':st.consent==='agree'?'동의':st.consent==='reject'?'미동의':st.scrolled?'선택 대기':'열람 대기';return `<div class="mini-status"><b>${i+1}. ${escapeHtml(doc.name.length>18?doc.name.slice(0,18)+'…':doc.name)}</b><span>${label}</span></div>`}).join('');
+    $('docMiniStatus').innerHTML=request.documents.map((doc,i)=>{const st=state.docs[i],label=getDocumentDownloadType(doc)===2?'다운로드':hasTemplateItems(doc)?(st.reviewedAt?'응답 완료':st.scrolled?'응답 대기':'열람 대기'):st.consent==='agree'?'동의':st.consent==='reject'?'미동의':st.scrolled?'선택 대기':'열람 대기';return `<div class="mini-status"><b>${i+1}. ${escapeHtml(doc.name.length>18?doc.name.slice(0,18)+'…':doc.name)}</b><span>${label}</span></div>`}).join('');
   }
 
   function updateFinalSummary(){
@@ -1082,17 +1274,30 @@
         identityVerifiedAt:request.identityVerifiedAt?.toISOString(),
         ci:verifiedUserInfo?.ci,
       },
-      documents:request.documents.map((doc,i)=>({
-        id:doc.id,
-        templateCode:doc.code,
-        version:doc.version,
-        consent:state.docs[i].consent,
-        reviewedAt:state.docs[i].reviewedAt?.toISOString(),
-        originalFilePath:doc.file_path||'',
-        originalHash:doc.document_hash||null,
-        signedObjectKey:null,
-        signedHash:null,
-      })),
+      documents:request.documents.map((doc,i)=>{
+        const st=state.docs[i];
+        const payload={
+          id:doc.id,
+          templateCode:doc.code,
+          version:doc.version,
+          consent:st.consent,
+          reviewedAt:st.reviewedAt?.toISOString(),
+          originalFilePath:doc.file_path||'',
+          originalHash:doc.document_hash||null,
+          signedObjectKey:null,
+          signedHash:null,
+        };
+        if(hasTemplateItems(doc)){
+          payload.answers=st.answers||{};
+          payload.answerSnapshot=(doc.questions||[]).map(q=>({
+            itemId:q.id,
+            category:q.category,
+            label:q.label,
+            value:st.answers?.[q.id]??null,
+          }));
+        }
+        return payload;
+      }),
       signature:{
         typedName:$('typedName').value.trim(),
         imageSha256:signatureImageSha256,
@@ -1265,7 +1470,13 @@
   }
 
   $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);$('authEntryBtn').addEventListener('click',goToIdentityVerification);
-  $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveDocumentConsent);$('prevDocBtn').addEventListener('click',()=>selectDocument(state.currentDocIndex-1,true));
+  function saveCurrentDocument(){
+    const doc=request.documents[state.currentDocIndex];
+    if(hasTemplateItems(doc))saveDocumentAnswers();
+    else saveDocumentConsent();
+  }
+
+  $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveCurrentDocument);$('prevDocBtn').addEventListener('click',()=>selectDocument(state.currentDocIndex-1,true));
   $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));

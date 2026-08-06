@@ -1,15 +1,24 @@
 export type SignConsentValue = 'agree' | 'reject';
 
+export type SignEvidenceAnswerSnapshot = {
+  itemId: string;
+  category: string;
+  label: string;
+  value: string | string[] | null;
+};
+
 export type SignEvidenceDocument = {
   id: string;
   templateCode: string;
   version: string;
-  consent: SignConsentValue;
+  consent: SignConsentValue | null;
   reviewedAt: string;
   originalFilePath: string;
   originalHash?: string | null;
   signedObjectKey?: string | null;
   signedHash?: string | null;
+  answers?: Record<string, string | string[]>;
+  answerSnapshot?: SignEvidenceAnswerSnapshot[];
 };
 
 export type SignEvidencePayload = {
