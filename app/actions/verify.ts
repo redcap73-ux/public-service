@@ -103,7 +103,7 @@ export async function verifyCustomerIdentity(identityVerificationId: string) {
     }
 
     const verificationId = data.id || identityVerificationId; 
-    const { ci, name, phoneNumber, birthDate } = data.verifiedCustomer ?? {};
+    const { ci, name, phoneNumber, birthDate, gender } = data.verifiedCustomer ?? {};
 
     console.log('--- 인증 성공 및 유저 정보 수령 ---');
     console.log('인증 거래 ID:', verificationId);
@@ -111,6 +111,7 @@ export async function verifyCustomerIdentity(identityVerificationId: string) {
     console.log('이름:', name);
     console.log('전화번호:', phoneNumber);
     console.log('생년월일:', birthDate);
+    console.log('성별:', gender);
     // 👈 3. IP 및 기기 정보 로그 출력
     console.log('접속 IP:', clientIp);
     console.log('기기/브라우저 (User-Agent):', userAgent);
@@ -122,6 +123,7 @@ export async function verifyCustomerIdentity(identityVerificationId: string) {
         name,
         phoneNumber,
         birthDate,
+        gender,
         ci,
         clientIp,   // DB 저장 및 PDF 생성용으로 함께 반환
         userAgent,

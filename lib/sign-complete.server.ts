@@ -251,6 +251,13 @@ export async function completeSignRequestFromServer(
       ip: clientIpValue,
       userAgent: userAgentValue,
       transactionId: evidence.auth.transactionId,
+      birth: evidence.signer.birth,
+      gender: evidence.signer.gender,
+      postcode: evidence.signer.postcode,
+      address: evidence.signer.address,
+      addressBase: evidence.signer.addressBase,
+      addressDetail: evidence.signer.addressDetail,
+      identityConfirmedAt: evidence.signer.identityConfirmedAt,
     });
     backendSynced = true;
   } catch (error) {

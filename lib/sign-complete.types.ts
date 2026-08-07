@@ -31,6 +31,12 @@ export type SignEvidencePayload = {
     role: string;
     phone?: string;
     birth?: string;
+    gender?: string;
+    postcode?: string;
+    address?: string;
+    addressBase?: string;
+    addressDetail?: string;
+    identityConfirmedAt?: string;
   };
   auth: {
     provider: string;

@@ -5,6 +5,9 @@ const SIGN_URL = 'http://100.65.181.94/api/publicservice/sign';
 const UPDATE_SIGNATURE_URL =
   process.env.PUBLIC_SERVICE_UPDATE_SIGNATURE_URL ??
   'http://100.65.181.94/api/update-signature';
+const IDENTITY_PROFILE_URL =
+  process.env.PUBLIC_SERVICE_IDENTITY_PROFILE_URL ??
+  'http://100.65.181.94/api/publicservice/sign/identity';
 
 function getApiKey() {
   const apiKey = process.env.MY_SECRET_API_KEY;
@@ -58,6 +61,30 @@ export async function fetchPublicServiceSignFromServer(token: string) {
   return fetchWithApiKey(requestUrl.toString());
 }
 
+export type SignerIdentityProfilePayload = {
+  token: string;
+  name: string;
+  birth?: string;
+  gender?: string;
+  phone?: string;
+  postcode?: string;
+  address?: string;
+  addressBase?: string;
+  addressDetail?: string;
+  identityConfirmedAt: string;
+};
+
+/** 인적사항 확인 저장 — 외부 publicservice/sign/identity API로 전달 */
+export async function saveSignerIdentityProfileFromServer(body: SignerIdentityProfilePayload) {
+  return fetchWithApiKey(IDENTITY_PROFILE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 function toKstIsoString(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -103,6 +130,13 @@ export async function completePublicServiceSignFromServer(body: {
   userAgent?: string;
   /** PortOne 본인인증 Transaction ID (identityVerificationId) */
   transactionId?: string;
+  birth?: string;
+  gender?: string;
+  postcode?: string;
+  address?: string;
+  addressBase?: string;
+  addressDetail?: string;
+  identityConfirmedAt?: string;
 }) {
   const payload = {
     token: body.token,
@@ -113,6 +147,14 @@ export async function completePublicServiceSignFromServer(body: {
       name: body.name ?? '',
       phone: body.phone ?? '',
       ci: body.ci ?? '',
+      birth: body.birth ?? '',
+      gender: body.gender ?? '',
+      postcode: body.postcode ?? '',
+      address: body.address ?? '',
+      address_base: body.addressBase ?? '',
+      address_detail: body.addressDetail ?? '',
+      signer_address: body.address ?? '',
+      identity_confirmed_at: body.identityConfirmedAt ?? '',
       finalHash: body.finalHash,
       evidenceObjectKey: body.evidenceObjectKey,
       signed_file_path: body.signedFilePath ?? '',
