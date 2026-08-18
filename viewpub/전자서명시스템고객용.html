@@ -571,11 +571,36 @@
       options:buildTemplateItemOptions(item),
       selection_mode:normalizeTemplateCategory(item.category)==='CHECKBOX'?'multiple':'single',
       block_submit_values:normalizeTemplateCategory(item.category)==='AGREE_DISAGREE'?['동의하지 않음']:[],
+      pdfFieldName:String(item.pdf_field_name||'').trim(),
     }));
   }
 
   function hasTemplateItems(doc){
     return Array.isArray(doc?.questions)&&doc.questions.length>0;
+  }
+
+  function formatAnswerForPdf(value){
+    if(Array.isArray(value))return value.map(item=>String(item||'').trim()).filter(Boolean).join(', ');
+    return String(value??'').trim();
+  }
+
+  function buildTemplatePdfFields(doc,answers){
+    const fields={};
+    for(const q of doc?.questions||[]){
+      const fieldName=String(q.pdfFieldName||'').trim();
+      if(!fieldName)continue;
+      const text=formatAnswerForPdf(answers?.[q.id]);
+      if(!text)continue;
+      fields[fieldName]=text;
+    }
+    return fields;
+  }
+
+  function buildFillValues(userInfo,extraFields){
+    return {
+      ...buildIdentityFormValues(userInfo||{}),
+      extraFields:extraFields||{},
+    };
   }
 
   function deriveConsentFromAnswers(doc,answers){
@@ -1038,7 +1063,7 @@
 
   function ensureAcroformFill(){
     if(!acroformModulePromise){
-      acroformModulePromise=import('/api/acroform/browser');
+      acroformModulePromise=import(`/api/acroform/browser?v=${Date.now()}`);
     }
     return acroformModulePromise;
   }
@@ -1068,20 +1093,30 @@
     };
   }
 
-  async function buildFilledPreviewUrls(userInfo){
+  async function fillDocumentPreview(doc,userInfo,answers){
+    if(!doc?.file_path)return false;
     const {fillAcroFormIdentity}=await ensureAcroformFill();
+    const response=await fetch(buildFileApiUrl(doc.file_path),{cache:'no-store'});
+    if(!response.ok)return false;
+    const pdfBytes=await response.arrayBuffer();
+    const filled=await fillAcroFormIdentity(
+      pdfBytes,
+      buildFillValues(userInfo,buildTemplatePdfFields(doc,answers))
+    );
+    if(!filled)return false;
+    if(filledPdfUrls[doc.file_path])URL.revokeObjectURL(filledPdfUrls[doc.file_path]);
+    filledPdfUrls[doc.file_path]=URL.createObjectURL(new Blob([filled.bytes],{type:'application/pdf'}));
+    return true;
+  }
+
+  async function buildFilledPreviewUrls(userInfo){
     revokeFilledPdfUrls();
     let filledCount=0;
 
-    for(const doc of request.documents){
-      if(!doc.file_path)continue;
-      const response=await fetch(buildFileApiUrl(doc.file_path),{cache:'no-store'});
-      if(!response.ok)continue;
-      const pdfBytes=await response.arrayBuffer();
-      const filled=await fillAcroFormIdentity(pdfBytes,buildIdentityFormValues(userInfo));
-      if(!filled)continue;
-      filledPdfUrls[doc.file_path]=URL.createObjectURL(new Blob([filled.bytes],{type:'application/pdf'}));
-      filledCount+=1;
+    for(let i=0;i<request.documents.length;i+=1){
+      const doc=request.documents[i];
+      const filled=await fillDocumentPreview(doc,userInfo,state.docs[i]?.answers||{});
+      if(filled)filledCount+=1;
     }
 
     return filledCount;
@@ -1507,6 +1542,13 @@
     st.answers=answers;
     st.consent=deriveConsentFromAnswers(doc,answers);
     st.reviewedAt=new Date();
+    if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,answers)).length){
+      void fillDocumentPreview(doc,verifiedUserInfo,answers).then((filled)=>{
+        if(filled && request.documents[state.currentDocIndex]===doc){
+          renderDocumentContent(doc,state.currentDocIndex);
+        }
+      });
+    }
     renderDocList();
     if(st.consent==='reject' && doc.required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
     if(state.currentDocIndex<request.documents.length-1)selectDocument(state.currentDocIndex+1,true);else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 응답을 저장했습니다.');}
@@ -1729,13 +1771,16 @@
 
       const signedParts=[];
       for(let i=0;i<agreeDocsWithPdf.length;i+=1){
-        const {doc}=agreeDocsWithPdf[i];
+        const {doc,index}=agreeDocsWithPdf[i];
         submitBtn.textContent=`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 생성 중…`;
         const {bytes}=await generateSignedPdfBytes({
           filePath:doc.file_path,
           fileUrl:buildFileApiUrl(doc.file_path),
           signatureDataUrl,
-          identity:verifiedUserInfo,
+          identity:buildFillValues(
+            verifiedUserInfo,
+            buildTemplatePdfFields(doc,state.docs[index].answers||{})
+          ),
         });
         signedParts.push(bytes);
       }

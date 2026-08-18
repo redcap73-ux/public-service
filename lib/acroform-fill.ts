@@ -8,6 +8,8 @@ export type IdentityFormValues = {
   txId?: string;
   clientIp?: string;
   userAgent?: string;
+  /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
+  extraFields?: Record<string, string>;
 };
 
 export type FillableDocumentInput = {
@@ -54,6 +56,49 @@ function findFieldName(fieldNames: string[], aliases: string[]) {
       normalizedAliases.includes(normalizeFieldKey(fieldName))
     ) ?? null
   );
+}
+
+function findExactFieldName(fieldNames: string[], target: string) {
+  const wanted = target.trim();
+  if (!wanted) {
+    return null;
+  }
+
+  if (fieldNames.includes(wanted)) {
+    return wanted;
+  }
+
+  const normalized = normalizeFieldKey(wanted);
+  return fieldNames.find((fieldName) => normalizeFieldKey(fieldName) === normalized) ?? null;
+}
+
+function wrapCanvasLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const lines: string[] = [];
+  const paragraphs = text.replace(/\r\n/g, '\n').split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (!paragraph) {
+      lines.push('');
+      continue;
+    }
+
+    let current = '';
+    for (const char of paragraph) {
+      const candidate = `${current}${char}`;
+      if (ctx.measureText(candidate).width <= maxWidth || !current) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        current = char;
+      }
+    }
+
+    if (current) {
+      lines.push(current);
+    }
+  }
+
+  return lines.length ? lines : [''];
 }
 
 function formatBirthDate(value: string) {
@@ -270,6 +315,50 @@ async function renderSingleLinePng(text: string, width: number, height: number) 
   return dataUrlToUint8Array(canvas.toDataURL('image/png'));
 }
 
+async function renderWrappedTextPng(text: string, width: number, height: number) {
+  await ensureKoreanWebFont();
+
+  const scale = 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(width * scale));
+  canvas.height = Math.max(1, Math.ceil(height * scale));
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('텍스트 캔버스를 초기화하지 못했습니다.');
+  }
+
+  ctx.scale(scale, scale);
+  ctx.clearRect(0, 0, width, height);
+
+  const paddingX = 4;
+  const paddingY = 3;
+  const contentWidth = Math.max(width - paddingX * 2, 10);
+  const contentHeight = Math.max(height - paddingY * 2, 10);
+  const fontSize = Math.min(11, Math.max(7, Math.min(contentHeight, 14)));
+
+  ctx.fillStyle = '#111111';
+  ctx.textBaseline = 'top';
+  ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+
+  const lineHeight = fontSize + 3;
+  const maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
+  let lines = wrapCanvasLines(ctx, text, contentWidth);
+
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = fitCanvasText(ctx, lines[maxLines - 1], contentWidth);
+  }
+
+  let y = paddingY;
+  for (const line of lines) {
+    ctx.fillText(line, paddingX, y);
+    y += lineHeight;
+  }
+
+  return dataUrlToUint8Array(canvas.toDataURL('image/png'));
+}
+
 function triggerDownload(bytes: Uint8Array, fileName: string) {
   const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -350,6 +439,54 @@ async function stampTextField(
   }
 
   form.removeField(field);
+}
+
+async function stampMappedTextField(
+  pdfDoc: PDFDocument,
+  fieldName: string,
+  text: string
+) {
+  const form = pdfDoc.getForm();
+  let field;
+
+  try {
+    field = form.getTextField(fieldName);
+  } catch {
+    return false;
+  }
+
+  field.setText(text);
+
+  const widgets = field.acroField.getWidgets();
+  const useWrapped =
+    field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22);
+
+  if (useWrapped) {
+    field.enableMultiline();
+  }
+
+  for (const widget of widgets) {
+    const page = getPageForWidget(pdfDoc, widget);
+    if (!page) {
+      continue;
+    }
+
+    const rect = widget.getRectangle();
+    const pngBytes = useWrapped
+      ? await renderWrappedTextPng(text, rect.width, rect.height)
+      : await renderSingleLinePng(text, rect.width, rect.height);
+    const image = await pdfDoc.embedPng(pngBytes);
+
+    page.drawImage(image, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+
+  form.removeField(field);
+  return true;
 }
 
 /**
@@ -433,8 +570,23 @@ export async function fillAcroFormIdentity(
   }
 
   const shouldFillDesc = !!(descField && (values.txId || values.ci || values.clientIp));
+  const reservedNames = new Set(toStamp.map((item) => item.fieldName));
+  if (shouldFillDesc && descField) {
+    reservedNames.add(descField);
+  }
+  const extraToStamp: Array<{ fieldName: string; text: string }> = [];
 
-  if (toStamp.length === 0 && !shouldFillDesc) {
+  for (const [rawName, rawValue] of Object.entries(values.extraFields ?? {})) {
+    const text = String(rawValue ?? '').trim();
+    const fieldName = findExactFieldName(fieldNames, rawName);
+    if (!text || !fieldName || reservedNames.has(fieldName)) {
+      continue;
+    }
+    extraToStamp.push({ fieldName, text });
+    reservedNames.add(fieldName);
+  }
+
+  if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0) {
     return null;
   }
 
@@ -446,6 +598,13 @@ export async function fillAcroFormIdentity(
   if (shouldFillDesc && descField) {
     await stampAuditDescField(pdfDoc, descField, values);
     filledFields.push(descField);
+  }
+
+  for (const item of extraToStamp) {
+    const stamped = await stampMappedTextField(pdfDoc, item.fieldName, item.text);
+    if (stamped) {
+      filledFields.push(item.fieldName);
+    }
   }
 
   return {

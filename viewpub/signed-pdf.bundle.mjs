@@ -19673,6 +19673,41 @@ function findFieldName(fieldNames, aliases) {
     (fieldName) => normalizedAliases.includes(normalizeFieldKey(fieldName))
   ) ?? null;
 }
+function findExactFieldName(fieldNames, target) {
+  const wanted = target.trim();
+  if (!wanted) {
+    return null;
+  }
+  if (fieldNames.includes(wanted)) {
+    return wanted;
+  }
+  const normalized = normalizeFieldKey(wanted);
+  return fieldNames.find((fieldName) => normalizeFieldKey(fieldName) === normalized) ?? null;
+}
+function wrapCanvasLines(ctx, text, maxWidth) {
+  const lines = [];
+  const paragraphs = text.replace(/\r\n/g, "\n").split("\n");
+  for (const paragraph of paragraphs) {
+    if (!paragraph) {
+      lines.push("");
+      continue;
+    }
+    let current = "";
+    for (const char of paragraph) {
+      const candidate = `${current}${char}`;
+      if (ctx.measureText(candidate).width <= maxWidth || !current) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        current = char;
+      }
+    }
+    if (current) {
+      lines.push(current);
+    }
+  }
+  return lines.length ? lines : [""];
+}
 function formatBirthDate(value) {
   const digits = value.replace(/\D/g, "");
   if (digits.length === 8) {
@@ -19826,6 +19861,40 @@ async function renderSingleLinePng(text, width, height) {
   ctx.fillText(fitCanvasText(ctx, text, Math.max(width - 4, 10)), 2, height / 2);
   return dataUrlToUint8Array(canvas.toDataURL("image/png"));
 }
+async function renderWrappedTextPng(text, width, height) {
+  await ensureKoreanWebFont();
+  const scale2 = 3;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.ceil(width * scale2));
+  canvas.height = Math.max(1, Math.ceil(height * scale2));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("\uD14D\uC2A4\uD2B8 \uCE94\uBC84\uC2A4\uB97C \uCD08\uAE30\uD654\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
+  }
+  ctx.scale(scale2, scale2);
+  ctx.clearRect(0, 0, width, height);
+  const paddingX = 4;
+  const paddingY = 3;
+  const contentWidth = Math.max(width - paddingX * 2, 10);
+  const contentHeight = Math.max(height - paddingY * 2, 10);
+  const fontSize = Math.min(11, Math.max(7, Math.min(contentHeight, 14)));
+  ctx.fillStyle = "#111111";
+  ctx.textBaseline = "top";
+  ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+  const lineHeight = fontSize + 3;
+  const maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
+  let lines = wrapCanvasLines(ctx, text, contentWidth);
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = fitCanvasText(ctx, lines[maxLines - 1], contentWidth);
+  }
+  let y = paddingY;
+  for (const line of lines) {
+    ctx.fillText(line, paddingX, y);
+    y += lineHeight;
+  }
+  return dataUrlToUint8Array(canvas.toDataURL("image/png"));
+}
 function getPageForWidget(pdfDoc, widget) {
   const pages = pdfDoc.getPages();
   const pageRef = widget.dict.get(PDFName_default.of("P"));
@@ -19858,6 +19927,38 @@ async function stampTextField(pdfDoc, fieldName, text) {
     });
   }
   form.removeField(field);
+}
+async function stampMappedTextField(pdfDoc, fieldName, text) {
+  const form = pdfDoc.getForm();
+  let field;
+  try {
+    field = form.getTextField(fieldName);
+  } catch {
+    return false;
+  }
+  field.setText(text);
+  const widgets = field.acroField.getWidgets();
+  const useWrapped = field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22);
+  if (useWrapped) {
+    field.enableMultiline();
+  }
+  for (const widget of widgets) {
+    const page = getPageForWidget(pdfDoc, widget);
+    if (!page) {
+      continue;
+    }
+    const rect = widget.getRectangle();
+    const pngBytes = useWrapped ? await renderWrappedTextPng(text, rect.width, rect.height) : await renderSingleLinePng(text, rect.width, rect.height);
+    const image = await pdfDoc.embedPng(pngBytes);
+    page.drawImage(image, {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    });
+  }
+  form.removeField(field);
+  return true;
 }
 async function stampAuditDescField(pdfDoc, fieldName, values2) {
   const form = pdfDoc.getForm();
@@ -19910,7 +20011,21 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
     toStamp.push({ fieldName: birthdayField, text: formatBirthDate(birthDate) });
   }
   const shouldFillDesc = !!(descField && (values2.txId || values2.ci || values2.clientIp));
-  if (toStamp.length === 0 && !shouldFillDesc) {
+  const reservedNames = new Set(toStamp.map((item) => item.fieldName));
+  if (shouldFillDesc && descField) {
+    reservedNames.add(descField);
+  }
+  const extraToStamp = [];
+  for (const [rawName, rawValue] of Object.entries(values2.extraFields ?? {})) {
+    const text = String(rawValue ?? "").trim();
+    const fieldName = findExactFieldName(fieldNames, rawName);
+    if (!text || !fieldName || reservedNames.has(fieldName)) {
+      continue;
+    }
+    extraToStamp.push({ fieldName, text });
+    reservedNames.add(fieldName);
+  }
+  if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0) {
     return null;
   }
   for (const item of toStamp) {
@@ -19920,6 +20035,12 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   if (shouldFillDesc && descField) {
     await stampAuditDescField(pdfDoc, descField, values2);
     filledFields.push(descField);
+  }
+  for (const item of extraToStamp) {
+    const stamped = await stampMappedTextField(pdfDoc, item.fieldName, item.text);
+    if (stamped) {
+      filledFields.push(item.fieldName);
+    }
   }
   return {
     bytes: await pdfDoc.save(),
