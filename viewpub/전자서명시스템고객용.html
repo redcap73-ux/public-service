@@ -556,6 +556,30 @@
     return getDocumentDownloadType(doc)===1;
   }
 
+  function findConsentDocumentIndex(fromIndex,direction){
+    const docs=request.documents;
+    if(!docs.length)return -1;
+    const step=direction<0?-1:1;
+    let i=fromIndex;
+    while(i>=0 && i<docs.length){
+      if(isConsentDocument(docs[i]))return i;
+      i+=step;
+    }
+    return -1;
+  }
+
+  function getFirstConsentDocumentIndex(){
+    return findConsentDocumentIndex(0,1);
+  }
+
+  function getNextConsentDocumentIndex(currentIndex){
+    return findConsentDocumentIndex(currentIndex+1,1);
+  }
+
+  function getPrevConsentDocumentIndex(currentIndex){
+    return findConsentDocumentIndex(currentIndex-1,-1);
+  }
+
   function normalizeTemplateCategory(category){
     return String(category||'').trim().toUpperCase();
   }
@@ -1379,7 +1403,10 @@
     document.querySelectorAll('.doc-row').forEach(row=>{
       row.addEventListener('click',(event)=>{
         if(event.target.closest('[data-download-doc],[data-open-doc]'))return;
-        selectDocument(Number(row.dataset.docIndex),true);
+        const docIndex=Number(row.dataset.docIndex);
+        // 다운로드 전용(download_type=2)은 PDF 영역에 열지 않음
+        if(!isConsentDocument(request.documents[docIndex]))return;
+        selectDocument(docIndex,true);
       });
     });
     document.querySelectorAll('[data-open-doc]').forEach(btn=>btn.addEventListener('click',(event)=>{
@@ -1552,14 +1579,22 @@
     const paperEl=$('paperContent');
     pdfRenderGeneration+=1;
     const generation=pdfRenderGeneration;
-    if(doc.file_path){
+    // 실제 PDF 미리보기는 download_type=1(동의/열람) 문서만 표시
+    if(isConsentDocument(doc) && doc.file_path){
       $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF ${filledPdfUrls[doc.file_path]?'본인정보 반영':'원본'}`;
       void renderPdfIntoPaper(doc.file_path,paperEl,generation);
       return;
     }
+    if(isConsentDocument(doc)){
+      paperEl.className='paper';
+      paperEl.innerHTML=buildPaper(doc,index);
+      $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · 요청 Snapshot`;
+      return;
+    }
+    // download_type=2 등은 PDF 영역에 표시하지 않음
     paperEl.className='paper';
-    paperEl.innerHTML=buildPaper(doc,index);
-    $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · 요청 Snapshot`;
+    paperEl.replaceChildren();
+    $('viewerMeta').textContent='';
   }
 
   function buildPaper(doc,index){
@@ -1677,27 +1712,33 @@
     }
     renderDocList();
     if(st.consent==='reject' && doc.required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
-    if(state.currentDocIndex<request.documents.length-1)selectDocument(state.currentDocIndex+1,true);else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 응답을 저장했습니다.');}
+    const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
+    if(nextConsent>=0)selectDocument(nextConsent,true);
+    else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 응답을 저장했습니다.');}
   }
 
   function selectDocument(index,scrollToViewer){
     if(state.currentStep===2 && !ensureIdentityProfileConfirmed('문서 확인'))return;
-    state.currentDocIndex=Math.max(0,Math.min(index,request.documents.length-1));
+    let targetIndex=Math.max(0,Math.min(index,request.documents.length-1));
+    // PDF 확인 영역에는 download_type=1 문서만 연다
+    if(!isConsentDocument(request.documents[targetIndex])){
+      const fallback=getFirstConsentDocumentIndex();
+      if(fallback<0){
+        $('viewerCard').classList.add('hidden');
+        renderDocList();
+        return;
+      }
+      targetIndex=fallback;
+    }
+    state.currentDocIndex=targetIndex;
     const doc=request.documents[state.currentDocIndex],st=state.docs[state.currentDocIndex];
-    const isDownloadOnly=getDocumentDownloadType(doc)===2;
     const usesTemplateItems=hasTemplateItems(doc);
     st.viewed=true;
+    $('viewerCard').classList.remove('hidden');
     $('viewerTitle').textContent=`${state.currentDocIndex+1}. ${doc.name}`;
     renderDocumentContent(doc,state.currentDocIndex);
     $('documentViewer').scrollTop=0;
-    if(isDownloadOnly){
-      $('viewerBadge').className='badge gray';
-      $('viewerBadge').textContent='다운로드';
-      $('docFormPanel').classList.add('hidden');
-      $('consentBox').classList.add('hidden');
-      $('scrollTip').classList.add('hidden');
-      $('saveDocBtn').classList.add('hidden');
-    }else if(usesTemplateItems){
+    if(usesTemplateItems){
       $('consentBox').classList.add('hidden');
       $('scrollTip').classList.remove('hidden');
       $('saveDocBtn').classList.remove('hidden');
@@ -1706,7 +1747,8 @@
       $('scrollTip').className=`scroll-tip ${st.scrolled?'ready':''}`;
       $('scrollTip').textContent=st.scrolled?'✓ 문서 확인 완료. 아래 질문에 답해 주세요.':'↧ 문서를 끝까지 내려 확인해 주세요.';
       renderDocFormPanel(doc,state.currentDocIndex,st);
-      $('saveDocBtn').textContent=state.currentDocIndex===request.documents.length-1?'응답 저장':'응답 저장 · 다음 문서';
+      const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
+      $('saveDocBtn').textContent=nextConsent<0?'응답 저장':'응답 저장 · 다음 문서';
     }else{
       $('docFormPanel').classList.add('hidden');
       $('consentBox').classList.remove('hidden');
@@ -1719,11 +1761,23 @@
       $('consentBox').classList.toggle('locked',!st.scrolled);
       $('consentLockBadge').className=`badge ${st.scrolled?'blue':'gray'}`;$('consentLockBadge').textContent=st.scrolled?'선택 가능':'열람 필요';
       $('scrollTip').className=`scroll-tip ${st.scrolled?'ready':''}`;$('scrollTip').textContent=st.scrolled?'✓ 문서 끝까지 확인했습니다.':'↧ 문서를 끝까지 내려 확인해 주세요.';
-      $('saveDocBtn').textContent=state.currentDocIndex===request.documents.length-1?'동의 저장':'동의 저장 · 다음 문서';
+      const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
+      $('saveDocBtn').textContent=nextConsent<0?'동의 저장':'동의 저장 · 다음 문서';
     }
-    $('prevDocBtn').disabled=state.currentDocIndex===0;
+    $('prevDocBtn').disabled=getPrevConsentDocumentIndex(state.currentDocIndex)<0;
     renderDocList();
     if(scrollToViewer)$('viewerCard').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function selectAdjacentConsentDocument(direction,scrollToViewer){
+    const nextIndex=direction<0
+      ? getPrevConsentDocumentIndex(state.currentDocIndex)
+      : getNextConsentDocumentIndex(state.currentDocIndex);
+    if(nextIndex<0){
+      if(direction>0)toast('확인할 동의 문서가 더 이상 없습니다.');
+      return;
+    }
+    selectDocument(nextIndex,scrollToViewer);
   }
 
   function onViewerScroll(){
@@ -1738,7 +1792,9 @@
     if(!selected){toast('동의 또는 미동의를 선택해 주세요.');return;}
     st.consent=selected.value;st.reviewedAt=new Date();renderDocList();
     if(selected.value==='reject' && request.documents[state.currentDocIndex].required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
-    if(state.currentDocIndex<request.documents.length-1)selectDocument(state.currentDocIndex+1,true);else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 동의 결과를 저장했습니다.');}
+    const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
+    if(nextConsent>=0)selectDocument(nextConsent,true);
+    else{selectDocument(state.currentDocIndex,false);toast('마지막 문서의 동의 결과를 저장했습니다.');}
   }
 
   function updateDocProgress(){
@@ -2050,7 +2106,7 @@
     else saveDocumentConsent();
   }
 
-  $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveCurrentDocument);$('prevDocBtn').addEventListener('click',()=>selectDocument(state.currentDocIndex-1,true));
+  $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveCurrentDocument);$('prevDocBtn').addEventListener('click',()=>selectAdjacentConsentDocument(-1,true));
   $('saveIdentityProfileBtn').addEventListener('click',()=>void saveIdentityProfile());
   $('identityAddressSearchBtn').addEventListener('click',()=>void openAddressSearch());
   $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
