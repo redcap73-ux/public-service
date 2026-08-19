@@ -1,5 +1,9 @@
 import { PDFDocument, PDFName, PDFRef } from 'pdf-lib';
-import { fillAcroFormIdentity, type IdentityFormValues } from '@/lib/acroform-fill';
+import {
+  fillAcroFormIdentity,
+  renderCheckMarkPng,
+  type IdentityFormValues,
+} from '@/lib/acroform-fill';
 import {
   ensurePdfJs,
   type PdfJsPage,

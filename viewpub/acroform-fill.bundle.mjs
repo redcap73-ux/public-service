@@ -19663,6 +19663,7 @@ var BIRTHDAY_ALIASES = [
   "\uC0DD\uC77C"
 ];
 var DESC_ALIASES = ["desc", "description", "audit", "audittrail", "\uC99D\uC801", "\uBE44\uACE0", "remark"];
+var DATE_FIELD_PREFIXES = ["year4", "year2", "month", "day"];
 var KOREAN_FONT_URL = "/fonts/NotoSansKR-Regular.otf";
 function normalizeFieldKey(name) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -19683,6 +19684,75 @@ function findExactFieldName(fieldNames, target) {
   }
   const normalized = normalizeFieldKey(wanted);
   return fieldNames.find((fieldName) => normalizeFieldKey(fieldName) === normalized) ?? null;
+}
+function expandFieldNameCandidates(rawName) {
+  const name = rawName.trim();
+  if (!name) {
+    return [];
+  }
+  const candidates = [name, name.replace(/\s+/g, "")];
+  const suffixMatch = name.match(/^(.*?)[_-]?(\d+)$/);
+  if (suffixMatch?.[1]) {
+    const base = suffixMatch[1];
+    const index = suffixMatch[2];
+    candidates.push(`${base}_${index}`, `${base}${index}`, `${base}-${index}`);
+  }
+  return [...new Set(candidates.filter(Boolean))];
+}
+function resolveExtraFieldName(fieldNames, rawName) {
+  for (const candidate of expandFieldNameCandidates(rawName)) {
+    const matched = findExactFieldName(fieldNames, candidate);
+    if (matched) {
+      return matched;
+    }
+  }
+  return null;
+}
+function fieldStartsWithDatePrefix(fieldName, prefix) {
+  const name = fieldName.trim().toLowerCase();
+  if (name === prefix) {
+    return true;
+  }
+  if (!name.startsWith(prefix) || name.length === prefix.length) {
+    return false;
+  }
+  return /[^a-z]/.test(name.charAt(prefix.length));
+}
+function matchDatePrefix(name) {
+  const normalized = name.trim().toLowerCase();
+  return DATE_FIELD_PREFIXES.find((prefix) => fieldStartsWithDatePrefix(normalized, prefix)) ?? null;
+}
+function getKstDateParts(now = /* @__PURE__ */ new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  return {
+    year4: year,
+    year2: year.slice(-2),
+    month,
+    day
+  };
+}
+function collectDatePrefixes(values2) {
+  const prefixes = /* @__PURE__ */ new Set();
+  for (const prefix of values2.datePrefixes ?? []) {
+    if (DATE_FIELD_PREFIXES.includes(prefix)) {
+      prefixes.add(prefix);
+    }
+  }
+  for (const key of Object.keys(values2.extraFields ?? {})) {
+    const matched = matchDatePrefix(key);
+    if (matched) {
+      prefixes.add(matched);
+    }
+  }
+  return prefixes;
 }
 function wrapCanvasLines(ctx, text, maxWidth) {
   const lines = [];
@@ -19861,6 +19931,39 @@ async function renderSingleLinePng(text, width, height) {
   ctx.fillText(fitCanvasText(ctx, text, Math.max(width - 4, 10)), 2, height / 2);
   return dataUrlToUint8Array(canvas.toDataURL("image/png"));
 }
+function isCheckMarkText(text) {
+  return ["v", "V", "\u2713", "\u2714"].includes(text.trim());
+}
+async function renderCenteredMarkPng(_text, width, height) {
+  const scale2 = 3;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.ceil(width * scale2));
+  canvas.height = Math.max(1, Math.ceil(height * scale2));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("\uD14D\uC2A4\uD2B8 \uCE94\uBC84\uC2A4\uB97C \uCD08\uAE30\uD654\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
+  }
+  ctx.scale(scale2, scale2);
+  ctx.clearRect(0, 0, width, height);
+  const size = Math.min(width, height);
+  const pad = size * 0.18;
+  const left = (width - size) / 2 + pad;
+  const top = (height - size) / 2 + pad;
+  const box = size - pad * 2;
+  ctx.strokeStyle = "#111111";
+  ctx.lineWidth = Math.max(1.4, box * 0.14);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(left + box * 0.08, top + box * 0.52);
+  ctx.lineTo(left + box * 0.38, top + box * 0.82);
+  ctx.lineTo(left + box * 0.92, top + box * 0.18);
+  ctx.stroke();
+  return dataUrlToUint8Array(canvas.toDataURL("image/png"));
+}
+async function renderCheckMarkPng(width, height) {
+  return renderCenteredMarkPng("\u2713", width, height);
+}
 async function renderWrappedTextPng(text, width, height) {
   await ensureKoreanWebFont();
   const scale2 = 3;
@@ -19961,7 +20064,8 @@ async function stampMappedTextField(pdfDoc, fieldName, text) {
   }
   field.setText(text);
   const widgets = field.acroField.getWidgets();
-  const useWrapped = field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22);
+  const useCheckMark = isCheckMarkText(text);
+  const useWrapped = !useCheckMark && (field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22));
   if (useWrapped) {
     field.enableMultiline();
   }
@@ -19971,7 +20075,7 @@ async function stampMappedTextField(pdfDoc, fieldName, text) {
       continue;
     }
     const rect = widget.getRectangle();
-    const pngBytes = useWrapped ? await renderWrappedTextPng(text, rect.width, rect.height) : await renderSingleLinePng(text, rect.width, rect.height);
+    const pngBytes = useCheckMark ? await renderCenteredMarkPng(text, rect.width, rect.height) : useWrapped ? await renderWrappedTextPng(text, rect.width, rect.height) : await renderSingleLinePng(text, rect.width, rect.height);
     const image = await pdfDoc.embedPng(pngBytes);
     page.drawImage(image, {
       x: rect.x,
@@ -19981,6 +20085,55 @@ async function stampMappedTextField(pdfDoc, fieldName, text) {
     });
   }
   form.removeField(field);
+  return true;
+}
+function checkMarkDrawRect(rect) {
+  if (rect.width <= Math.max(rect.height * 1.8, 18)) {
+    return rect;
+  }
+  const size = Math.max(Math.min(rect.height * 0.92, 14), 8);
+  return {
+    x: rect.x + 1,
+    y: rect.y + (rect.height - size) / 2,
+    width: size,
+    height: size
+  };
+}
+async function stampMappedExtraField(pdfDoc, fieldName, text) {
+  const form = pdfDoc.getForm();
+  const field = form.getFields().find((item) => item.getName() === fieldName);
+  if (!field) {
+    return false;
+  }
+  try {
+    form.getCheckBox(fieldName).check();
+  } catch {
+  }
+  const widgets = field.acroField.getWidgets();
+  if (widgets.length === 0) {
+    return stampMappedTextField(pdfDoc, fieldName, text);
+  }
+  const useCheckMark = isCheckMarkText(text);
+  for (const widget of widgets) {
+    const page = getPageForWidget(pdfDoc, widget);
+    if (!page) {
+      continue;
+    }
+    const rect = widget.getRectangle();
+    const drawRect = useCheckMark ? checkMarkDrawRect(rect) : rect;
+    const pngBytes = useCheckMark ? await renderCenteredMarkPng(text, drawRect.width, drawRect.height) : await renderSingleLinePng(text, drawRect.width, drawRect.height);
+    const image = await pdfDoc.embedPng(pngBytes);
+    page.drawImage(image, {
+      x: drawRect.x,
+      y: drawRect.y,
+      width: drawRect.width,
+      height: drawRect.height
+    });
+  }
+  try {
+    form.removeField(field);
+  } catch {
+  }
   return true;
 }
 async function stampAuditDescField(pdfDoc, fieldName, values2) {
@@ -20040,15 +20193,34 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   }
   const extraToStamp = [];
   for (const [rawName, rawValue] of Object.entries(values2.extraFields ?? {})) {
+    if (matchDatePrefix(rawName)) {
+      continue;
+    }
     const text = String(rawValue ?? "").trim();
-    const fieldName = findExactFieldName(fieldNames, rawName);
+    const fieldName = resolveExtraFieldName(fieldNames, rawName);
     if (!text || !fieldName || reservedNames.has(fieldName)) {
       continue;
     }
     extraToStamp.push({ fieldName, text });
     reservedNames.add(fieldName);
   }
-  if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0) {
+  const dateParts = getKstDateParts();
+  const datePrefixes = collectDatePrefixes(values2);
+  const dateToStamp = [];
+  for (const prefix of datePrefixes) {
+    const text = dateParts[prefix];
+    if (!text) {
+      continue;
+    }
+    for (const fieldName of fieldNames) {
+      if (reservedNames.has(fieldName) || !fieldStartsWithDatePrefix(fieldName, prefix)) {
+        continue;
+      }
+      dateToStamp.push({ fieldName, text });
+      reservedNames.add(fieldName);
+    }
+  }
+  if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0 && dateToStamp.length === 0) {
     return null;
   }
   for (const item of toStamp) {
@@ -20060,7 +20232,13 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
     filledFields.push(descField);
   }
   for (const item of extraToStamp) {
-    const stamped = await stampMappedTextField(pdfDoc, item.fieldName, item.text);
+    const stamped = await stampMappedExtraField(pdfDoc, item.fieldName, item.text);
+    if (stamped) {
+      filledFields.push(item.fieldName);
+    }
+  }
+  for (const item of dateToStamp) {
+    const stamped = await stampMappedExtraField(pdfDoc, item.fieldName, item.text);
     if (stamped) {
       filledFields.push(item.fieldName);
     }
@@ -20112,7 +20290,8 @@ export {
   buildAuditTrailRows,
   buildAuditTrailText,
   fillAcroFormIdentity,
-  fillAndDownloadIdentityDocuments
+  fillAndDownloadIdentityDocuments,
+  renderCheckMarkPng
 };
 /*! Bundled license information:
 

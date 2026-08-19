@@ -10,6 +10,10 @@ export type IdentityFormValues = {
   userAgent?: string;
   /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
   extraFields?: Record<string, string>;
+  /** 선택형 답변 문구. PDF 본문 "동의함" 왼쪽 [ ]에 체크를 찍을 때 사용 */
+  checkLabels?: string[];
+  /** template pdf_field_name 이 year4/year2/month/day 인 경우, 같은 접두어 PDF 필드에 오늘 날짜를 넣습니다. */
+  datePrefixes?: Array<'year4' | 'year2' | 'month' | 'day'>;
 };
 
 export type FillableDocumentInput = {
@@ -41,6 +45,8 @@ const BIRTHDAY_ALIASES = [
   '생일',
 ];
 const DESC_ALIASES = ['desc', 'description', 'audit', 'audittrail', '증적', '비고', 'remark'];
+const DATE_FIELD_PREFIXES = ['year4', 'year2', 'month', 'day'] as const;
+type DateFieldPrefix = (typeof DATE_FIELD_PREFIXES)[number];
 
 const KOREAN_FONT_URL = '/fonts/NotoSansKR-Regular.otf';
 
@@ -70,6 +76,84 @@ function findExactFieldName(fieldNames: string[], target: string) {
 
   const normalized = normalizeFieldKey(wanted);
   return fieldNames.find((fieldName) => normalizeFieldKey(fieldName) === normalized) ?? null;
+}
+
+function expandFieldNameCandidates(rawName: string) {
+  const name = rawName.trim();
+  if (!name) {
+    return [];
+  }
+
+  const candidates = [name, name.replace(/\s+/g, '')];
+  const suffixMatch = name.match(/^(.*?)[_-]?(\d+)$/);
+  if (suffixMatch?.[1]) {
+    const base = suffixMatch[1];
+    const index = suffixMatch[2];
+    candidates.push(`${base}_${index}`, `${base}${index}`, `${base}-${index}`);
+  }
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+function resolveExtraFieldName(fieldNames: string[], rawName: string) {
+  for (const candidate of expandFieldNameCandidates(rawName)) {
+    const matched = findExactFieldName(fieldNames, candidate);
+    if (matched) {
+      return matched;
+    }
+  }
+  return null;
+}
+
+function fieldStartsWithDatePrefix(fieldName: string, prefix: DateFieldPrefix) {
+  const name = fieldName.trim().toLowerCase();
+  if (name === prefix) {
+    return true;
+  }
+  if (!name.startsWith(prefix) || name.length === prefix.length) {
+    return false;
+  }
+  return /[^a-z]/.test(name.charAt(prefix.length));
+}
+
+function matchDatePrefix(name: string): DateFieldPrefix | null {
+  const normalized = name.trim().toLowerCase();
+  return DATE_FIELD_PREFIXES.find((prefix) => fieldStartsWithDatePrefix(normalized, prefix)) ?? null;
+}
+
+function getKstDateParts(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '';
+  const day = parts.find((part) => part.type === 'day')?.value ?? '';
+
+  return {
+    year4: year,
+    year2: year.slice(-2),
+    month,
+    day,
+  };
+}
+
+function collectDatePrefixes(values: IdentityFormValues) {
+  const prefixes = new Set<DateFieldPrefix>();
+  for (const prefix of values.datePrefixes ?? []) {
+    if ((DATE_FIELD_PREFIXES as readonly string[]).includes(prefix)) {
+      prefixes.add(prefix);
+    }
+  }
+  for (const key of Object.keys(values.extraFields ?? {})) {
+    const matched = matchDatePrefix(key);
+    if (matched) {
+      prefixes.add(matched);
+    }
+  }
+  return prefixes;
 }
 
 function wrapCanvasLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
@@ -315,6 +399,47 @@ async function renderSingleLinePng(text: string, width: number, height: number) 
   return dataUrlToUint8Array(canvas.toDataURL('image/png'));
 }
 
+function isCheckMarkText(text: string) {
+  return ['v', 'V', '✓', '✔'].includes(text.trim());
+}
+
+async function renderCenteredMarkPng(_text: string, width: number, height: number) {
+  const scale = 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(width * scale));
+  canvas.height = Math.max(1, Math.ceil(height * scale));
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('텍스트 캔버스를 초기화하지 못했습니다.');
+  }
+
+  ctx.scale(scale, scale);
+  ctx.clearRect(0, 0, width, height);
+
+  const size = Math.min(width, height);
+  const pad = size * 0.18;
+  const left = (width - size) / 2 + pad;
+  const top = (height - size) / 2 + pad;
+  const box = size - pad * 2;
+
+  ctx.strokeStyle = '#111111';
+  ctx.lineWidth = Math.max(1.4, box * 0.14);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(left + box * 0.08, top + box * 0.52);
+  ctx.lineTo(left + box * 0.38, top + box * 0.82);
+  ctx.lineTo(left + box * 0.92, top + box * 0.18);
+  ctx.stroke();
+
+  return dataUrlToUint8Array(canvas.toDataURL('image/png'));
+}
+
+export async function renderCheckMarkPng(width: number, height: number) {
+  return renderCenteredMarkPng('✓', width, height);
+}
+
 async function renderWrappedTextPng(text: string, width: number, height: number) {
   await ensureKoreanWebFont();
 
@@ -458,8 +583,10 @@ async function stampMappedTextField(
   field.setText(text);
 
   const widgets = field.acroField.getWidgets();
+  const useCheckMark = isCheckMarkText(text);
   const useWrapped =
-    field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22);
+    !useCheckMark &&
+    (field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22));
 
   if (useWrapped) {
     field.enableMultiline();
@@ -472,9 +599,11 @@ async function stampMappedTextField(
     }
 
     const rect = widget.getRectangle();
-    const pngBytes = useWrapped
-      ? await renderWrappedTextPng(text, rect.width, rect.height)
-      : await renderSingleLinePng(text, rect.width, rect.height);
+    const pngBytes = useCheckMark
+      ? await renderCenteredMarkPng(text, rect.width, rect.height)
+      : useWrapped
+        ? await renderWrappedTextPng(text, rect.width, rect.height)
+        : await renderSingleLinePng(text, rect.width, rect.height);
     const image = await pdfDoc.embedPng(pngBytes);
 
     page.drawImage(image, {
@@ -486,6 +615,74 @@ async function stampMappedTextField(
   }
 
   form.removeField(field);
+  return true;
+}
+
+function checkMarkDrawRect(rect: { x: number; y: number; width: number; height: number }) {
+  if (rect.width <= Math.max(rect.height * 1.8, 18)) {
+    return rect;
+  }
+
+  const size = Math.max(Math.min(rect.height * 0.92, 14), 8);
+  return {
+    x: rect.x + 1,
+    y: rect.y + (rect.height - size) / 2,
+    width: size,
+    height: size,
+  };
+}
+
+async function stampMappedExtraField(
+  pdfDoc: PDFDocument,
+  fieldName: string,
+  text: string
+) {
+  const form = pdfDoc.getForm();
+  const field = form.getFields().find((item) => item.getName() === fieldName);
+  if (!field) {
+    return false;
+  }
+
+  try {
+    form.getCheckBox(fieldName).check();
+  } catch {
+    // Radio/text/button fields are stamped as images below.
+  }
+
+  const widgets = field.acroField.getWidgets();
+  if (widgets.length === 0) {
+    return stampMappedTextField(pdfDoc, fieldName, text);
+  }
+
+  const useCheckMark = isCheckMarkText(text);
+
+  for (const widget of widgets) {
+    const page = getPageForWidget(pdfDoc, widget);
+    if (!page) {
+      continue;
+    }
+
+    const rect = widget.getRectangle();
+    const drawRect = useCheckMark ? checkMarkDrawRect(rect) : rect;
+    const pngBytes = useCheckMark
+      ? await renderCenteredMarkPng(text, drawRect.width, drawRect.height)
+      : await renderSingleLinePng(text, drawRect.width, drawRect.height);
+    const image = await pdfDoc.embedPng(pngBytes);
+
+    page.drawImage(image, {
+      x: drawRect.x,
+      y: drawRect.y,
+      width: drawRect.width,
+      height: drawRect.height,
+    });
+  }
+
+  try {
+    form.removeField(field);
+  } catch {
+    // Keep the stamped image even if the widget cannot be removed.
+  }
+
   return true;
 }
 
@@ -577,8 +774,11 @@ export async function fillAcroFormIdentity(
   const extraToStamp: Array<{ fieldName: string; text: string }> = [];
 
   for (const [rawName, rawValue] of Object.entries(values.extraFields ?? {})) {
+    if (matchDatePrefix(rawName)) {
+      continue;
+    }
     const text = String(rawValue ?? '').trim();
-    const fieldName = findExactFieldName(fieldNames, rawName);
+    const fieldName = resolveExtraFieldName(fieldNames, rawName);
     if (!text || !fieldName || reservedNames.has(fieldName)) {
       continue;
     }
@@ -586,7 +786,30 @@ export async function fillAcroFormIdentity(
     reservedNames.add(fieldName);
   }
 
-  if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0) {
+  const dateParts = getKstDateParts();
+  const datePrefixes = collectDatePrefixes(values);
+  const dateToStamp: Array<{ fieldName: string; text: string }> = [];
+
+  for (const prefix of datePrefixes) {
+    const text = dateParts[prefix];
+    if (!text) {
+      continue;
+    }
+    for (const fieldName of fieldNames) {
+      if (reservedNames.has(fieldName) || !fieldStartsWithDatePrefix(fieldName, prefix)) {
+        continue;
+      }
+      dateToStamp.push({ fieldName, text });
+      reservedNames.add(fieldName);
+    }
+  }
+
+  if (
+    toStamp.length === 0 &&
+    !shouldFillDesc &&
+    extraToStamp.length === 0 &&
+    dateToStamp.length === 0
+  ) {
     return null;
   }
 
@@ -601,7 +824,14 @@ export async function fillAcroFormIdentity(
   }
 
   for (const item of extraToStamp) {
-    const stamped = await stampMappedTextField(pdfDoc, item.fieldName, item.text);
+    const stamped = await stampMappedExtraField(pdfDoc, item.fieldName, item.text);
+    if (stamped) {
+      filledFields.push(item.fieldName);
+    }
+  }
+
+  for (const item of dateToStamp) {
+    const stamped = await stampMappedExtraField(pdfDoc, item.fieldName, item.text);
     if (stamped) {
       filledFields.push(item.fieldName);
     }

@@ -62,6 +62,11 @@
     .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:10px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
     .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+    .check-line-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .check-line-row .check-line{flex:1;min-width:0}
+    .doc-preview-btn{flex:0 0 auto;height:32px;min-height:32px;padding:0 10px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;font-size:10px;font-weight:800;white-space:nowrap}
+    .modal.modal-wide{width:min(920px,100%)}
+    .signed-preview-viewer{height:min(62vh,680px);min-height:280px;margin:0}
     .button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;color:#334155;padding:10px 14px;font-size:12px;font-weight:800}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.primary:hover{background:var(--blue-dark)}.button.secondary{background:#fff}.button.danger{background:#fff1f2;color:#be123c;border-color:#fecaca}.button.success{background:var(--green);color:#fff;border-color:var(--green)}
     .sticky-actions{position:fixed;left:0;right:0;bottom:0;z-index:35;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:11px 18px calc(11px + var(--safe-bottom));box-shadow:0 -8px 28px rgba(15,31,61,.09)}.sticky-inner{max-width:944px;margin:auto;display:flex;gap:9px}.sticky-inner .button{flex:1}.sticky-inner .button.back{max-width:160px}
     .complete-hero{text-align:center;padding:18px 14px 8px}.complete-icon{width:72px;height:72px;border-radius:50%;margin:0 auto 13px;background:#d1fae5;color:#047857;display:grid;place-items:center;font-size:34px;box-shadow:0 0 0 9px #ecfdf5}.complete-hero h2{margin:0;color:var(--navy);font-size:21px}.complete-hero p{font-size:10px;line-height:1.6;color:var(--muted)}
@@ -84,7 +89,7 @@
     .hidden{display:none!important}
     @media(max-width:760px){
       .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
-      .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.address-row{grid-template-columns:1fr}.address-row .inline-btn{width:100%}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}
+      .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.address-row{grid-template-columns:1fr}.address-row .inline-btn{width:100%}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
       .site-footer-card{padding:16px 14px 14px}
     }
     @media(max-width:390px){.brand-text small{max-width:190px}.status-summary h1{font-size:18px}.case-item{padding:10px 9px}.button{font-size:11px}.paper{padding:28px 18px}.input-row{grid-template-columns:1fr 96px}}
@@ -191,10 +196,6 @@
                 <div class="address-embed" id="addressSearchEmbed"></div>
               </div>
             </div>
-            <div class="field" id="identityConfirmedAtField">
-              <label for="identityConfirmedAt">확인일자</label>
-              <input class="form-text-input" id="identityConfirmedAt" type="text" readonly placeholder="저장 시 자동 기록" />
-            </div>
           </div>
           <div class="identity-save-row">
             <label class="check-line"><input type="checkbox" id="identityProfileConfirmCheck" /> 위 인적 사항이 본인 정보와 일치함을 확인합니다.</label>
@@ -258,6 +259,7 @@
                 <label class="check-line"><input type="checkbox" id="finalOwnerCheck" /> 위 서명은 본인이 직접 작성했으며, 타인에게 인증번호 또는 링크를 전달하지 않았습니다.</label>
                 <label class="check-line"><input type="checkbox" id="finalContentCheck" /> 동의한 전자문서의 내용, 문서 버전 및 동의 결과를 최종 확인했습니다.</label>
                 <label class="check-line"><input type="checkbox" id="finalEvidenceCheck" /> 서명 시각, 접속환경, 인증 거래번호, 문서 해시 등이 전자서명 증적에 포함되는 것에 동의합니다.</label>
+                <label class="check-line"><input type="checkbox" id="finalDocumentCheck" /> 최종문서확인</label>
               </div>
             </div>
             <aside class="progress-panel">
@@ -321,6 +323,22 @@
     <div class="modal-head"><h3>전자서명을 최종 제출하시겠습니까?</h3><button class="modal-close" type="button" data-close="submitModal">×</button></div>
     <div class="modal-body"><div class="notice warn">제출과 동시에 문서 Snapshot, 동의 결과, 자필서명, 본인인증 거래정보를 결합해 전자서명 증적을 생성합니다.</div><table class="summary-table"><tr><th>동의 문서</th><td id="modalAgreedDocs">-</td></tr><tr><th>미동의 문서</th><td id="modalRejectedDocs">-</td></tr><tr><th>서명자</th><td id="modalSigner">-</td></tr></table></div>
     <div class="modal-actions"><button class="button secondary" type="button" data-close="submitModal">취소</button><button class="button primary" type="button" id="confirmSubmitBtn">최종 제출</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="signedPreviewModal">
+  <div class="modal modal-wide">
+    <div class="modal-head"><h3>최종 문서확인</h3><button class="modal-close" type="button" data-close="signedPreviewModal">×</button></div>
+    <div class="modal-body">
+      <div class="notice" id="signedPreviewNotice">자필서명이 반영된 최종 문서를 확인해 주세요.</div>
+      <div class="document-viewer signed-preview-viewer" id="signedPreviewViewer">
+        <div class="paper pdf-paper" id="signedPreviewPaper"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="button secondary" type="button" data-close="signedPreviewModal">닫기</button>
+      <button class="button primary" type="button" id="confirmSignedPreviewBtn">문서 확인 완료</button>
+    </div>
   </div>
 </div>
 
@@ -436,6 +454,10 @@
   let canvas;
   let resizeTimer;
   let pdfRenderGeneration = 0;
+  let signedPreviewGeneration = 0;
+  let signedPreviewUrl = null;
+  let signedPreviewConfirmed = false;
+  let isBuildingSignedPreview = false;
   let pdfJsPromise = null;
   let portOneModulePromise = null;
   let acroformModulePromise = null;
@@ -584,22 +606,58 @@
     return String(value??'').trim();
   }
 
+  function selectedAnswerValues(value){
+    return (Array.isArray(value)?value:[value])
+      .map(item=>String(item??'').trim())
+      .filter(Boolean);
+  }
+
+  function collectDatePrefixes(doc){
+    const prefixes=[];
+    for(const q of doc?.questions||[]){
+      const kind=String(q.pdfFieldName||'').trim().toLowerCase();
+      if(['year4','year2','month','day'].includes(kind) && !prefixes.includes(kind)){
+        prefixes.push(kind);
+      }
+    }
+    return prefixes;
+  }
+
+  function isDateTemplateField(name){
+    const kind=String(name||'').trim().toLowerCase();
+    return ['year4','year2','month','day'].includes(kind);
+  }
+
   function buildTemplatePdfFields(doc,answers){
     const fields={};
     for(const q of doc?.questions||[]){
-      const fieldName=String(q.pdfFieldName||'').trim();
-      if(!fieldName)continue;
-      const text=formatAnswerForPdf(answers?.[q.id]);
-      if(!text)continue;
-      fields[fieldName]=text;
+      const baseName=String(q.pdfFieldName||'').trim();
+      if(!baseName)continue;
+      if(isDateTemplateField(baseName))continue;
+
+      if(q.input_type==='text' || !q.options?.length){
+        const text=formatAnswerForPdf(answers?.[q.id]);
+        if(text)fields[baseName]=text;
+        continue;
+      }
+
+      const selected=new Set(selectedAnswerValues(answers?.[q.id]));
+      if(!selected.size)continue;
+
+      q.options.forEach((opt,index)=>{
+        const optionValue=String(opt.value??'').trim();
+        if(!optionValue || !selected.has(optionValue))return;
+        fields[`${baseName}_${index+1}`]='✓';
+      });
     }
     return fields;
   }
 
-  function buildFillValues(userInfo,extraFields){
+  function buildFillValues(userInfo,extraFields,datePrefixes){
     return {
       ...buildIdentityFormValues(userInfo||{}),
       extraFields:extraFields||{},
+      datePrefixes:datePrefixes||[],
     };
   }
 
@@ -642,13 +700,6 @@
     if(digits.length===11)return `${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7)}`;
     if(digits.length===10)return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
     return String(value||'').trim();
-  }
-
-  function formatIdentityConfirmedAt(value){
-    if(!value)return '';
-    const date=value instanceof Date?value:new Date(value);
-    if(Number.isNaN(date.getTime()))return '';
-    return formatExpiry(date);
   }
 
   function buildFullAddress(base,detail){
@@ -729,9 +780,6 @@
     $('identityPostcode').value=request.signer.postcode||'';
     $('identityAddressBase').value=request.signer.addressBase||'';
     $('identityAddressDetail').value=request.signer.addressDetail||'';
-    $('identityConfirmedAt').value=state.identityProfile.confirmedAt
-      ?formatIdentityConfirmedAt(state.identityProfile.confirmedAt)
-      :'';
 
     setIdentityFieldMode('identityName',sources.name==='portone','본인인증');
     setIdentityFieldMode('identityBirth',sources.birth==='portone','본인인증');
@@ -853,7 +901,6 @@
     request.signer.identityConfirmedAt=confirmedAt.toISOString();
     state.identityProfile.confirmed=true;
     state.identityProfile.confirmedAt=confirmedAt;
-    $('identityConfirmedAt').value=formatIdentityConfirmedAt(confirmedAt);
     $('typedName').value=request.signer.name;
     $('typedPreview').textContent=request.signer.name;
     $('introSignerName').textContent=request.signer.maskedName;
@@ -1080,6 +1127,48 @@
     Object.keys(filledPdfUrls).forEach(key=>delete filledPdfUrls[key]);
   }
 
+  function revokeSignedPreviewUrl(){
+    if(!signedPreviewUrl)return;
+    URL.revokeObjectURL(signedPreviewUrl);
+    signedPreviewUrl=null;
+  }
+
+  function getAgreeDocsWithPdf(){
+    return request.documents
+      .map((doc,index)=>({doc,index,consent:state.docs[index].consent}))
+      .filter(item=>item.consent==='agree' && item.doc.file_path);
+  }
+
+  async function buildMergedSignedPdfBytes(onProgress){
+    const signatureDataUrl=canvas.toDataURL('image/png');
+    const {generateSignedPdfBytes,mergePdfByteList}=await ensureSignedPdf();
+    const agreeDocsWithPdf=getAgreeDocsWithPdf();
+    if(!agreeDocsWithPdf.length){
+      throw new Error('서명할 동의 문서가 없습니다.');
+    }
+
+    const signedParts=[];
+    for(let i=0;i<agreeDocsWithPdf.length;i+=1){
+      const {doc,index}=agreeDocsWithPdf[i];
+      onProgress?.(`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 생성 중…`);
+      const {bytes}=await generateSignedPdfBytes({
+        filePath:doc.file_path,
+        fileUrl:buildFileApiUrl(doc.file_path),
+        signatureDataUrl,
+          identity:buildFillValues(
+            verifiedUserInfo,
+            buildTemplatePdfFields(doc,state.docs[index].answers||{}),
+            collectDatePrefixes(doc)
+          ),
+      });
+      signedParts.push(bytes);
+    }
+
+    onProgress?.('서명 PDF 병합 중…');
+    const mergedBytes=await mergePdfByteList(signedParts);
+    return {mergedBytes,agreeDocsWithPdf,signatureDataUrl};
+  }
+
   function buildIdentityFormValues(userInfo){
     return {
       name:userInfo.name,
@@ -1101,7 +1190,7 @@
     const pdfBytes=await response.arrayBuffer();
     const filled=await fillAcroFormIdentity(
       pdfBytes,
-      buildFillValues(userInfo,buildTemplatePdfFields(doc,answers))
+      buildFillValues(userInfo,buildTemplatePdfFields(doc,answers),collectDatePrefixes(doc))
     );
     if(!filled)return false;
     if(filledPdfUrls[doc.file_path])URL.revokeObjectURL(filledPdfUrls[doc.file_path]);
@@ -1388,19 +1477,19 @@
     }
   }
 
-  async function renderPdfIntoPaper(filePath,paperEl,generation){
+  async function renderPdfFromUrl(url,paperEl,generation,getGeneration){
     paperEl.className='paper pdf-paper';
     paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
     try{
       const pdfjsLib=await ensurePdfJs();
-      if(generation!==pdfRenderGeneration)return;
-      const pdf=await pdfjsLib.getDocument({url:getPdfPreviewUrl(filePath)}).promise;
-      if(generation!==pdfRenderGeneration)return;
+      if(generation!==getGeneration())return;
+      const pdf=await pdfjsLib.getDocument({url}).promise;
+      if(generation!==getGeneration())return;
       paperEl.replaceChildren();
       const containerWidth=Math.max(Math.min(paperEl.clientWidth || 690,720),280);
       const pixelRatio=Math.min(window.devicePixelRatio||1,3);
       for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber+=1){
-        if(generation!==pdfRenderGeneration)return;
+        if(generation!==getGeneration())return;
         const page=await pdf.getPage(pageNumber);
         const unscaledViewport=page.getViewport({scale:1});
         const scale=(containerWidth/unscaledViewport.width)*pixelRatio;
@@ -1414,8 +1503,22 @@
         paperEl.appendChild(canvasEl);
         await page.render({canvasContext:context,viewport,annotationMode:0}).promise;
       }
-      if(generation!==pdfRenderGeneration)return;
-      requestAnimationFrame(()=>checkViewerScrollComplete());
+      return true;
+    }catch(error){
+      if(generation!==getGeneration())return false;
+      paperEl.innerHTML=`<p class="pdf-error">PDF를 불러오지 못했습니다.<br/>${escapeHtml(error instanceof Error?error.message:'알 수 없는 오류')}</p>`;
+      return false;
+    }
+  }
+
+  async function renderPdfIntoPaper(filePath,paperEl,generation){
+    paperEl.className='paper pdf-paper';
+    paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
+    try{
+      const rendered=await renderPdfFromUrl(getPdfPreviewUrl(filePath),paperEl,generation,()=>pdfRenderGeneration);
+      if(rendered && generation===pdfRenderGeneration){
+        requestAnimationFrame(()=>checkViewerScrollComplete());
+      }
     }catch(error){
       if(generation!==pdfRenderGeneration)return;
       paperEl.innerHTML=`<p class="pdf-error">PDF를 불러오지 못했습니다.<br/>${escapeHtml(error instanceof Error?error.message:'알 수 없는 오류')}</p>`;
@@ -1542,7 +1645,7 @@
     st.answers=answers;
     st.consent=deriveConsentFromAnswers(doc,answers);
     st.reviewedAt=new Date();
-    if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,answers)).length){
+    if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,answers)).length || collectDatePrefixes(doc).length){
       void fillDocumentPreview(doc,verifiedUserInfo,answers).then((filled)=>{
         if(filled && request.documents[state.currentDocIndex]===doc){
           renderDocumentContent(doc,state.currentDocIndex);
@@ -1643,8 +1746,8 @@
   }
   function drawSegment(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
   function redraw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111827';ctx.fillStyle='#111827';ctx.lineWidth=Math.max(3,3.1*devicePixelRatio);state.strokes.forEach(st=>{if(st.length===1){ctx.beginPath();ctx.arc(st[0].x,st[0].y,2.2,0,Math.PI*2);ctx.fill();return;}for(let i=1;i<st.length;i++)drawSegment(st[i-1],st[i]);});state.hasSignature=state.strokes.length>0;$('canvasPlaceholder').classList.toggle('hidden',state.hasSignature);}
-  function clearSignature(){state.strokes=[];state.hasSignature=false;redraw();}
-  function undoSignature(){state.strokes.pop();redraw();}
+  function clearSignature(){state.strokes=[];state.hasSignature=false;signedPreviewConfirmed=false;$('finalDocumentCheck').checked=false;revokeSignedPreviewUrl();redraw();}
+  function undoSignature(){state.strokes.pop();signedPreviewConfirmed=false;$('finalDocumentCheck').checked=false;revokeSignedPreviewUrl();redraw();}
 
   async function buildEvidencePayload(signatureImageSha256,completedAt){
     return {
@@ -1741,11 +1844,73 @@
     return result;
   }
 
+  async function openSignedPreview(){
+    if(!state.hasSignature){
+      toast('자필서명을 먼저 입력해 주세요.');
+      return;
+    }
+    const agreeDocsWithPdf=getAgreeDocsWithPdf();
+    if(!agreeDocsWithPdf.length){
+      toast('확인할 동의 문서가 없습니다.');
+      return;
+    }
+    if(isBuildingSignedPreview)return;
+
+    const paperEl=$('signedPreviewPaper');
+    const noticeEl=$('signedPreviewNotice');
+    isBuildingSignedPreview=true;
+    signedPreviewConfirmed=false;
+    $('finalDocumentCheck').checked=false;
+    signedPreviewGeneration+=1;
+    const generation=signedPreviewGeneration;
+    noticeEl.textContent='자필서명이 반영된 최종 문서를 생성하는 중입니다.';
+    paperEl.className='paper pdf-paper';
+    paperEl.innerHTML='<p class="pdf-status">서명 PDF를 생성하는 중...</p>';
+    openModal('signedPreviewModal');
+
+    try{
+      const {mergedBytes}=await buildMergedSignedPdfBytes((message)=>{
+        paperEl.innerHTML=`<p class="pdf-status">${escapeHtml(message)}</p>`;
+      });
+      if(generation!==signedPreviewGeneration)return;
+
+      revokeSignedPreviewUrl();
+      signedPreviewUrl=URL.createObjectURL(new Blob([mergedBytes],{type:'application/pdf'}));
+      noticeEl.textContent='자필서명과 입력값이 반영된 최종 문서입니다. 내용을 확인한 뒤 문서 확인 완료를 눌러 주세요.';
+      await renderPdfFromUrl(signedPreviewUrl,paperEl,generation,()=>signedPreviewGeneration);
+    }catch(error){
+      console.error(error);
+      noticeEl.textContent='최종 문서를 만들지 못했습니다.';
+      paperEl.innerHTML=`<p class="pdf-error">${escapeHtml(error instanceof Error?error.message:'서명 PDF를 생성하지 못했습니다.')}</p>`;
+      toast(error instanceof Error?error.message:'서명 PDF를 생성하지 못했습니다.');
+    }finally{
+      isBuildingSignedPreview=false;
+    }
+  }
+
+  function confirmSignedPreview(){
+    signedPreviewConfirmed=true;
+    $('finalDocumentCheck').checked=true;
+    closeModal('signedPreviewModal');
+    toast('최종 문서를 확인했습니다.');
+  }
+
+  function onFinalDocumentCheckClick(event){
+    event.preventDefault();
+    if(signedPreviewConfirmed){
+      signedPreviewConfirmed=false;
+      $('finalDocumentCheck').checked=false;
+      return;
+    }
+    $('finalDocumentCheck').checked=false;
+    void openSignedPreview();
+  }
+
   function validateAndOpenSubmit(){
     if(!state.verified||!request.authTransactionId){toast('본인인증을 먼저 완료해 주세요.');return;}
     if(!state.hasSignature){toast('자필서명을 입력해 주세요.');return;}
     if($('typedName').value.trim()!==request.signer.name){toast('서명자 성명이 본인인증 정보와 일치하지 않습니다.');return;}
-    if(![$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].every(x=>x.checked)){toast('최종 확인 항목에 모두 체크해 주세요.');return;}
+    if(![$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].every(x=>x.checked)){toast('최종 확인 항목에 모두 체크해 주세요.');return;}
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
     $('modalAgreedDocs').textContent=`${agreed}건`;$('modalRejectedDocs').textContent=`${rejected}건`;$('modalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;openModal('submitModal');
   }
@@ -1764,29 +1929,11 @@
       const signatureImageSha256=await sha256(signatureDataUrl);
       const completedAt=new Date();
       const evidence=await buildEvidencePayload(signatureImageSha256,completedAt);
-      const {generateSignedPdfBytes,mergePdfByteList,sha256HexFromBytes}=await ensureSignedPdf();
-      const agreeDocsWithPdf=request.documents
-        .map((doc,index)=>({doc,index,consent:state.docs[index].consent}))
-        .filter(item=>item.consent==='agree' && item.doc.file_path);
-
-      const signedParts=[];
-      for(let i=0;i<agreeDocsWithPdf.length;i+=1){
-        const {doc,index}=agreeDocsWithPdf[i];
-        submitBtn.textContent=`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 생성 중…`;
-        const {bytes}=await generateSignedPdfBytes({
-          filePath:doc.file_path,
-          fileUrl:buildFileApiUrl(doc.file_path),
-          signatureDataUrl,
-          identity:buildFillValues(
-            verifiedUserInfo,
-            buildTemplatePdfFields(doc,state.docs[index].answers||{})
-          ),
-        });
-        signedParts.push(bytes);
-      }
-
-      submitBtn.textContent='서명 PDF 병합 중…';
-      const mergedBytes=await mergePdfByteList(signedParts);
+      const {sha256HexFromBytes}=await ensureSignedPdf();
+      submitBtn.textContent='서명 PDF 생성 중…';
+      const {mergedBytes,agreeDocsWithPdf}=await buildMergedSignedPdfBytes((message)=>{
+        submitBtn.textContent=message;
+      });
       const mergedHash=await sha256HexFromBytes(mergedBytes);
       submitBtn.textContent='서명 PDF 업로드 중…';
       const uploaded=await uploadSignedPdf(mergedBytes,mergedHash);
@@ -1841,13 +1988,18 @@
   }
 
   function openModal(id){$(id).classList.add('show');}
-  function closeModal(id){$(id).classList.remove('show');}
+  function closeModal(id){
+    $(id).classList.remove('show');
+    if(id==='signedPreviewModal' && !signedPreviewConfirmed){
+      $('finalDocumentCheck').checked=false;
+    }
+  }
   function showError(type){
     const map={expired:['서명 링크가 만료되었습니다','이 보안 링크의 유효시간이 종료되었습니다.','담당 손해사정사에게 새 전자서명 요청을 보내 달라고 요청해 주세요.'],used:['이미 전자서명이 완료되었습니다','이 링크는 1회 사용이 완료되어 다시 사용할 수 없습니다.','완료 문서 사본 또는 처리 결과는 담당 손해사정사에게 문의해 주세요.'],invalid:['잘못된 접근입니다','전자서명 요청 토큰을 확인할 수 없습니다.','문자 또는 알림톡에 포함된 원래 링크를 다시 열어 주세요.']};
     const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
   }
   function resetFlow(){
-    state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;revokeFilledPdfUrls();updateAuthVerifyButton();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;$('identityConfirmedAt').value='';clearSignature();closeModal('demoModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
+    state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;revokeFilledPdfUrls();updateAuthVerifyButton();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
   async function init(){
@@ -1879,6 +2031,8 @@
   $('saveIdentityProfileBtn').addEventListener('click',()=>void saveIdentityProfile());
   $('identityAddressSearchBtn').addEventListener('click',()=>void openAddressSearch());
   $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
+  $('finalDocumentCheck').addEventListener('click',onFinalDocumentCheckClick);
+  $('confirmSignedPreviewBtn').addEventListener('click',confirmSignedPreview);
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));
   document.querySelectorAll('.demo-error').forEach(b=>b.addEventListener('click',()=>showError(b.dataset.error)));$('resetDemoBtn').addEventListener('click',resetFlow);$('retryLinkBtn').addEventListener('click',resetFlow);
