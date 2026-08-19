@@ -654,8 +654,14 @@
   }
 
   function buildFillValues(userInfo,extraFields,datePrefixes){
+    const base=buildIdentityFormValues(userInfo||{});
     return {
-      ...buildIdentityFormValues(userInfo||{}),
+      ...base,
+      // 본인 인적사항 확인 화면의 주소를 PDF address* 필드에 우선 반영
+      postcode:request.signer.postcode||base.postcode||'',
+      addressBase:request.signer.addressBase||base.addressBase||'',
+      addressDetail:request.signer.addressDetail||base.addressDetail||'',
+      address:request.signer.address||base.address||'',
       extraFields:extraFields||{},
       datePrefixes:datePrefixes||[],
     };
@@ -942,6 +948,19 @@
         ? '인적사항 확인이 저장되었습니다. 문서 확인을 진행해 주세요.'
         : '인적사항 확인을 저장했습니다. (서버 동기화는 제출 증적에 포함됩니다.)'
     );
+
+    if(verifiedUserInfo){
+      verifiedUserInfo={
+        ...verifiedUserInfo,
+        postcode:request.signer.postcode,
+        addressBase:request.signer.addressBase,
+        addressDetail:request.signer.addressDetail,
+        address:request.signer.address,
+      };
+      void buildFilledPreviewUrls(verifiedUserInfo).then(()=>{
+        if(state.currentStep===2)selectDocument(state.currentDocIndex,false);
+      });
+    }
   }
 
   function mapApiDocument(doc,insurer){
@@ -1179,6 +1198,10 @@
       txId:userInfo.txId,
       clientIp:userInfo.clientIp,
       userAgent:userInfo.userAgent,
+      postcode:userInfo.postcode,
+      addressBase:userInfo.addressBase,
+      addressDetail:userInfo.addressDetail,
+      address:userInfo.address,
     };
   }
 

@@ -8,6 +8,14 @@ export type IdentityFormValues = {
   txId?: string;
   clientIp?: string;
   userAgent?: string;
+  /** 우편번호 (본인 인적사항 확인 화면) */
+  postcode?: string;
+  /** 기본 주소 */
+  addressBase?: string;
+  /** 상세 주소 */
+  addressDetail?: string;
+  /** 조합된 전체 주소 (없으면 postcode/base/detail로 생성) */
+  address?: string;
   /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
   extraFields?: Record<string, string>;
   /** 선택형 답변 문구. PDF 본문 "동의함" 왼쪽 [ ]에 체크를 찍을 때 사용 */
@@ -199,6 +207,35 @@ function formatPhoneNumber(value: string) {
   }
 
   return value;
+}
+
+/** 우편번호 + 기본주소 + 상세주소를 PDF용 한 줄로 조합 */
+export function formatIdentityAddress(values: {
+  postcode?: string;
+  addressBase?: string;
+  addressDetail?: string;
+  address?: string;
+}) {
+  const postcode = values.postcode?.trim() ?? '';
+  const base = values.addressBase?.trim() ?? '';
+  const detail = values.addressDetail?.trim() ?? '';
+  const street = [base, detail].filter(Boolean).join(' ');
+
+  if (postcode && street) {
+    return `(${postcode}) ${street}`;
+  }
+  if (street) {
+    return street;
+  }
+  if (postcode) {
+    return `(${postcode})`;
+  }
+
+  const fallback = values.address?.trim() ?? '';
+  if (fallback && postcode && !fallback.includes(postcode)) {
+    return `(${postcode}) ${fallback}`;
+  }
+  return fallback;
 }
 
 function maskCi(value: string) {
@@ -743,8 +780,10 @@ export async function fillAcroFormIdentity(
   const name = values.name?.trim();
   const phone = values.phoneNumber?.trim();
   const birthDate = values.birthDate?.trim();
+  const addressText = formatIdentityAddress(values);
 
   const toStamp: Array<{ fieldName: string; text: string }> = [];
+  const addressToStamp: Array<{ fieldName: string; text: string }> = [];
 
   if (name) {
     const nameTargets = new Set<string>();
@@ -781,8 +820,19 @@ export async function fillAcroFormIdentity(
     }
   }
 
+  if (addressText) {
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, 'address')) {
+        addressToStamp.push({ fieldName, text: addressText });
+      }
+    }
+  }
+
   const shouldFillDesc = !!(descField && (values.txId || values.ci || values.clientIp));
-  const reservedNames = new Set(toStamp.map((item) => item.fieldName));
+  const reservedNames = new Set([
+    ...toStamp.map((item) => item.fieldName),
+    ...addressToStamp.map((item) => item.fieldName),
+  ]);
   if (shouldFillDesc && descField) {
     reservedNames.add(descField);
   }
@@ -819,6 +869,7 @@ export async function fillAcroFormIdentity(
 
   if (
     toStamp.length === 0 &&
+    addressToStamp.length === 0 &&
     !shouldFillDesc &&
     extraToStamp.length === 0 &&
     dateToStamp.length === 0
@@ -829,6 +880,13 @@ export async function fillAcroFormIdentity(
   for (const item of toStamp) {
     await stampTextField(pdfDoc, item.fieldName, item.text);
     filledFields.push(item.fieldName);
+  }
+
+  for (const item of addressToStamp) {
+    const stamped = await stampMappedTextField(pdfDoc, item.fieldName, item.text);
+    if (stamped) {
+      filledFields.push(item.fieldName);
+    }
   }
 
   if (shouldFillDesc && descField) {

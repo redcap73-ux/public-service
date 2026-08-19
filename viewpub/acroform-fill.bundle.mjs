@@ -19787,6 +19787,26 @@ function formatPhoneNumber(value) {
   }
   return value;
 }
+function formatIdentityAddress(values2) {
+  const postcode = values2.postcode?.trim() ?? "";
+  const base = values2.addressBase?.trim() ?? "";
+  const detail = values2.addressDetail?.trim() ?? "";
+  const street = [base, detail].filter(Boolean).join(" ");
+  if (postcode && street) {
+    return `(${postcode}) ${street}`;
+  }
+  if (street) {
+    return street;
+  }
+  if (postcode) {
+    return `(${postcode})`;
+  }
+  const fallback = values2.address?.trim() ?? "";
+  if (fallback && postcode && !fallback.includes(postcode)) {
+    return `(${postcode}) ${fallback}`;
+  }
+  return fallback;
+}
 function maskCi(value) {
   const ci = value.trim();
   if (ci.length <= 16) {
@@ -20168,7 +20188,9 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const name = values2.name?.trim();
   const phone = values2.phoneNumber?.trim();
   const birthDate = values2.birthDate?.trim();
+  const addressText = formatIdentityAddress(values2);
   const toStamp = [];
+  const addressToStamp = [];
   if (name) {
     const nameTargets = /* @__PURE__ */ new Set();
     if (nameField) {
@@ -20201,8 +20223,18 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
       toStamp.push({ fieldName, text: birthdayText });
     }
   }
+  if (addressText) {
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, "address")) {
+        addressToStamp.push({ fieldName, text: addressText });
+      }
+    }
+  }
   const shouldFillDesc = !!(descField && (values2.txId || values2.ci || values2.clientIp));
-  const reservedNames = new Set(toStamp.map((item) => item.fieldName));
+  const reservedNames = /* @__PURE__ */ new Set([
+    ...toStamp.map((item) => item.fieldName),
+    ...addressToStamp.map((item) => item.fieldName)
+  ]);
   if (shouldFillDesc && descField) {
     reservedNames.add(descField);
   }
@@ -20233,12 +20265,18 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
     dateToStamp.push({ fieldName, text });
     reservedNames.add(fieldName);
   }
-  if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0 && dateToStamp.length === 0) {
+  if (toStamp.length === 0 && addressToStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0 && dateToStamp.length === 0) {
     return null;
   }
   for (const item of toStamp) {
     await stampTextField(pdfDoc, item.fieldName, item.text);
     filledFields.push(item.fieldName);
+  }
+  for (const item of addressToStamp) {
+    const stamped = await stampMappedTextField(pdfDoc, item.fieldName, item.text);
+    if (stamped) {
+      filledFields.push(item.fieldName);
+    }
   }
   if (shouldFillDesc && descField) {
     await stampAuditDescField(pdfDoc, descField, values2);
@@ -20304,6 +20342,7 @@ export {
   buildAuditTrailText,
   fillAcroFormIdentity,
   fillAndDownloadIdentityDocuments,
+  formatIdentityAddress,
   renderCheckMarkPng
 };
 /*! Bundled license information:
