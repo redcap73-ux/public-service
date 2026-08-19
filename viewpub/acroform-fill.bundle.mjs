@@ -19708,15 +19708,22 @@ function resolveExtraFieldName(fieldNames, rawName) {
   }
   return null;
 }
-function fieldStartsWithDatePrefix(fieldName, prefix) {
+function fieldStartsWithPrefix(fieldName, prefix) {
   const name = fieldName.trim().toLowerCase();
-  if (name === prefix) {
-    return true;
-  }
-  if (!name.startsWith(prefix) || name.length === prefix.length) {
+  const wanted = prefix.trim().toLowerCase();
+  if (!wanted) {
     return false;
   }
-  return /[^a-z]/.test(name.charAt(prefix.length));
+  if (name === wanted) {
+    return true;
+  }
+  if (!name.startsWith(wanted) || name.length === wanted.length) {
+    return false;
+  }
+  return /[^a-z]/.test(name.charAt(wanted.length));
+}
+function fieldStartsWithDatePrefix(fieldName, prefix) {
+  return fieldStartsWithPrefix(fieldName, prefix);
 }
 function matchDatePrefix(name) {
   const normalized = name.trim().toLowerCase();
@@ -19738,21 +19745,6 @@ function getKstDateParts(now = /* @__PURE__ */ new Date()) {
     month,
     day
   };
-}
-function collectDatePrefixes(values2) {
-  const prefixes = /* @__PURE__ */ new Set();
-  for (const prefix of values2.datePrefixes ?? []) {
-    if (DATE_FIELD_PREFIXES.includes(prefix)) {
-      prefixes.add(prefix);
-    }
-  }
-  for (const key of Object.keys(values2.extraFields ?? {})) {
-    const matched = matchDatePrefix(key);
-    if (matched) {
-      prefixes.add(matched);
-    }
-  }
-  return prefixes;
 }
 function wrapCanvasLines(ctx, text, maxWidth) {
   const lines = [];
@@ -20177,14 +20169,37 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const phone = values2.phoneNumber?.trim();
   const birthDate = values2.birthDate?.trim();
   const toStamp = [];
-  if (nameField && name) {
-    toStamp.push({ fieldName: nameField, text: name });
+  if (name) {
+    const nameTargets = /* @__PURE__ */ new Set();
+    if (nameField) {
+      nameTargets.add(nameField);
+    }
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, "name")) {
+        nameTargets.add(fieldName);
+      }
+    }
+    for (const fieldName of nameTargets) {
+      toStamp.push({ fieldName, text: name });
+    }
   }
   if (phoneField && phone) {
     toStamp.push({ fieldName: phoneField, text: formatPhoneNumber(phone) });
   }
-  if (birthdayField && birthDate) {
-    toStamp.push({ fieldName: birthdayField, text: formatBirthDate(birthDate) });
+  if (birthDate) {
+    const birthdayText = formatBirthDate(birthDate);
+    const birthdayTargets = /* @__PURE__ */ new Set();
+    if (birthdayField) {
+      birthdayTargets.add(birthdayField);
+    }
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, "birthday")) {
+        birthdayTargets.add(fieldName);
+      }
+    }
+    for (const fieldName of birthdayTargets) {
+      toStamp.push({ fieldName, text: birthdayText });
+    }
   }
   const shouldFillDesc = !!(descField && (values2.txId || values2.ci || values2.clientIp));
   const reservedNames = new Set(toStamp.map((item) => item.fieldName));
@@ -20205,20 +20220,18 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
     reservedNames.add(fieldName);
   }
   const dateParts = getKstDateParts();
-  const datePrefixes = collectDatePrefixes(values2);
   const dateToStamp = [];
-  for (const prefix of datePrefixes) {
+  for (const fieldName of fieldNames) {
+    const prefix = matchDatePrefix(fieldName);
+    if (!prefix || reservedNames.has(fieldName)) {
+      continue;
+    }
     const text = dateParts[prefix];
     if (!text) {
       continue;
     }
-    for (const fieldName of fieldNames) {
-      if (reservedNames.has(fieldName) || !fieldStartsWithDatePrefix(fieldName, prefix)) {
-        continue;
-      }
-      dateToStamp.push({ fieldName, text });
-      reservedNames.add(fieldName);
-    }
+    dateToStamp.push({ fieldName, text });
+    reservedNames.add(fieldName);
   }
   if (toStamp.length === 0 && !shouldFillDesc && extraToStamp.length === 0 && dateToStamp.length === 0) {
     return null;
