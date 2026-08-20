@@ -1069,6 +1069,7 @@
     $('summaryInsurer').textContent=request.insurer;
     $('summaryClaimNo').textContent=request.maskedClaimNo;
     $('summaryDocCount').textContent=request.documents.length;
+    $('requestDescription').textContent='본인확인 후 요청된 여러 동의문서를 차례대로 확인하고 한 번의 자필서명으로 제출할 수 있습니다.';
     $('introSender').textContent=request.sender;
     $('introSignerName').textContent=request.signer.maskedName;
     $('introRole').textContent=request.signer.role;
@@ -2073,8 +2074,24 @@
       $('finalDocumentCheck').checked=false;
     }
   }
+  function clearUnavailableRequestSummary(type){
+    $('summaryRequestNo').textContent='-';
+    $('summaryInsurer').textContent='-';
+    $('summaryClaimNo').textContent='-';
+    $('summaryDocCount').textContent='-';
+    $('expiryCountdown').textContent='만료';
+    if(type==='expired' || type==='used'){
+      $('requestTitle').textContent=type==='used'?'이미 전자서명이 완료되었습니다':'서명 링크가 만료되었습니다';
+      $('requestDescription').textContent='동의 정보가 만료되었습니다.';
+      return;
+    }
+    $('requestTitle').textContent='링크를 사용할 수 없습니다';
+    $('requestDescription').textContent='동의 정보를 확인할 수 없습니다.';
+  }
+
   function showError(type){
     const map={expired:['서명 링크가 만료되었습니다','이 보안 링크의 유효시간이 종료되었습니다.','담당 손해사정사에게 새 전자서명 요청을 보내 달라고 요청해 주세요.'],used:['이미 전자서명이 완료되었습니다','이 링크는 1회 사용이 완료되어 다시 사용할 수 없습니다.','완료 문서 사본 또는 처리 결과는 담당 손해사정사에게 문의해 주세요.'],invalid:['잘못된 접근입니다','전자서명 요청 토큰을 확인할 수 없습니다.','문자 또는 알림톡에 포함된 원래 링크를 다시 열어 주세요.']};
+    clearUnavailableRequestSummary(type);
     const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
   }
   function resetFlow(){
