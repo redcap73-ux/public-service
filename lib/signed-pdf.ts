@@ -24,11 +24,37 @@ function normalizeFieldKey(name: string) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, '');
 }
 
-function findSignatureFieldName(fieldNames: string[]) {
-  const aliases = SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey);
-  return (
-    fieldNames.find((fieldName) => aliases.includes(normalizeFieldKey(fieldName))) ?? null
-  );
+function fieldStartsWithPrefix(fieldName: string, prefix: string) {
+  const name = fieldName.trim().toLowerCase();
+  const wanted = prefix.trim().toLowerCase();
+  if (!wanted) {
+    return false;
+  }
+  if (name === wanted) {
+    return true;
+  }
+  if (!name.startsWith(wanted) || name.length === wanted.length) {
+    return false;
+  }
+  return /[^a-z]/.test(name.charAt(wanted.length));
+}
+
+/** signature로 시작하는 필드 + 기존 별칭(sign/서명 등) 전부 */
+function findSignatureFieldNames(fieldNames: string[]) {
+  const aliases = new Set(SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey));
+  const matched = new Set<string>();
+
+  for (const fieldName of fieldNames) {
+    if (fieldStartsWithPrefix(fieldName, 'signature')) {
+      matched.add(fieldName);
+      continue;
+    }
+    if (aliases.has(normalizeFieldKey(fieldName))) {
+      matched.add(fieldName);
+    }
+  }
+
+  return [...matched];
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -392,8 +418,9 @@ async function embedSignatureOnLastPage(
 }
 
 /**
- * If the PDF has an AcroForm signature-like field, draw the signature image
- * into that widget rect (vector, no full-page rasterization).
+ * If the PDF has AcroForm signature-like fields, draw the signature image
+ * into every matching widget rect (vector, no full-page rasterization).
+ * Matches all fields starting with "signature" (e.g. signature, signature_1).
  */
 async function stampSignatureOnAcroFormField(
   pdfBytes: ArrayBuffer,
@@ -407,19 +434,21 @@ async function stampSignatureOnAcroFormField(
     return null;
   }
 
-  const signatureFieldName = findSignatureFieldName(fields.map((field) => field.getName()));
-
-  if (!signatureFieldName) {
+  const signatureFieldNames = findSignatureFieldNames(fields.map((field) => field.getName()));
+  if (signatureFieldNames.length === 0) {
     return null;
   }
 
-  const field = fields.find((item) => item.getName() === signatureFieldName);
-  if (!field) {
+  const targetFields = signatureFieldNames
+    .map((name) => fields.find((item) => item.getName() === name))
+    .filter((field): field is NonNullable<typeof field> => !!field);
+
+  if (targetFields.length === 0) {
     return null;
   }
 
-  const widgets = field.acroField.getWidgets();
-  if (widgets.length === 0) {
+  const hasWidgets = targetFields.some((field) => field.acroField.getWidgets().length > 0);
+  if (!hasWidgets) {
     return null;
   }
 
@@ -439,40 +468,53 @@ async function stampSignatureOnAcroFormField(
     })()
   );
   const embeddedImage = await pdfDoc.embedPng(signaturePng);
+  const pages = pdfDoc.getPages();
+  let stampedCount = 0;
 
-  for (const widget of widgets) {
-    const pageRef = widget.dict.get(PDFName.of('P'));
-    const pages = pdfDoc.getPages();
-    let page = pages[0];
-
-    if (pageRef instanceof PDFRef) {
-      page = pages.find((candidate) => candidate.ref === pageRef) ?? page;
-    }
-
-    if (!page) {
+  for (const field of targetFields) {
+    const widgets = field.acroField.getWidgets();
+    if (widgets.length === 0) {
       continue;
     }
 
-    const rect = widget.getRectangle();
-    const padding = 2;
-    const maxWidth = Math.max(rect.width - padding * 2, 10);
-    const maxHeight = Math.max(rect.height - padding * 2, 10);
-    const scale = Math.min(maxWidth / embeddedImage.width, maxHeight / embeddedImage.height);
-    const drawWidth = embeddedImage.width * scale;
-    const drawHeight = embeddedImage.height * scale;
+    for (const widget of widgets) {
+      const pageRef = widget.dict.get(PDFName.of('P'));
+      let page = pages[0];
 
-    page.drawImage(embeddedImage, {
-      x: rect.x + (rect.width - drawWidth) / 2,
-      y: rect.y + (rect.height - drawHeight) / 2,
-      width: drawWidth,
-      height: drawHeight,
-    });
+      if (pageRef instanceof PDFRef) {
+        page = pages.find((candidate) => candidate.ref === pageRef) ?? page;
+      }
+
+      if (!page) {
+        continue;
+      }
+
+      const rect = widget.getRectangle();
+      const padding = 2;
+      const maxWidth = Math.max(rect.width - padding * 2, 10);
+      const maxHeight = Math.max(rect.height - padding * 2, 10);
+      const scale = Math.min(maxWidth / embeddedImage.width, maxHeight / embeddedImage.height);
+      const drawWidth = embeddedImage.width * scale;
+      const drawHeight = embeddedImage.height * scale;
+
+      page.drawImage(embeddedImage, {
+        x: rect.x + (rect.width - drawWidth) / 2,
+        y: rect.y + (rect.height - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight,
+      });
+      stampedCount += 1;
+    }
+
+    try {
+      form.removeField(field);
+    } catch {
+      // Signature fields sometimes cannot be removed; stamped image is still visible.
+    }
   }
 
-  try {
-    form.removeField(field);
-  } catch {
-    // Signature fields sometimes cannot be removed; stamped image is still visible.
+  if (stampedCount === 0) {
+    return null;
   }
 
   return pdfDoc.save();

@@ -20328,9 +20328,33 @@ var SIGNATURE_FIELD_ALIASES = [
 function normalizeFieldKey2(name) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, "");
 }
-function findSignatureFieldName(fieldNames) {
-  const aliases = SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey2);
-  return fieldNames.find((fieldName) => aliases.includes(normalizeFieldKey2(fieldName))) ?? null;
+function fieldStartsWithPrefix2(fieldName, prefix) {
+  const name = fieldName.trim().toLowerCase();
+  const wanted = prefix.trim().toLowerCase();
+  if (!wanted) {
+    return false;
+  }
+  if (name === wanted) {
+    return true;
+  }
+  if (!name.startsWith(wanted) || name.length === wanted.length) {
+    return false;
+  }
+  return /[^a-z]/.test(name.charAt(wanted.length));
+}
+function findSignatureFieldNames(fieldNames) {
+  const aliases = new Set(SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey2));
+  const matched = /* @__PURE__ */ new Set();
+  for (const fieldName of fieldNames) {
+    if (fieldStartsWithPrefix2(fieldName, "signature")) {
+      matched.add(fieldName);
+      continue;
+    }
+    if (aliases.has(normalizeFieldKey2(fieldName))) {
+      matched.add(fieldName);
+    }
+  }
+  return [...matched];
 }
 function toArrayBuffer(bytes) {
   const copy = new Uint8Array(bytes.byteLength);
@@ -20610,16 +20634,16 @@ async function stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl) {
   if (fields.length === 0) {
     return null;
   }
-  const signatureFieldName = findSignatureFieldName(fields.map((field2) => field2.getName()));
-  if (!signatureFieldName) {
+  const signatureFieldNames = findSignatureFieldNames(fields.map((field) => field.getName()));
+  if (signatureFieldNames.length === 0) {
     return null;
   }
-  const field = fields.find((item) => item.getName() === signatureFieldName);
-  if (!field) {
+  const targetFields = signatureFieldNames.map((name) => fields.find((item) => item.getName() === name)).filter((field) => !!field);
+  if (targetFields.length === 0) {
     return null;
   }
-  const widgets = field.acroField.getWidgets();
-  if (widgets.length === 0) {
+  const hasWidgets = targetFields.some((field) => field.acroField.getWidgets().length > 0);
+  if (!hasWidgets) {
     return null;
   }
   const trimmedSignature = await trimSignatureToImage(signatureDataUrl);
@@ -20638,33 +20662,44 @@ async function stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl) {
     })()
   );
   const embeddedImage = await pdfDoc.embedPng(signaturePng);
-  for (const widget of widgets) {
-    const pageRef = widget.dict.get(PDFName_default.of("P"));
-    const pages = pdfDoc.getPages();
-    let page = pages[0];
-    if (pageRef instanceof PDFRef_default) {
-      page = pages.find((candidate) => candidate.ref === pageRef) ?? page;
-    }
-    if (!page) {
+  const pages = pdfDoc.getPages();
+  let stampedCount = 0;
+  for (const field of targetFields) {
+    const widgets = field.acroField.getWidgets();
+    if (widgets.length === 0) {
       continue;
     }
-    const rect = widget.getRectangle();
-    const padding = 2;
-    const maxWidth = Math.max(rect.width - padding * 2, 10);
-    const maxHeight = Math.max(rect.height - padding * 2, 10);
-    const scale2 = Math.min(maxWidth / embeddedImage.width, maxHeight / embeddedImage.height);
-    const drawWidth = embeddedImage.width * scale2;
-    const drawHeight = embeddedImage.height * scale2;
-    page.drawImage(embeddedImage, {
-      x: rect.x + (rect.width - drawWidth) / 2,
-      y: rect.y + (rect.height - drawHeight) / 2,
-      width: drawWidth,
-      height: drawHeight
-    });
+    for (const widget of widgets) {
+      const pageRef = widget.dict.get(PDFName_default.of("P"));
+      let page = pages[0];
+      if (pageRef instanceof PDFRef_default) {
+        page = pages.find((candidate) => candidate.ref === pageRef) ?? page;
+      }
+      if (!page) {
+        continue;
+      }
+      const rect = widget.getRectangle();
+      const padding = 2;
+      const maxWidth = Math.max(rect.width - padding * 2, 10);
+      const maxHeight = Math.max(rect.height - padding * 2, 10);
+      const scale2 = Math.min(maxWidth / embeddedImage.width, maxHeight / embeddedImage.height);
+      const drawWidth = embeddedImage.width * scale2;
+      const drawHeight = embeddedImage.height * scale2;
+      page.drawImage(embeddedImage, {
+        x: rect.x + (rect.width - drawWidth) / 2,
+        y: rect.y + (rect.height - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight
+      });
+      stampedCount += 1;
+    }
+    try {
+      form.removeField(field);
+    } catch {
+    }
   }
-  try {
-    form.removeField(field);
-  } catch {
+  if (stampedCount === 0) {
+    return null;
   }
   return pdfDoc.save();
 }
