@@ -20206,8 +20206,20 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
       toStamp.push({ fieldName, text: name });
     }
   }
-  if (phoneField && phone) {
-    toStamp.push({ fieldName: phoneField, text: formatPhoneNumber(phone) });
+  if (phone) {
+    const phoneText = formatPhoneNumber(phone);
+    const phoneTargets = /* @__PURE__ */ new Set();
+    if (phoneField) {
+      phoneTargets.add(phoneField);
+    }
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, "phone")) {
+        phoneTargets.add(fieldName);
+      }
+    }
+    for (const fieldName of phoneTargets) {
+      toStamp.push({ fieldName, text: phoneText });
+    }
   }
   if (birthDate) {
     const birthdayText = formatBirthDate(birthDate);

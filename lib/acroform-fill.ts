@@ -803,8 +803,20 @@ export async function fillAcroFormIdentity(
     }
   }
 
-  if (phoneField && phone) {
-    toStamp.push({ fieldName: phoneField, text: formatPhoneNumber(phone) });
+  if (phone) {
+    const phoneText = formatPhoneNumber(phone);
+    const phoneTargets = new Set<string>();
+    if (phoneField) {
+      phoneTargets.add(phoneField);
+    }
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, 'phone')) {
+        phoneTargets.add(fieldName);
+      }
+    }
+    for (const fieldName of phoneTargets) {
+      toStamp.push({ fieldName, text: phoneText });
+    }
   }
 
   if (birthDate) {

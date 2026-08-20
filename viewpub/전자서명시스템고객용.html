@@ -682,6 +682,8 @@
     const base=buildIdentityFormValues(userInfo||{});
     return {
       ...base,
+      // 요청 JSON signer_phone(또는 인적사항 화면 전화번호) → PDF phone* 필드
+      phoneNumber:request.signer.phone||base.phoneNumber||'',
       // 본인 인적사항 확인 화면의 주소를 PDF address* 필드에 우선 반영
       postcode:request.signer.postcode||base.postcode||'',
       addressBase:request.signer.addressBase||base.addressBase||'',
