@@ -20163,6 +20163,7 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const phone = values2.phoneNumber?.trim();
   const birthDate = values2.birthDate?.trim();
   const addressText = formatIdentityAddress(values2);
+  const adjuster = values2.adjuster?.trim();
   const toStamp = [];
   const addressToStamp = [];
   if (name) {
@@ -20201,6 +20202,13 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
     for (const fieldName of fieldNames) {
       if (fieldStartsWithPrefix(fieldName, "address")) {
         addressToStamp.push({ fieldName, text: addressText });
+      }
+    }
+  }
+  if (adjuster) {
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, "adjuster")) {
+        toStamp.push({ fieldName, text: adjuster });
       }
     }
   }

@@ -363,6 +363,7 @@
     purpose: '누수사고 손해사정 조사 및 관련 개인정보 처리 동의',
     signer: { name: '홍길동', maskedName: '홍*동', role: '피보험자', phone: '01012341234', birth: '19850314', gender: '', postcode: '', addressBase: '', addressDetail: '', address: '', identityConfirmedAt: null },
     sender: 'T&G 손해사정 · 김수현',
+    createdBy: '김수현',
     issuedAt: '2026-07-21 10:30:00',
     expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
     authProvider: 'NICE',
@@ -686,6 +687,8 @@
       addressBase:request.signer.addressBase||base.addressBase||'',
       addressDetail:request.signer.addressDetail||base.addressDetail||'',
       address:request.signer.address||base.address||'',
+      // 요청 JSON created_by → PDF adjuster* 필드
+      adjuster:request.createdBy||base.adjuster||'',
       extraFields:extraFields||{},
       datePrefixes:datePrefixes||[],
     };
@@ -1054,7 +1057,8 @@
       identityConfirmedAt:request.signer.identityConfirmedAt,
     };
     applySignerProfileFromApi(req);
-    request.sender=`T&G 손해사정 · ${req.created_by||'담당자'}`;
+    request.createdBy=String(req.created_by||'').trim()||request.createdBy||'';
+    request.sender=`T&G 손해사정 · ${request.createdBy||'담당자'}`;
     request.purpose=buildRequestPurpose(req,apiDocuments,insurer);
     request.issuedAt=req.issued_at||request.issuedAt;
     request.expiresAt=expiresAt;
@@ -1227,6 +1231,7 @@
       addressBase:userInfo.addressBase,
       addressDetail:userInfo.addressDetail,
       address:userInfo.address,
+      adjuster:userInfo.adjuster,
     };
   }
 

@@ -16,6 +16,8 @@ export type IdentityFormValues = {
   addressDetail?: string;
   /** 조합된 전체 주소 (없으면 postcode/base/detail로 생성) */
   address?: string;
+  /** 요청 JSON의 created_by — PDF adjuster* 필드에 매핑 */
+  adjuster?: string;
   /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
   extraFields?: Record<string, string>;
   /** 선택형 답변 문구. PDF 본문 "동의함" 왼쪽 [ ]에 체크를 찍을 때 사용 */
@@ -781,6 +783,7 @@ export async function fillAcroFormIdentity(
   const phone = values.phoneNumber?.trim();
   const birthDate = values.birthDate?.trim();
   const addressText = formatIdentityAddress(values);
+  const adjuster = values.adjuster?.trim();
 
   const toStamp: Array<{ fieldName: string; text: string }> = [];
   const addressToStamp: Array<{ fieldName: string; text: string }> = [];
@@ -824,6 +827,14 @@ export async function fillAcroFormIdentity(
     for (const fieldName of fieldNames) {
       if (fieldStartsWithPrefix(fieldName, 'address')) {
         addressToStamp.push({ fieldName, text: addressText });
+      }
+    }
+  }
+
+  if (adjuster) {
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, 'adjuster')) {
+        toStamp.push({ fieldName, text: adjuster });
       }
     }
   }
