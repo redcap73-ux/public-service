@@ -347,7 +347,7 @@ function SignContent() {
           return;
         }
 
-        if (!response.ok || (body?.required && !body?.unlocked)) {
+        if (!response.ok || body?.required) {
           setSigncheckState('locked');
           setStatusMessage('접속 비밀번호를 입력해 주세요.');
           return;

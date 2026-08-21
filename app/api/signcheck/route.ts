@@ -1,26 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  attachSigncheckCookie,
   getSigncheckKey,
   isSigncheckRequired,
-  isSigncheckUnlocked,
   keysMatch,
 } from '@/lib/signcheck.server';
 
+/** Clear legacy unlock cookie if present from older builds. */
+function clearLegacySigncheckCookie(response: NextResponse) {
+  response.cookies.set('signcheck', '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 0,
+  });
+  return response;
+}
+
 export async function GET() {
   const required = isSigncheckRequired();
-  if (!required) {
-    return NextResponse.json({ required: false, unlocked: true });
-  }
-
-  const unlocked = await isSigncheckUnlocked();
-  return NextResponse.json({ required: true, unlocked });
+  const response = NextResponse.json({
+    required,
+    // Never persist unlock — client must verify on every visit.
+    unlocked: !required,
+  });
+  return clearLegacySigncheckCookie(response);
 }
 
 export async function POST(request: NextRequest) {
   const secret = getSigncheckKey();
   if (!secret) {
-    return NextResponse.json({ ok: true, required: false });
+    const response = NextResponse.json({ ok: true, required: false });
+    return clearLegacySigncheckCookie(response);
   }
 
   let body: { key?: string };
@@ -38,6 +49,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const response = NextResponse.json({ ok: true, required: true, unlocked: true });
-  return attachSigncheckCookie(response, secret);
+  const response = NextResponse.json({ ok: true, required: true });
+  return clearLegacySigncheckCookie(response);
 }
