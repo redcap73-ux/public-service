@@ -25,7 +25,7 @@
     .brand{display:flex;gap:11px;align-items:center;min-width:0}
     .brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#4e89ff,#86aefc);display:grid;place-items:center;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
     .brand-text{min-width:0}.brand-text strong{display:block;font-size:15px;white-space:nowrap}.brand-text small{display:block;color:rgba(255,255,255,.66);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .secure-badge{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);border-radius:999px;font-size:10px;white-space:nowrap}
+    .secure-badge{display:none !important;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);border-radius:999px;font-size:10px;white-space:nowrap}
     .main{width:100%;max-width:980px;margin:0 auto;padding:18px 18px calc(105px + var(--safe-bottom))}
     .status-top{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
     .status-summary{padding:17px 18px 15px;background:linear-gradient(135deg,#fff,#f7faff);display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
@@ -51,6 +51,9 @@
     .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.field.full{grid-column:1/-1}.field label{display:block;font-size:10px;color:#475569;font-weight:800;margin-bottom:6px}.field input,.field select{width:100%;height:44px;border:1px solid #cbd5e1;border-radius:11px;padding:0 12px;background:#fff;color:#1f2937;outline:none}.field input:focus,.field select:focus{border-color:#7aa5fa;box-shadow:0 0 0 3px rgba(43,110,242,.10)}
     .input-row{display:grid;grid-template-columns:1fr 108px;gap:8px}.inline-btn{border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;border-radius:11px;font-weight:800;font-size:11px}
     .check-line{display:flex;align-items:flex-start;gap:9px;font-size:10px;line-height:1.5;color:#334155}.check-line input{margin-top:2px;width:16px;height:16px;flex:0 0 auto;accent-color:var(--blue)}
+    .check-line.needs-attention{border:1px solid #f59e0b;background:#fffbeb;border-radius:12px;padding:10px 12px;color:#9a3412;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
+    @keyframes checkPulse{0%,100%{box-shadow:0 0 0 3px rgba(245,158,11,.16)}50%{box-shadow:0 0 0 6px rgba(245,158,11,.28)}}
+    .check-line.needs-attention::before{content:'여기 체크';flex:0 0 auto;display:inline-flex;align-items:center;height:18px;margin-top:1px;padding:0 7px;border-radius:999px;background:#f59e0b;color:#fff;font-size:9px;font-weight:800;letter-spacing:-.2px}
     .provider-list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.provider{border:1px solid var(--line);background:#fff;border-radius:11px;padding:10px 6px;text-align:center;font-size:10px;font-weight:800;color:#475569}.provider.selected{border-color:#7aa5fa;background:var(--blue-soft);color:#1d4ed8}.provider span{display:block;font-size:17px;margin-bottom:4px}
     .auth-result{display:none;margin-top:12px}.auth-result.show{display:block}
     .doc-overview{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
@@ -104,7 +107,7 @@
         <div class="brand-mark">T&G</div>
         <div class="brand-text"><strong>티엔지손해사정 전자서명시스템</strong></div>
       </div>
-      <div class="secure-badge">🔒 <span>보안 접속</span><span>· TLS 암호화</span></div>
+      <div class="secure-badge" hidden>🔒 <span>보안 접속</span><span>· TLS 암호화</span></div>
     </div>
   </header>
 
@@ -144,7 +147,7 @@
             <tr><th>링크 유효기간</th><td id="introExpiry">2026-07-23 10:30까지</td></tr>
           </table>
           <div style="height:12px"></div>
-          <label class="check-line"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
+          <label class="check-line" id="requestOwnerCheckLine"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
           <div style="height:11px"></div>
           <button type="button" class="auth-entry-btn" id="authEntryBtn">
             <span class="auth-entry-icon">📱</span>
@@ -472,6 +475,28 @@
 
   function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
   function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2300);}
+
+  let ownerCheckHighlightTimer=null;
+  function clearOwnerCheckHighlight(){
+    const line=$('requestOwnerCheckLine');
+    if(!line)return;
+    line.classList.remove('needs-attention');
+    if(ownerCheckHighlightTimer){
+      clearTimeout(ownerCheckHighlightTimer);
+      ownerCheckHighlightTimer=null;
+    }
+  }
+
+  function focusRequiredOwnerCheck(){
+    const line=$('requestOwnerCheckLine');
+    const checkbox=$('requestOwnerCheck');
+    if(!line||!checkbox)return;
+    clearOwnerCheckHighlight();
+    line.classList.add('needs-attention');
+    line.scrollIntoView({behavior:'smooth',block:'center'});
+    try{checkbox.focus({preventScroll:true});}catch{checkbox.focus();}
+    ownerCheckHighlightTimer=setTimeout(()=>clearOwnerCheckHighlight(),4500);
+  }
   function maskPhone(phone){return phone.replace(/(\d{3})(\d{4})(\d{4})/,'$1-****-$3');}
   function formatDate(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
   function formatExpiry(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
@@ -1298,6 +1323,7 @@
 
     if(isPortOneVerifying)return;
     if(requireOwnerCheck && !$('requestOwnerCheck').checked){
+      focusRequiredOwnerCheck();
       toast('본인 전자서명 진행 확인에 체크해 주세요.');
       return;
     }
@@ -2124,6 +2150,9 @@
   }
 
   $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);$('authEntryBtn').addEventListener('click',goToIdentityVerification);
+  $('requestOwnerCheck').addEventListener('change',()=>{
+    if($('requestOwnerCheck').checked)clearOwnerCheckHighlight();
+  });
   function saveCurrentDocument(){
     const doc=request.documents[state.currentDocIndex];
     if(hasTemplateItems(doc))saveDocumentAnswers();
