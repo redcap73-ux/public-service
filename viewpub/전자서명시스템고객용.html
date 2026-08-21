@@ -921,6 +921,38 @@
       state.identityProfile.confirmedAt=new Date(req.identity_confirmed_at);
     }
     request.signer.maskedName=maskName(request.signer.name);
+    // 본인인증 일치 검사용: 요청 시점의 서명자/연락처를 고정 보관
+    request.expectedSigner={
+      name:String(request.signer.name||'').trim(),
+      phone:String(request.signer.phone||'').replace(/\D/g,''),
+    };
+  }
+
+  function normalizePersonName(value){
+    return String(value||'').replace(/\s+/g,'').trim();
+  }
+
+  function getVerifiedIdentityMismatchMessage(userInfo){
+    const expected=request.expectedSigner||{
+      name:String(request.signer.name||'').trim(),
+      phone:String(request.signer.phone||'').replace(/\D/g,''),
+    };
+    const verifiedName=normalizePersonName(userInfo?.name);
+    const verifiedPhone=String(userInfo?.phoneNumber||'').replace(/\D/g,'');
+    const expectedName=normalizePersonName(expected.name);
+    const expectedPhone=String(expected.phone||'').replace(/\D/g,'');
+
+    const nameMismatch=Boolean(expectedName) && Boolean(verifiedName) && expectedName!==verifiedName;
+    const phoneMismatch=Boolean(expectedPhone) && Boolean(verifiedPhone) && expectedPhone!==verifiedPhone;
+
+    if(!nameMismatch && !phoneMismatch)return null;
+    if(nameMismatch && phoneMismatch){
+      return '본인인증 성명·연락처가 요청된 서명자 정보와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
+    }
+    if(nameMismatch){
+      return '본인인증 성명이 요청된 서명자와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
+    }
+    return '본인인증 연락처가 요청된 서명자 연락처와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
   }
 
   function applyPortOneProfilePriority(userInfo){
@@ -1663,8 +1695,21 @@
         return;
       }
 
-      applyVerifiedIdentity(result.userInfo||{});
-      const userInfo=verifiedUserInfo||buildIdentityFormValues(result.userInfo||{});
+      const verifiedRaw=result.userInfo||{};
+      const mismatchMessage=getVerifiedIdentityMismatchMessage(verifiedRaw);
+      if(mismatchMessage){
+        state.verified=false;
+        verifiedUserInfo=null;
+        state.portOneProfile=null;
+        request.authTransactionId=null;
+        request.identityVerifiedAt=null;
+        updateAuthVerifyButton();
+        toast(mismatchMessage);
+        return;
+      }
+
+      applyVerifiedIdentity(verifiedRaw);
+      const userInfo=verifiedUserInfo||buildIdentityFormValues(verifiedRaw);
       let filledCount=0;
       try{
         toast('본인인증 완료. 미리보기에 정보를 반영하는 중...');
