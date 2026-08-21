@@ -60,8 +60,8 @@ function getDocumentLabel(document: SignDocument, index: number) {
   );
 }
 
-function buildFileApiUrl(filePath: string, download = false) {
-  const params = new URLSearchParams({ path: filePath });
+function buildFileApiUrl(filePath: string, token: string, download = false) {
+  const params = new URLSearchParams({ path: filePath, token });
 
   if (download) {
     params.set('download', '1');
@@ -73,9 +73,15 @@ function buildFileApiUrl(filePath: string, download = false) {
 function SignContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const [signcheckState, setSigncheckState] = useState<'checking' | 'locked' | 'unlocked'>(
+    'checking'
+  );
+  const [signcheckKey, setSigncheckKey] = useState('');
+  const [signcheckError, setSigncheckError] = useState<string | null>(null);
+  const [isSubmittingSigncheck, setIsSubmittingSigncheck] = useState(false);
   const [signData, setSignData] = useState<unknown>(null);
   const [jsonText, setJsonText] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState('동의 정보를 가져 오고 있습니다.');
+  const [statusMessage, setStatusMessage] = useState('접속 확인 중...');
   const [error, setError] = useState<string | null>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -101,16 +107,49 @@ function SignContent() {
   const documents = useMemo(() => extractDocuments(signData), [signData]);
 
   const previewFileUrl = useMemo(() => {
-    if (!previewPath) {
+    if (!previewPath || !token) {
       return null;
     }
 
-    return filledPreviewUrls[previewPath] ?? buildFileApiUrl(previewPath);
-  }, [previewPath, filledPreviewUrls]);
+    return filledPreviewUrls[previewPath] ?? buildFileApiUrl(previewPath, token);
+  }, [previewPath, filledPreviewUrls, token]);
 
   function revokeFilledPreviewUrls(urls: Record<string, string>) {
     for (const url of Object.values(urls)) {
       URL.revokeObjectURL(url);
+    }
+  }
+
+  async function submitSigncheck() {
+    const key = signcheckKey.trim();
+    if (!key) {
+      setSigncheckError('접속 비밀번호를 입력해 주세요.');
+      return;
+    }
+
+    setIsSubmittingSigncheck(true);
+    setSigncheckError(null);
+
+    try {
+      const response = await fetch('/api/signcheck', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      });
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setSigncheckError(body?.error ?? '접속 비밀번호가 올바르지 않습니다.');
+        return;
+      }
+
+      setSigncheckState('unlocked');
+      setStatusMessage('동의 정보를 가져 오고 있습니다.');
+    } catch {
+      setSigncheckError('접속 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsSubmittingSigncheck(false);
     }
   }
 
@@ -128,8 +167,12 @@ function SignContent() {
   ) {
     const nextUrls: Record<string, string> = {};
 
+    if (!token) {
+      return 0;
+    }
+
     for (const document of docs) {
-      const response = await fetch(buildFileApiUrl(document.file_path), {
+      const response = await fetch(buildFileApiUrl(document.file_path, token), {
         cache: 'no-store',
       });
 
@@ -173,11 +216,18 @@ function SignContent() {
     setSaveError(null);
     setSaveMessage('서명된 PDF를 준비하는 중...');
 
+    if (!token) {
+      setSaveError('URL에 token 값이 없습니다.');
+      setSaveMessage(null);
+      setIsSaving(false);
+      return;
+    }
+
     try {
       await downloadSignedDocuments({
         documents: documents.map((document, index) => ({
           filePath: document.file_path,
-          fileUrl: buildFileApiUrl(document.file_path),
+          fileUrl: buildFileApiUrl(document.file_path, token),
           label: getDocumentLabel(document, index),
         })),
         signatureDataUrl: capturedSignature,
@@ -283,6 +333,50 @@ function SignContent() {
   }
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function checkSignAccess() {
+      try {
+        const response = await fetch('/api/signcheck', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        const body = await response.json().catch(() => null);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!response.ok || (body?.required && !body?.unlocked)) {
+          setSigncheckState('locked');
+          setStatusMessage('접속 비밀번호를 입력해 주세요.');
+          return;
+        }
+
+        setSigncheckState('unlocked');
+        setStatusMessage('동의 정보를 가져 오고 있습니다.');
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setSigncheckState('locked');
+        setStatusMessage('접속 비밀번호를 입력해 주세요.');
+      }
+    }
+
+    void checkSignAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (signcheckState !== 'unlocked') {
+      return;
+    }
+
     if (!token) {
       setStatusMessage('동의 정보를 가져올 수 없습니다.');
       setSignData(null);
@@ -329,14 +423,99 @@ function SignContent() {
       }
     }
 
-    loadSignData();
+    void loadSignData();
 
     return () => {
       isMounted = false;
       revokeFilledPreviewUrls(filledPreviewUrlsRef.current);
       filledPreviewUrlsRef.current = {};
     };
-  }, [token]);
+  }, [token, signcheckState]);
+
+  if (signcheckState === 'checking') {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          minHeight: '100vh',
+          padding: '1rem',
+          fontFamily: 'Arial, sans-serif',
+          boxSizing: 'border-box',
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 'bold' }}>고객 동의 및 인증 화면</h1>
+        <p style={{ margin: 0 }}>접속 확인 중...</p>
+      </div>
+    );
+  }
+
+  if (signcheckState === 'locked') {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          minHeight: '100vh',
+          padding: '1rem',
+          fontFamily: 'Arial, sans-serif',
+          boxSizing: 'border-box',
+          maxWidth: 480,
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 'bold' }}>접속 비밀번호 확인</h1>
+        <p style={{ margin: 0, color: '#475569', lineHeight: 1.5 }}>
+          화면을 열기 전에 접속 비밀번호를 입력해 주세요.
+        </p>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <span style={{ fontWeight: 600 }}>접속 비밀번호</span>
+          <input
+            type="password"
+            value={signcheckKey}
+            autoComplete="current-password"
+            autoFocus
+            onChange={(event) => {
+              setSigncheckKey(event.target.value);
+              setSigncheckError(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void submitSigncheck();
+              }
+            }}
+            style={{
+              padding: '0.7rem 0.8rem',
+              border: '1px solid #cbd5e1',
+              borderRadius: '0.4rem',
+              fontSize: '1rem',
+            }}
+          />
+        </label>
+        {signcheckError && <p style={{ margin: 0, color: '#842029' }}>{signcheckError}</p>}
+        <button
+          type="button"
+          onClick={() => void submitSigncheck()}
+          disabled={isSubmittingSigncheck}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderRadius: '0.35rem',
+            backgroundColor: isSubmittingSigncheck ? '#9aa4b2' : '#0052cc',
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 700,
+            cursor: isSubmittingSigncheck ? 'not-allowed' : 'pointer',
+            alignSelf: 'flex-start',
+          }}
+        >
+          {isSubmittingSigncheck ? '확인 중...' : '확인 후 계속'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -449,7 +628,7 @@ function SignContent() {
                       미리보기
                     </button>
                     <a
-                      href={buildFileApiUrl(document.file_path, true)}
+                      href={token ? buildFileApiUrl(document.file_path, token, true) : '#'}
                       style={{
                         padding: '0.4rem 0.8rem',
                         border: '1px solid #0070f3',

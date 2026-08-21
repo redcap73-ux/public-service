@@ -1,8 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getObjectFromNcp } from '@/lib/ncp-storage.server';
+import { getObjectFromNcp, normalizeObjectKey } from '@/lib/ncp-storage.server';
+import { fetchPublicServiceSignFromServer } from '@/lib/public-service.server';
+
+type SignApiDocument = {
+  file_path?: string;
+};
+
+type SignApiResponse = {
+  ok?: boolean;
+  request?: {
+    expires_at?: string;
+    status?: string;
+    completed_at?: string | null;
+  };
+  documents?: SignApiDocument[];
+};
+
+function collectAllowedPaths(payload: SignApiResponse) {
+  const paths = new Set<string>();
+
+  for (const doc of Array.isArray(payload.documents) ? payload.documents : []) {
+    const filePath = doc.file_path?.trim();
+    if (!filePath) continue;
+
+    try {
+      paths.add(normalizeObjectKey(filePath));
+    } catch {
+      // ignore invalid document paths from backend
+    }
+  }
+
+  return paths;
+}
 
 export async function GET(request: NextRequest) {
   const filePath = request.nextUrl.searchParams.get('path');
+  const token = request.nextUrl.searchParams.get('token')?.trim();
   const download = request.nextUrl.searchParams.get('download') === '1';
 
   if (!filePath) {
@@ -12,8 +45,73 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (!token) {
+    return NextResponse.json(
+      { error: 'token 값이 전달되지 않았습니다.' },
+      { status: 401 }
+    );
+  }
+
+  let objectKey: string;
   try {
-    const file = await getObjectFromNcp(filePath);
+    objectKey = normalizeObjectKey(filePath);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : '유효하지 않은 path 입니다.',
+      },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const signPayload = (await fetchPublicServiceSignFromServer(
+      token
+    )) as SignApiResponse;
+
+    if (!signPayload?.ok || !signPayload.request) {
+      return NextResponse.json(
+        { error: '요청 정보를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    const apiRequest = signPayload.request;
+
+    if (apiRequest.status === 'COMPLETED' || apiRequest.completed_at) {
+      return NextResponse.json(
+        {
+          error: '이미 전자서명이 완료된 요청입니다.',
+          code: 'ALREADY_COMPLETED',
+        },
+        { status: 409 }
+      );
+    }
+
+    const expiresAt = apiRequest.expires_at
+      ? new Date(apiRequest.expires_at)
+      : null;
+    if (
+      expiresAt &&
+      !Number.isNaN(expiresAt.getTime()) &&
+      expiresAt.getTime() <= Date.now()
+    ) {
+      return NextResponse.json(
+        { error: '서명 링크가 만료되었습니다.', code: 'TOKEN_EXPIRED' },
+        { status: 410 }
+      );
+    }
+
+    const allowedPaths = collectAllowedPaths(signPayload);
+    if (!allowedPaths.has(objectKey)) {
+      return NextResponse.json(
+        { error: '이 요청에서 접근할 수 없는 파일입니다.' },
+        { status: 403 }
+      );
+    }
+
+    const file = await getObjectFromNcp(objectKey);
     const dispositionType = download ? 'attachment' : 'inline';
     const encodedFileName = encodeURIComponent(file.fileName);
 

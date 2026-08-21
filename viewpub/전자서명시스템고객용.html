@@ -1783,11 +1783,11 @@
   }
 
   function buildFileApiUrl(filePath){
-    return `/api/files?${new URLSearchParams({path:filePath}).toString()}`;
+    return `/api/files?${new URLSearchParams({path:filePath,token:request.token||''}).toString()}`;
   }
 
   function buildFileDownloadUrl(filePath){
-    return `/api/files?${new URLSearchParams({path:filePath,download:'1'}).toString()}`;
+    return `/api/files?${new URLSearchParams({path:filePath,token:request.token||'',download:'1'}).toString()}`;
   }
 
   async function downloadDocumentByIndex(index){
