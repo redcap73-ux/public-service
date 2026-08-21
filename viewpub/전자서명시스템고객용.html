@@ -86,7 +86,7 @@
     #signatureSubmitCard{scroll-margin-top:84px}
     #identityProfileCard.identity-confirmed .card-body{display:none}
     #identityProfileCard.identity-confirmed{margin-bottom:10px}
-    .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
+    .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell.needs-attention{border-color:#f59e0b !important;background:#fffbeb;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:12px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
     .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
     .final-checks.needs-attention{border:1px solid #f59e0b;background:#fffbeb;border-radius:12px;padding:12px;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
@@ -95,7 +95,9 @@
     .check-line-row .check-line{flex:1;min-width:0}
     .doc-preview-btn{flex:0 0 auto;height:32px;min-height:32px;padding:0 10px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;font-size:10px;font-weight:800;white-space:nowrap}
     .modal.modal-wide{width:min(920px,100%)}
+    .signed-preview-shell{position:relative;margin-top:10px}
     .signed-preview-viewer{height:min(62vh,680px);min-height:280px;margin:0}
+    .signed-preview-viewer.needs-attention{border-color:#f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
     .button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;color:#334155;padding:10px 14px;font-size:12px;font-weight:800}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.primary:hover{background:var(--blue-dark)}.button.secondary{background:#fff}.button.danger{background:#fff1f2;color:#be123c;border-color:#fecaca}.button.success{background:var(--green);color:#fff;border-color:var(--green)}
     .sticky-actions{position:fixed;left:0;right:0;bottom:0;z-index:35;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:11px 18px calc(11px + var(--safe-bottom));box-shadow:0 -8px 28px rgba(15,31,61,.09)}.sticky-inner{max-width:944px;margin:auto;display:flex;gap:9px}.sticky-inner .button{flex:1}.sticky-inner .button.back{max-width:160px}
     .complete-hero{text-align:center;padding:18px 14px 8px}.complete-icon{width:72px;height:72px;border-radius:50%;margin:0 auto 13px;background:#d1fae5;color:#047857;display:grid;place-items:center;font-size:34px;box-shadow:0 0 0 9px #ecfdf5}.complete-hero h2{margin:0;color:var(--navy);font-size:21px}.complete-hero p{font-size:10px;line-height:1.6;color:var(--muted)}
@@ -251,7 +253,7 @@
       </div>
 
       <div class="card" id="viewerCard">
-        <div class="card-head"><div><h2 id="viewerTitle">문서를 선택해 주세요</h2><p id="viewerMeta">요청 당시 고정된 최신 유효 양식입니다.</p></div><span class="badge gray" id="viewerBadge">미확인</span></div>
+        <div class="card-head"><div><h2 id="viewerTitle">문서를 선택해 주세요</h2><p id="viewerMeta" class="hidden">요청 당시 고정된 최신 유효 양식입니다.</p></div><span class="badge gray" id="viewerBadge">미확인</span></div>
         <div class="card-body">
           <div class="document-viewer-shell" id="documentViewerShell">
             <div class="document-viewer" id="documentViewer" tabindex="0"><div class="paper" id="paperContent"></div></div>
@@ -370,8 +372,14 @@
     <div class="modal-head"><h3>최종 문서확인</h3><button class="modal-close" type="button" data-close="signedPreviewModal">×</button></div>
     <div class="modal-body">
       <div class="notice" id="signedPreviewNotice">자필서명이 반영된 최종 문서를 확인해 주세요.</div>
-      <div class="document-viewer signed-preview-viewer" id="signedPreviewViewer">
-        <div class="paper pdf-paper" id="signedPreviewPaper"></div>
+      <div class="signed-preview-shell" id="signedPreviewShell">
+        <div class="document-viewer signed-preview-viewer" id="signedPreviewViewer">
+          <div class="paper pdf-paper" id="signedPreviewPaper"></div>
+        </div>
+        <div class="scroll-down-cue hidden" id="signedPreviewScrollCue" aria-hidden="true">
+          <span class="scroll-down-arrow" aria-hidden="true">↓</span>
+          <span class="scroll-down-label">아래로 스크롤</span>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -494,9 +502,12 @@
   let canvas;
   let resizeTimer;
   let pdfRenderGeneration = 0;
+  let viewerContentReady = false;
   let signedPreviewGeneration = 0;
   let signedPreviewUrl = null;
   let signedPreviewConfirmed = false;
+  let signedPreviewScrolled = false;
+  let signedPreviewScrollGuideTimer = null;
   let isBuildingSignedPreview = false;
   let pdfJsPromise = null;
   let portOneModulePromise = null;
@@ -1825,8 +1836,10 @@
   }
 
   function checkViewerScrollComplete(){
+    // PDF/문서 본문이 준비되기 전(로딩 문구만 있는 상태)에는 스크롤 완료로 보지 않음
+    if(!viewerContentReady)return;
     const el=$('documentViewer'),st=state.docs[state.currentDocIndex];
-    if(st.scrolled)return;
+    if(!el || !st || st.scrolled)return;
     if(el.scrollHeight<=el.clientHeight+24 || el.scrollTop+el.clientHeight>=el.scrollHeight-24){
       markDocumentScrolled();
     }
@@ -1867,11 +1880,14 @@
   }
 
   async function renderPdfIntoPaper(filePath,paperEl,generation){
+    viewerContentReady=false;
     paperEl.className='paper pdf-paper';
     paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
     try{
       const rendered=await renderPdfFromUrl(getPdfPreviewUrl(filePath),paperEl,generation,()=>pdfRenderGeneration);
-      if(rendered && generation===pdfRenderGeneration){
+      if(generation!==pdfRenderGeneration)return;
+      if(rendered){
+        viewerContentReady=true;
         requestAnimationFrame(()=>checkViewerScrollComplete());
       }
     }catch(error){
@@ -1884,6 +1900,7 @@
     const paperEl=$('paperContent');
     pdfRenderGeneration+=1;
     const generation=pdfRenderGeneration;
+    viewerContentReady=false;
     // 실제 PDF 미리보기는 download_type=1(동의/열람) 문서만 표시
     if(isConsentDocument(doc) && doc.file_path){
       $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF ${filledPdfUrls[doc.file_path]?'본인정보 반영':'원본'}`;
@@ -1894,6 +1911,8 @@
       paperEl.className='paper';
       paperEl.innerHTML=buildPaper(doc,index);
       $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · 요청 Snapshot`;
+      viewerContentReady=true;
+      requestAnimationFrame(()=>checkViewerScrollComplete());
       return;
     }
     // download_type=2 등은 PDF 영역에 표시하지 않음
@@ -2169,7 +2188,7 @@
     const pointer=(e)=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*(canvas.width/rect.width),y:(e.clientY-rect.top)*(canvas.height/rect.height)};};
     canvas.addEventListener('pointerdown',e=>{e.preventDefault();drawing=true;currentStroke=[pointer(e)];canvas.setPointerCapture?.(e.pointerId);$('canvasPlaceholder').classList.add('hidden');});
     canvas.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=pointer(e);currentStroke.push(p);drawSegment(currentStroke[currentStroke.length-2],p);});
-    const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;};
+    const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;if(state.hasSignature)clearSignatureHighlight();};
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('pointerleave',e=>{if(drawing)end(e)});
     resizeCanvas();
   }
@@ -2276,9 +2295,73 @@
     return result;
   }
 
+  let signatureHighlightTimer=null;
+  function clearSignatureHighlight(){
+    $('canvasShell')?.classList.remove('needs-attention');
+    if(signatureHighlightTimer){
+      clearTimeout(signatureHighlightTimer);
+      signatureHighlightTimer=null;
+    }
+  }
+
+  function focusRequiredSignature(message){
+    const shell=$('canvasShell');
+    if(!shell)return;
+    clearSignatureHighlight();
+    shell.classList.add('needs-attention');
+    shell.scrollIntoView({behavior:'smooth',block:'center'});
+    toast(message||'자필서명을 입력해 주세요.');
+    signatureHighlightTimer=setTimeout(()=>clearSignatureHighlight(),4500);
+  }
+
+  function setSignedPreviewScrollCueVisible(visible){
+    const cue=$('signedPreviewScrollCue');
+    if(!cue)return;
+    cue.classList.toggle('hidden',!visible);
+    cue.setAttribute('aria-hidden',visible?'false':'true');
+  }
+
+  function clearSignedPreviewScrollGuide(){
+    $('signedPreviewViewer')?.classList.remove('needs-attention');
+    setSignedPreviewScrollCueVisible(false);
+    if(signedPreviewScrollGuideTimer){
+      clearTimeout(signedPreviewScrollGuideTimer);
+      signedPreviewScrollGuideTimer=null;
+    }
+  }
+
+  function promptSignedPreviewScrollGuide(){
+    const viewer=$('signedPreviewViewer');
+    if(!viewer)return;
+    clearSignedPreviewScrollGuide();
+    viewer.classList.add('needs-attention');
+    setSignedPreviewScrollCueVisible(true);
+    toast('최종 문서를 맨 아래까지 스크롤해 확인해 주세요.');
+    signedPreviewScrollGuideTimer=setTimeout(()=>clearSignedPreviewScrollGuide(),4500);
+  }
+
+  function markSignedPreviewScrolled(){
+    if(signedPreviewScrolled)return;
+    signedPreviewScrolled=true;
+    clearSignedPreviewScrollGuide();
+  }
+
+  function checkSignedPreviewScrollComplete(){
+    const el=$('signedPreviewViewer');
+    if(!el || signedPreviewScrolled)return;
+    if(el.scrollHeight<=el.clientHeight+24 || el.scrollTop+el.clientHeight>=el.scrollHeight-24){
+      markSignedPreviewScrolled();
+    }
+  }
+
+  function onSignedPreviewScroll(){
+    if($('signedPreviewViewer')?.scrollTop>12)setSignedPreviewScrollCueVisible(false);
+    checkSignedPreviewScrollComplete();
+  }
+
   async function openSignedPreview(){
     if(!state.hasSignature){
-      toast('자필서명을 먼저 입력해 주세요.');
+      focusRequiredSignature('자필서명을 먼저 입력해 주세요.');
       return;
     }
     const agreeDocsWithPdf=getAgreeDocsWithPdf();
@@ -2290,14 +2373,18 @@
 
     const paperEl=$('signedPreviewPaper');
     const noticeEl=$('signedPreviewNotice');
+    const viewer=$('signedPreviewViewer');
     isBuildingSignedPreview=true;
     signedPreviewConfirmed=false;
+    signedPreviewScrolled=false;
+    clearSignedPreviewScrollGuide();
     $('finalDocumentCheck').checked=false;
     signedPreviewGeneration+=1;
     const generation=signedPreviewGeneration;
     noticeEl.textContent='자필서명이 반영된 최종 문서를 생성하는 중입니다.';
     paperEl.className='paper pdf-paper';
     paperEl.innerHTML='<p class="pdf-status">서명 PDF를 생성하는 중...</p>';
+    if(viewer)viewer.scrollTop=0;
     openModal('signedPreviewModal');
 
     try{
@@ -2308,8 +2395,14 @@
 
       revokeSignedPreviewUrl();
       signedPreviewUrl=URL.createObjectURL(new Blob([mergedBytes],{type:'application/pdf'}));
-      noticeEl.textContent='자필서명과 입력값이 반영된 최종 문서입니다. 내용을 확인한 뒤 문서 확인 완료를 눌러 주세요.';
+      noticeEl.textContent='자필서명과 입력값이 반영된 최종 문서입니다. 내용을 맨 아래까지 확인한 뒤 문서 확인 완료를 눌러 주세요.';
       await renderPdfFromUrl(signedPreviewUrl,paperEl,generation,()=>signedPreviewGeneration);
+      if(generation!==signedPreviewGeneration)return;
+      if(viewer)viewer.scrollTop=0;
+      signedPreviewScrolled=false;
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>checkSignedPreviewScrollComplete());
+      });
     }catch(error){
       console.error(error);
       noticeEl.textContent='최종 문서를 만들지 못했습니다.';
@@ -2321,8 +2414,13 @@
   }
 
   function confirmSignedPreview(){
+    if(!signedPreviewScrolled){
+      promptSignedPreviewScrollGuide();
+      return;
+    }
     signedPreviewConfirmed=true;
     $('finalDocumentCheck').checked=true;
+    clearSignedPreviewScrollGuide();
     closeModal('signedPreviewModal');
     toast('최종 문서를 확인했습니다.');
   }
@@ -2390,10 +2488,11 @@
 
   function validateAndOpenSubmit(){
     if(!state.verified||!request.authTransactionId){toast('본인인증을 먼저 완료해 주세요.');return;}
-    if(!state.hasSignature){toast('자필서명을 입력해 주세요.');return;}
+    if(!state.hasSignature){focusRequiredSignature('자필서명을 입력해 주세요.');return;}
     if($('typedName').value.trim()!==request.signer.name){toast('서명자 성명이 본인인증 정보와 일치하지 않습니다.');return;}
     if(!getFinalCheckInputs().every(x=>x.checked)){focusRequiredFinalChecks();return;}
     clearFinalChecksHighlight();
+    clearSignatureHighlight();
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
     $('modalAgreedDocs').textContent=`${agreed}건`;$('modalRejectedDocs').textContent=`${rejected}건`;$('modalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;openModal('submitModal');
   }
@@ -2473,8 +2572,9 @@
   function openModal(id){$(id).classList.add('show');}
   function closeModal(id){
     $(id).classList.remove('show');
-    if(id==='signedPreviewModal' && !signedPreviewConfirmed){
-      $('finalDocumentCheck').checked=false;
+    if(id==='signedPreviewModal'){
+      clearSignedPreviewScrollGuide();
+      if(!signedPreviewConfirmed)$('finalDocumentCheck').checked=false;
     }
   }
   function clearUnavailableRequestSummary(type){
@@ -2562,6 +2662,7 @@
     input.addEventListener('change',syncFinalChecksHighlight);
   });
   $('confirmSignedPreviewBtn').addEventListener('click',confirmSignedPreview);
+  $('signedPreviewViewer').addEventListener('scroll',onSignedPreviewScroll);
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));
   document.querySelectorAll('.demo-error').forEach(b=>b.addEventListener('click',()=>showError(b.dataset.error)));$('resetDemoBtn').addEventListener('click',resetFlow);$('retryLinkBtn').addEventListener('click',resetFlow);
