@@ -66,7 +66,12 @@
     .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc}.doc-form-panel{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.doc-form-panel.locked{background:#f8fafc}.form-item-box{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;margin-top:10px}.form-item-box:first-child{margin-top:0}.form-item-title{margin-bottom:8px}.form-item-title strong{font-size:11px;color:#1e293b;line-height:1.5}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:11px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice-stack{display:flex;flex-direction:column;gap:8px}.checkbox-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800}.choice input{accent-color:var(--blue)}.choice:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}.form-text-input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-size:11px;color:#1f2937;background:#fff}.form-text-input:disabled{background:#f8fafc;color:#94a3b8}
     .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}.field-readonly .form-text-input,.field-readonly select{background:#f8fafc;color:#334155}.field-source{display:inline-block;margin-left:6px;font-size:8px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 6px;vertical-align:middle}.address-row{display:grid;grid-template-columns:108px minmax(0,1fr) auto;gap:8px;align-items:end}.address-row .inline-btn{height:42px;padding:0 10px;font-size:10px;white-space:nowrap}.address-embed-wrap{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed{height:420px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed iframe{width:100% !important;max-width:100% !important;border:0;display:block}
     .doc-flow-section.doc-flow-locked{opacity:.58;pointer-events:none;user-select:none;filter:grayscale(.08)}.identity-save-row{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+    #screen2.identity-pending{overflow:hidden}
+    #screen2.identity-pending #docFlowSection{display:none !important}
     #identityProfileCard{scroll-margin-top:84px}
+    #docFlowSection{scroll-margin-top:84px}
+    #identityProfileCard.identity-confirmed .card-body{display:none}
+    #identityProfileCard.identity-confirmed{margin-bottom:10px}
     .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:12px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
     .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
@@ -927,12 +932,31 @@
     $('identityAddressDetail').readOnly=profileLocked;
     $('identityProfileBadge').className=`badge ${profileLocked?'green':'gray'}`;
     $('identityProfileBadge').textContent=profileLocked?'확인 완료':'확인 필요';
+    $('identityProfileCard')?.classList.toggle('identity-confirmed',profileLocked);
     updateIdentityProfileGate();
   }
 
+  function scrollDocFlowToTop(){
+    const el=$('docFlowSection');
+    if(!el || el.classList.contains('hidden'))return;
+    const header=$('site-header')||document.querySelector('.site-header');
+    const headerH=header?Math.ceil(header.getBoundingClientRect().height):72;
+    const top=window.scrollY+el.getBoundingClientRect().top-headerH-8;
+    window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+  }
+
   function updateIdentityProfileGate(){
-    $('docFlowSection').classList.toggle('doc-flow-locked',!state.identityProfile.confirmed);
+    const pending=!state.identityProfile.confirmed;
+    $('docFlowSection').classList.toggle('doc-flow-locked',pending);
+    $('screen2')?.classList.toggle('identity-pending',pending);
+    // 인적사항 저장 전에는 문서 확인 영역 자체를 숨겨 스크롤로 내려가지 못하게 함
+    $('docFlowSection')?.classList.toggle('hidden',pending);
     updateStickyNextLabel();
+  }
+
+  function areAllConsentDocumentsComplete(){
+    if(!request?.documents?.length || !state.docs?.length)return false;
+    return !state.docs.some((d,i)=>isConsentDocument(request.documents[i]) && !isDocumentComplete(request.documents[i],d));
   }
 
   function updateStickyNextLabel(){
@@ -940,17 +964,23 @@
     if(!nextBtn)return;
     if(state.currentStep===1){
       nextBtn.textContent='본인인증 진행';
+      nextBtn.disabled=false;
       return;
     }
     if(state.currentStep===2){
-      nextBtn.textContent=state.identityProfile.confirmed?'문서 확인 완료':'인적사항 확인 저장';
+      const identityOk=state.identityProfile.confirmed;
+      nextBtn.textContent=identityOk?'문서 확인 완료':'인적사항 확인 저장';
+      // 인적사항 저장 전에는 저장 클릭 가능, 저장 후에는 모든 문서 응답/동의 완료 시에만 활성
+      nextBtn.disabled=identityOk && !areAllConsentDocumentsComplete();
       return;
     }
     if(state.currentStep===3){
       nextBtn.textContent='전자서명 제출';
+      nextBtn.disabled=false;
       return;
     }
     nextBtn.textContent='다음';
+    nextBtn.disabled=false;
   }
 
   function ensureIdentityProfileConfirmed(actionLabel){
@@ -1118,6 +1148,14 @@
         ? '인적사항 확인이 저장되었습니다. 문서 확인을 진행해 주세요.'
         : '인적사항 확인을 저장했습니다. (서버 동기화는 제출 증적에 포함됩니다.)'
     );
+
+    if(state.currentStep===2){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          setTimeout(scrollDocFlowToTop,60);
+        });
+      });
+    }
 
     if(verifiedUserInfo){
       verifiedUserInfo={
@@ -1961,6 +1999,7 @@
     const pct=total?Math.round(done/total*100):100;
     $('reviewDoneCount').textContent=done;$('docProgressFill').style.width=`${pct}%`;$('docProgressText').textContent=`${done}건 완료`;$('docProgressPercent').textContent=`${pct}%`;
     $('docMiniStatus').innerHTML=request.documents.map((doc,i)=>{const st=state.docs[i],label=getDocumentDownloadType(doc)===2?'다운로드':hasTemplateItems(doc)?(st.reviewedAt?'응답 완료':st.scrolled?'응답 대기':'열람 대기'):st.consent==='agree'?'동의':st.consent==='reject'?'미동의':st.scrolled?'선택 대기':'열람 대기';return `<div class="mini-status"><b>${i+1}. ${escapeHtml(doc.name.length>18?doc.name.slice(0,18)+'…':doc.name)}</b><span>${label}</span></div>`}).join('');
+    updateStickyNextLabel();
   }
 
   function updateFinalSummary(){
