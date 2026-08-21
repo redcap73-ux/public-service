@@ -1700,7 +1700,10 @@
       const verifyResponse=await fetch('/api/identity/verify',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({identityVerificationId:response.identityVerificationId}),
+        body:JSON.stringify({
+          identityVerificationId:response.identityVerificationId,
+          token:request.token,
+        }),
       });
       const result=await verifyResponse.json();
 

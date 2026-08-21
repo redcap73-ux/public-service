@@ -1,6 +1,7 @@
 'use server';
 
-import { headers } from 'next/headers'; // 👈 1. headers 임포트
+import { headers } from 'next/headers';
+import { fetchPublicServiceSignFromServer } from '@/lib/public-service.server';
 
 type VerifiedCustomer = {
   ci?: string;
@@ -14,6 +15,16 @@ type PortOneIdentityVerificationResponse = {
   id: string;
   status?: string;
   verifiedCustomer?: VerifiedCustomer;
+};
+
+type SignRequestRecord = {
+  signer_name?: string;
+  signer_phone?: string;
+};
+
+type SignApiResponse = {
+  ok?: boolean;
+  request?: SignRequestRecord;
 };
 
 function getClientIp(headerList: Awaited<ReturnType<typeof headers>>) {
@@ -66,16 +77,71 @@ function parseUserAgent(rawUserAgent: string | null) {
   return `${device} / ${os} / ${browser}`;
 }
 
-export async function verifyCustomerIdentity(identityVerificationId: string) {
+function normalizePersonName(value?: string | null) {
+  return String(value ?? '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+function normalizePhone(value?: string | null) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+function getVerifiedIdentityMismatchMessage(options: {
+  expectedName?: string | null;
+  expectedPhone?: string | null;
+  verifiedName?: string | null;
+  verifiedPhone?: string | null;
+}) {
+  const expectedName = normalizePersonName(options.expectedName);
+  const expectedPhone = normalizePhone(options.expectedPhone);
+  const verifiedName = normalizePersonName(options.verifiedName);
+  const verifiedPhone = normalizePhone(options.verifiedPhone);
+
+  const nameMismatch =
+    Boolean(expectedName) && Boolean(verifiedName) && expectedName !== verifiedName;
+  const phoneMismatch =
+    Boolean(expectedPhone) && Boolean(verifiedPhone) && expectedPhone !== verifiedPhone;
+
+  if (!nameMismatch && !phoneMismatch) {
+    return null;
+  }
+
+  if (nameMismatch && phoneMismatch) {
+    return '본인인증 성명·연락처가 요청된 서명자 정보와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
+  }
+
+  if (nameMismatch) {
+    return '본인인증 성명이 요청된 서명자와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
+  }
+
+  return '본인인증 연락처가 요청된 서명자 연락처와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
+}
+
+export async function verifyCustomerIdentity(
+  identityVerificationId: string,
+  token?: string
+) {
   try {
-    // 👈 2. 클라이언트의 IP 및 User-Agent 추출
     const headerList = await headers();
 
     const clientIp = getClientIp(headerList);
     const userAgent = parseUserAgent(headerList.get('user-agent'));
+    const requestToken = token?.trim();
+
+    if (!requestToken) {
+      return {
+        success: false as const,
+        message: 'token 값이 전달되지 않았습니다.',
+        code: 'TOKEN_REQUIRED',
+      };
+    }
 
     if (!process.env.PORTONE_API_SECRET) {
-      return { success: false, message: 'PORTONE_API_SECRET 환경 변수가 설정되지 않았습니다.' };
+      return {
+        success: false as const,
+        message: 'PORTONE_API_SECRET 환경 변수가 설정되지 않았습니다.',
+      };
     }
 
     const response = await fetch(
@@ -93,31 +159,56 @@ export async function verifyCustomerIdentity(identityVerificationId: string) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       console.error('포트원 API 에러:', errorData);
-      return { success: false, message: '본인인증 정보 조회에 실패했습니다.' };
+      return { success: false as const, message: '본인인증 정보 조회에 실패했습니다.' };
     }
 
     const data = (await response.json()) as PortOneIdentityVerificationResponse;
 
     if (data.status !== 'VERIFIED') {
-      return { success: false, message: '본인인증이 완료되지 않았습니다.' };
+      return { success: false as const, message: '본인인증이 완료되지 않았습니다.' };
     }
 
-    const verificationId = data.id || identityVerificationId; 
+    const verificationId = data.id || identityVerificationId;
     const { ci, name, phoneNumber, birthDate, gender } = data.verifiedCustomer ?? {};
 
-    console.log('--- 인증 성공 및 유저 정보 수령 ---');
-    console.log('인증 거래 ID:', verificationId);
-    console.log('CI (연계정보):', ci);
-    console.log('이름:', name);
-    console.log('전화번호:', phoneNumber);
-    console.log('생년월일:', birthDate);
-    console.log('성별:', gender);
-    // 👈 3. IP 및 기기 정보 로그 출력
-    console.log('접속 IP:', clientIp);
-    console.log('기기/브라우저 (User-Agent):', userAgent);
+    let signPayload: SignApiResponse;
+    try {
+      signPayload = (await fetchPublicServiceSignFromServer(requestToken)) as SignApiResponse;
+    } catch (error) {
+      console.error('서명 요청 조회 실패:', error);
+      return {
+        success: false as const,
+        message: '서명 요청 정보를 확인할 수 없습니다.',
+        code: 'REQUEST_LOOKUP_FAILED',
+      };
+    }
+
+    const apiRequest = signPayload?.request;
+    if (!signPayload?.ok || !apiRequest) {
+      return {
+        success: false as const,
+        message: '서명 요청 정보를 찾을 수 없습니다.',
+        code: 'REQUEST_NOT_FOUND',
+      };
+    }
+
+    const mismatchMessage = getVerifiedIdentityMismatchMessage({
+      expectedName: apiRequest.signer_name,
+      expectedPhone: apiRequest.signer_phone,
+      verifiedName: name,
+      verifiedPhone: phoneNumber,
+    });
+
+    if (mismatchMessage) {
+      return {
+        success: false as const,
+        message: mismatchMessage,
+        code: 'IDENTITY_MISMATCH',
+      };
+    }
 
     return {
-      success: true,
+      success: true as const,
       userInfo: {
         txId: verificationId,
         name,
@@ -125,12 +216,12 @@ export async function verifyCustomerIdentity(identityVerificationId: string) {
         birthDate,
         gender,
         ci,
-        clientIp,   // DB 저장 및 PDF 생성용으로 함께 반환
+        clientIp,
         userAgent,
       },
     };
   } catch (error) {
     console.error('서버 검증 에러:', error);
-    return { success: false, message: '서버 처리 중 오류가 발생했습니다.' };
+    return { success: false as const, message: '서버 처리 중 오류가 발생했습니다.' };
   }
 }

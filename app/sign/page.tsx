@@ -289,7 +289,14 @@ function SignContent() {
       }
 
       setVerifyMessage('본인인증 결과를 확인하는 중...');
-      const result = await verifyCustomerIdentity(response.identityVerificationId);
+
+      if (!token) {
+        setVerifyError('URL에 token 값이 없습니다.');
+        setVerifyMessage(null);
+        return;
+      }
+
+      const result = await verifyCustomerIdentity(response.identityVerificationId, token);
 
       if (!result.success) {
         setVerifyError(result.message ?? '본인인증 검증에 실패했습니다.');
