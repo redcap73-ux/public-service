@@ -62,19 +62,22 @@
     .doc-overview{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px}
     .doc-list{display:flex;flex-direction:column;gap:10px}.doc-row{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:11px;align-items:center;transition:.15s;cursor:pointer}.doc-row .doc-action{cursor:pointer}.doc-row.current{border-color:#7aa5fa;box-shadow:0 0 0 3px rgba(43,110,242,.08)}.doc-row.done{border-color:#a7f3d0;background:#fbfffd}.doc-no{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900}.doc-row.done .doc-no{background:#d1fae5;color:#047857}.doc-name{font-size:12px;font-weight:800;color:#1e293b}.doc-meta{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.45}.doc-action{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;padding:7px 9px;font-size:9px;font-weight:800;white-space:nowrap}.doc-action.download{border-color:#cbd5e1;background:#f8fafc;color:#334155}
     .progress-panel{border:1px solid var(--line);border-radius:14px;padding:14px;background:#f8fafc;height:max-content;position:sticky;top:92px}.progress-panel h3{font-size:12px;margin:0 0 10px;color:var(--navy)}.progress-bar{height:8px;border-radius:999px;background:#e2e8f0;overflow:hidden}.progress-fill{height:100%;background:linear-gradient(90deg,#2b6ef2,#60a5fa);transition:width .25s}.progress-label{display:flex;justify-content:space-between;margin-top:7px;color:var(--muted);font-size:9px}.mini-status-list{display:flex;flex-direction:column;gap:7px;margin-top:13px}.mini-status{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;color:#475569}.mini-status b{color:#334155}
-    .document-viewer{height:min(58vh,620px);min-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:13px;background:#dbe3ef;padding:15px;scroll-behavior:smooth}.paper{width:min(100%,720px);margin:auto;background:#fff;min-height:980px;padding:48px 45px;box-shadow:0 8px 22px rgba(15,31,61,.16);font-family:"Noto Sans KR",Arial,sans-serif}.paper.pdf-paper{min-height:auto;padding:12px}.paper.pdf-paper .pdf-page-canvas{display:block;width:100%;height:auto;margin:0 auto 12px;box-shadow:0 4px 14px rgba(15,31,61,.12)}.paper.pdf-paper .pdf-page-canvas:last-child{margin-bottom:0}.pdf-status,.pdf-error{padding:24px;text-align:center;font-size:11px;color:#64748b;line-height:1.6}.pdf-error{color:#be123c}.paper h1{text-align:center;font-size:22px;margin:0 0 28px}.paper h3{font-size:14px;margin:24px 0 9px}.paper p,.paper li{font-size:11px;line-height:1.9;color:#334155}.paper .meta-table{width:100%;border-collapse:collapse;margin-bottom:20px}.paper .meta-table th,.paper .meta-table td{border:1px solid #dbe3ef;padding:8px;font-size:10px;text-align:left}.paper .meta-table th{background:#f8fafc;width:22%}.paper .agreement-box{border:1px solid #cbd5e1;padding:13px;margin:14px 0;border-radius:8px;background:#fbfdff}.paper .signature-line{margin-top:52px;border-top:1px solid #64748b;padding-top:12px;text-align:right;font-size:11px}.scroll-tip{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px;font-size:9px;color:#64748b}.scroll-tip.ready{color:#047857;font-weight:800}
+    .document-viewer{height:min(58vh,620px);min-height:420px;overflow:auto;border:1px solid #cbd5e1;border-radius:13px;background:#dbe3ef;padding:15px;scroll-behavior:smooth}.paper{width:min(100%,720px);margin:auto;background:#fff;min-height:980px;padding:48px 45px;box-shadow:0 8px 22px rgba(15,31,61,.16);font-family:"Noto Sans KR",Arial,sans-serif}.paper.pdf-paper{min-height:auto;padding:12px}.paper.pdf-paper .pdf-page-canvas{display:block;width:100%;height:auto;margin:0 auto 12px;box-shadow:0 4px 14px rgba(15,31,61,.12)}.paper.pdf-paper .pdf-page-canvas:last-child{margin-bottom:0}.pdf-status,.pdf-error{padding:24px;text-align:center;font-size:11px;color:#64748b;line-height:1.6}.pdf-error{color:#be123c}.paper h1{text-align:center;font-size:22px;margin:0 0 28px}.paper h3{font-size:14px;margin:24px 0 9px}.paper p,.paper li{font-size:11px;line-height:1.9;color:#334155}.paper .meta-table{width:100%;border-collapse:collapse;margin-bottom:20px}.paper .meta-table th,.paper .meta-table td{border:1px solid #dbe3ef;padding:8px;font-size:10px;text-align:left}.paper .meta-table th{background:#f8fafc;width:22%}.paper .agreement-box{border:1px solid #cbd5e1;padding:13px;margin:14px 0;border-radius:8px;background:#fbfdff}.paper .signature-line{margin-top:52px;border-top:1px solid #64748b;padding-top:12px;text-align:right;font-size:11px}.scroll-tip{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:10px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:10px;color:#475569;line-height:1.55;text-align:left}.scroll-tip strong{display:block;font-size:11px;color:#1e293b}.scroll-tip .scroll-tip-how{color:#64748b;font-size:9.5px}.scroll-tip.ready{border-color:#a7f3d0;background:#ecfdf5;color:#047857}.scroll-tip.ready strong{color:#047857}.scroll-tip.needs-attention{border-color:#f59e0b;background:#fffbeb;color:#9a3412;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}.scroll-tip.needs-attention strong{color:#9a3412}.document-viewer.needs-attention{border-color:#f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
     .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc}.doc-form-panel{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.doc-form-panel.locked{background:#f8fafc}.form-item-box{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;margin-top:10px}.form-item-box:first-child{margin-top:0}.form-item-title{margin-bottom:8px}.form-item-title strong{font-size:11px;color:#1e293b;line-height:1.5}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:11px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice-stack{display:flex;flex-direction:column;gap:8px}.checkbox-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800}.choice input{accent-color:var(--blue)}.choice:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}.form-text-input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-size:11px;color:#1f2937;background:#fff}.form-text-input:disabled{background:#f8fafc;color:#94a3b8}
-    .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}.field-readonly .form-text-input,.field-readonly select{background:#f8fafc;color:#334155}.field-source{display:inline-block;margin-left:6px;font-size:8px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 6px;vertical-align:middle}.address-row{display:grid;grid-template-columns:108px minmax(0,1fr) auto;gap:8px;align-items:end}.address-row .inline-btn{height:42px;padding:0 10px;font-size:10px;white-space:nowrap}.address-embed-wrap{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed{height:420px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed iframe{width:100% !important;max-width:100% !important;border:0;display:block}
+    .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}.field-readonly .form-text-input,.field-readonly select{background:#f8fafc;color:#334155}.field-source{display:inline-block;margin-left:6px;font-size:8px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 6px;vertical-align:middle}.address-search-btn{display:block;width:100%;height:42px;margin:0 0 8px;padding:0 12px;font-size:11px;white-space:nowrap}.address-row{display:grid;grid-template-columns:108px minmax(0,1fr);gap:8px;align-items:end}.address-embed-wrap{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;background:#fff;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed{height:460px;width:100%;min-width:500px;box-sizing:border-box}.address-embed iframe{width:100% !important;min-width:500px !important;max-width:none !important;height:100% !important;border:0;display:block}
     .doc-flow-section.doc-flow-locked{opacity:.58;pointer-events:none;user-select:none;filter:grayscale(.08)}.identity-save-row{display:flex;flex-direction:column;gap:10px;margin-top:12px}
     #screen2.identity-pending{overflow:hidden}
     #screen2.identity-pending #docFlowSection{display:none !important}
     #identityProfileCard{scroll-margin-top:84px}
     #docFlowSection{scroll-margin-top:84px}
+    #signatureSubmitCard{scroll-margin-top:84px}
     #identityProfileCard.identity-confirmed .card-body{display:none}
     #identityProfileCard.identity-confirmed{margin-bottom:10px}
     .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:12px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
     .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+    .final-checks.needs-attention{border:1px solid #f59e0b;background:#fffbeb;border-radius:12px;padding:12px;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
+    .final-checks.needs-attention .check-line:not(:has(input:checked)){border:1px solid #f59e0b;background:#fff7ed;border-radius:12px;padding:10px 12px;color:#9a3412}
     .check-line-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
     .check-line-row .check-line{flex:1;min-width:0}
     .doc-preview-btn{flex:0 0 auto;height:32px;min-height:32px;padding:0 10px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;font-size:10px;font-weight:800;white-space:nowrap}
@@ -102,7 +105,7 @@
     .hidden{display:none!important}
     @media(max-width:760px){
       .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
-      .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-row .inline-btn{width:100%}.address-embed-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}.address-embed{height:min(70vh,480px);overflow:hidden}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
+      .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-embed-wrap{max-width:100%}.address-embed{height:min(70vh,480px)}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
       .card-body{min-width:0}
       #saveIdentityProfileBtn{display:none}
       .site-footer-card{padding:16px 14px 14px}
@@ -199,11 +202,11 @@
               <input class="form-text-input" id="identityPhone" type="tel" autocomplete="tel" />
             </div>
             <div class="field full">
-              <label for="identityPostcode">주소</label>
+              <label for="identityAddressSearchBtn">주소</label>
+              <button class="inline-btn address-search-btn" type="button" id="identityAddressSearchBtn">주소 검색</button>
               <div class="address-row">
                 <input class="form-text-input" id="identityPostcode" type="text" placeholder="우편번호" readonly />
                 <input class="form-text-input" id="identityAddressBase" type="text" placeholder="기본 주소" readonly />
-                <button class="inline-btn" type="button" id="identityAddressSearchBtn">주소 검색</button>
               </div>
               <div class="address-embed-wrap hidden" id="addressEmbedWrap">
                 <div class="address-embed" id="addressSearchEmbed"></div>
@@ -239,7 +242,10 @@
         <div class="card-head"><div><h2 id="viewerTitle">문서를 선택해 주세요</h2><p id="viewerMeta">요청 당시 고정된 최신 유효 양식입니다.</p></div><span class="badge gray" id="viewerBadge">미확인</span></div>
         <div class="card-body">
           <div class="document-viewer" id="documentViewer" tabindex="0"><div class="paper" id="paperContent"></div></div>
-          <div class="scroll-tip" id="scrollTip">↧ 문서를 끝까지 내려 확인해 주세요.</div>
+          <div class="scroll-tip" id="scrollTip">
+            <strong>↧ 문서를 끝까지 내려 확인해 주세요.</strong>
+            <span class="scroll-tip-how">위 문서 화면을 손가락 또는 마우스로 맨 아래까지 스크롤하면 동의·응답이 가능합니다.</span>
+          </div>
           <div class="doc-form-panel locked hidden" id="docFormPanel">
             <div class="consent-title"><strong>문서 확인 질문</strong><span class="badge gray" id="docFormLockBadge">열람 필요</span></div>
             <div id="docFormItems"></div>
@@ -258,7 +264,7 @@
     </section>
 
     <section class="screen" data-screen="3" id="screen3">
-      <div class="card">
+      <div class="card" id="signatureSubmitCard">
         <div class="card-head"><div><h2>자필서명 및 최종 제출</h2><p>입력한 서명은 동의한 모든 전자문서의 지정된 서명 영역에 적용됩니다.</p></div><span class="badge green">문서 확인 완료</span></div>
         <div class="card-body">
           <div class="signature-layout">
@@ -270,7 +276,7 @@
                 <div class="typed-sign"><label for="typedName">서명자 성명 확인</label><input id="typedName" value="홍길동" /></div>
                 <div class="sign-preview" id="typedPreview">홍길동</div>
               </div>
-              <div class="final-checks">
+              <div class="final-checks" id="finalChecks">
                 <label class="check-line"><input type="checkbox" id="finalOwnerCheck" /> 위 서명은 본인이 직접 작성했으며, 타인에게 인증번호 또는 링크를 전달하지 않았습니다.</label>
                 <label class="check-line"><input type="checkbox" id="finalContentCheck" /> 동의한 전자문서의 내용, 문서 버전 및 동의 결과를 최종 확인했습니다.</label>
                 <label class="check-line"><input type="checkbox" id="finalEvidenceCheck" /> 서명 시각, 접속환경, 인증 거래번호, 문서 해시 등이 전자서명 증적에 포함되는 것에 동의합니다.</label>
@@ -523,12 +529,11 @@
 
   function focusRequiredAddressSearch(){
     const btn=$('identityAddressSearchBtn');
-    const row=btn?.closest('.address-row')||btn;
-    if(!btn||!row)return;
+    if(!btn)return;
     clearAddressSearchHighlight();
     clearAddressDetailHighlight();
     btn.classList.add('needs-attention');
-    row.scrollIntoView({behavior:'smooth',block:'center'});
+    btn.scrollIntoView({behavior:'smooth',block:'center'});
     try{btn.focus({preventScroll:true});}catch{btn.focus();}
     addressSearchHighlightTimer=setTimeout(()=>clearAddressSearchHighlight(),4500);
   }
@@ -945,6 +950,15 @@
     window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
   }
 
+  function scrollSignatureStepToTop(){
+    const el=$('signatureSubmitCard');
+    if(!el)return;
+    const header=document.querySelector('.site-header');
+    const headerH=header?Math.ceil(header.getBoundingClientRect().height):72;
+    const top=window.scrollY+el.getBoundingClientRect().top-headerH-8;
+    window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+  }
+
   function updateIdentityProfileGate(){
     const pending=!state.identityProfile.confirmed;
     $('docFlowSection').classList.toggle('doc-flow-locked',pending);
@@ -1042,12 +1056,14 @@
           height:'100%',
         }).embed(embedEl);
         const fitEmbedWidth=()=>{
+          const minW='500px';
           embedWrap.style.maxWidth='100%';
           embedEl.style.width='100%';
-          embedEl.style.maxWidth='100%';
+          embedEl.style.minWidth=minW;
           embedEl.querySelectorAll('iframe').forEach((frame)=>{
             frame.style.width='100%';
-            frame.style.maxWidth='100%';
+            frame.style.minWidth=minW;
+            frame.style.maxWidth='none';
             frame.setAttribute('width','100%');
           });
         };
@@ -1297,6 +1313,14 @@
         setTimeout(()=>{
           $('identityProfileCard')?.scrollIntoView({behavior:'smooth',block:'start'});
         },50);
+      });
+      return;
+    }
+    if(step===3){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          setTimeout(scrollSignatureStepToTop,60);
+        });
       });
       return;
     }
@@ -1688,16 +1712,58 @@
     return pdfJsPromise;
   }
 
+  let scrollGuideHighlightTimer=null;
+  function clearDocumentScrollGuideHighlight(){
+    $('documentViewer')?.classList.remove('needs-attention');
+    $('scrollTip')?.classList.remove('needs-attention');
+    if(scrollGuideHighlightTimer){
+      clearTimeout(scrollGuideHighlightTimer);
+      scrollGuideHighlightTimer=null;
+    }
+  }
+
+  function setScrollTipContent(ready,mode){
+    const tip=$('scrollTip');
+    if(!tip)return;
+    tip.className=`scroll-tip${ready?' ready':''}`;
+    if(ready){
+      const title=mode==='form'
+        ? '✓ 문서 확인 완료. 아래 질문에 답해 주세요.'
+        : '✓ 문서 끝까지 확인했습니다.';
+      const how=mode==='form'
+        ? '아래 질문에 응답한 뒤 저장해 주세요.'
+        : '아래에서 동의 여부를 선택한 뒤 저장해 주세요.';
+      tip.innerHTML=`<strong>${title}</strong><span class="scroll-tip-how">${how}</span>`;
+      return;
+    }
+    tip.innerHTML=`<strong>↧ 문서를 끝까지 내려 확인해 주세요.</strong><span class="scroll-tip-how">위 문서 화면을 손가락 또는 마우스로 맨 아래까지 스크롤하면 동의·응답이 가능합니다.</span>`;
+  }
+
+  function promptDocumentScrollGuide(){
+    const viewer=$('documentViewer');
+    const tip=$('scrollTip');
+    if(!viewer||!tip)return;
+    clearDocumentScrollGuideHighlight();
+    setScrollTipContent(false);
+    tip.classList.remove('hidden');
+    viewer.classList.add('needs-attention');
+    tip.classList.add('needs-attention');
+    viewer.scrollIntoView({behavior:'smooth',block:'center'});
+    try{viewer.focus({preventScroll:true});}catch{viewer.focus();}
+    toast('위 문서 화면을 맨 아래까지 스크롤해 주세요.');
+    scrollGuideHighlightTimer=setTimeout(()=>clearDocumentScrollGuideHighlight(),4500);
+  }
+
   function markDocumentScrolled(){
     const st=state.docs[state.currentDocIndex];
     const doc=request.documents[state.currentDocIndex];
     if(st.scrolled)return;
     st.scrolled=true;
+    clearDocumentScrollGuideHighlight();
     if(hasTemplateItems(doc)){
       $('viewerBadge').className='badge orange';
       $('viewerBadge').textContent='질문 응답 가능';
-      $('scrollTip').className='scroll-tip ready';
-      $('scrollTip').textContent='✓ 문서 확인 완료. 아래 질문에 답해 주세요.';
+      setScrollTipContent(true,'form');
       renderDocFormPanel(doc,state.currentDocIndex,st);
       toast('문서 확인이 완료되었습니다. 아래 질문에 답해 주세요.');
     }else{
@@ -1707,8 +1773,7 @@
       $('consentLockBadge').textContent='선택 가능';
       $('viewerBadge').className='badge orange';
       $('viewerBadge').textContent='동의 선택 가능';
-      $('scrollTip').className='scroll-tip ready';
-      $('scrollTip').textContent='✓ 문서 끝까지 확인했습니다.';
+      setScrollTipContent(true,'consent');
       toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
     }
     renderDocList();
@@ -1891,7 +1956,7 @@
     if(state.currentStep===2 && !ensureIdentityProfileConfirmed('문서 응답 저장'))return;
     const st=state.docs[state.currentDocIndex];
     const doc=request.documents[state.currentDocIndex];
-    if(!st.scrolled){toast('문서를 끝까지 확인해 주세요.');return;}
+    if(!st.scrolled){promptDocumentScrollGuide();return;}
     const answers=collectDocFormAnswers(state.currentDocIndex);
     const validation=validateDocAnswers(doc,answers);
     if(!validation.ok){toast(validation.message);return;}
@@ -1939,8 +2004,7 @@
       $('saveDocBtn').classList.remove('hidden');
       $('viewerBadge').className=`badge ${st.reviewedAt?'green':st.scrolled?'orange':'gray'}`;
       $('viewerBadge').textContent=st.reviewedAt?'응답 완료':st.scrolled?'질문 응답 가능':'미확인';
-      $('scrollTip').className=`scroll-tip ${st.scrolled?'ready':''}`;
-      $('scrollTip').textContent=st.scrolled?'✓ 문서 확인 완료. 아래 질문에 답해 주세요.':'↧ 문서를 끝까지 내려 확인해 주세요.';
+      setScrollTipContent(st.scrolled,'form');
       renderDocFormPanel(doc,state.currentDocIndex,st);
       const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
       $('saveDocBtn').textContent=nextConsent<0?'응답 저장':'응답 저장 · 다음 문서';
@@ -1955,7 +2019,7 @@
       radios.forEach(r=>{r.disabled=!st.scrolled;r.checked=r.value===st.consent;});
       $('consentBox').classList.toggle('locked',!st.scrolled);
       $('consentLockBadge').className=`badge ${st.scrolled?'blue':'gray'}`;$('consentLockBadge').textContent=st.scrolled?'선택 가능':'열람 필요';
-      $('scrollTip').className=`scroll-tip ${st.scrolled?'ready':''}`;$('scrollTip').textContent=st.scrolled?'✓ 문서 끝까지 확인했습니다.':'↧ 문서를 끝까지 내려 확인해 주세요.';
+      setScrollTipContent(st.scrolled,'consent');
       const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
       $('saveDocBtn').textContent=nextConsent<0?'동의 저장':'동의 저장 · 다음 문서';
     }
@@ -1982,7 +2046,7 @@
   function saveDocumentConsent(){
     if(state.currentStep===2 && !ensureIdentityProfileConfirmed('문서 동의 저장'))return;
     const st=state.docs[state.currentDocIndex];
-    if(!st.scrolled){toast('문서를 끝까지 확인해 주세요.');return;}
+    if(!st.scrolled){promptDocumentScrollGuide();return;}
     const selected=radios.find(r=>r.checked);
     if(!selected){toast('동의 또는 미동의를 선택해 주세요.');return;}
     st.consent=selected.value;st.reviewedAt=new Date();renderDocList();
@@ -2181,11 +2245,62 @@
     void openSignedPreview();
   }
 
+  function getFinalCheckInputs(){
+    return [$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].filter(Boolean);
+  }
+
+  let finalChecksHighlightTimer=null;
+  function clearFinalChecksHighlight(){
+    const wrap=$('finalChecks');
+    if(wrap){
+      wrap.classList.remove('needs-attention');
+      wrap.querySelectorAll('.check-line').forEach((line)=>line.classList.remove('needs-attention'));
+    }
+    if(finalChecksHighlightTimer){
+      clearTimeout(finalChecksHighlightTimer);
+      finalChecksHighlightTimer=null;
+    }
+  }
+
+  function focusRequiredFinalChecks(){
+    const wrap=$('finalChecks');
+    if(!wrap)return;
+    clearFinalChecksHighlight();
+    wrap.classList.add('needs-attention');
+    getFinalCheckInputs().forEach((input)=>{
+      const line=input.closest('.check-line');
+      if(line && !input.checked)line.classList.add('needs-attention');
+    });
+    wrap.scrollIntoView({behavior:'smooth',block:'center'});
+    const firstUnchecked=getFinalCheckInputs().find((input)=>!input.checked);
+    if(firstUnchecked){
+      try{firstUnchecked.focus({preventScroll:true});}catch{firstUnchecked.focus();}
+    }
+    toast('최종 확인 항목에 모두 체크해 주세요.');
+    finalChecksHighlightTimer=setTimeout(()=>clearFinalChecksHighlight(),4500);
+  }
+
+  function syncFinalChecksHighlight(){
+    const unchecked=getFinalCheckInputs().filter((input)=>!input.checked);
+    if(!unchecked.length){
+      clearFinalChecksHighlight();
+      return;
+    }
+    const wrap=$('finalChecks');
+    if(!wrap?.classList.contains('needs-attention'))return;
+    wrap.querySelectorAll('.check-line').forEach((line)=>line.classList.remove('needs-attention'));
+    unchecked.forEach((input)=>{
+      const line=input.closest('.check-line');
+      if(line)line.classList.add('needs-attention');
+    });
+  }
+
   function validateAndOpenSubmit(){
     if(!state.verified||!request.authTransactionId){toast('본인인증을 먼저 완료해 주세요.');return;}
     if(!state.hasSignature){toast('자필서명을 입력해 주세요.');return;}
     if($('typedName').value.trim()!==request.signer.name){toast('서명자 성명이 본인인증 정보와 일치하지 않습니다.');return;}
-    if(![$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].every(x=>x.checked)){toast('최종 확인 항목에 모두 체크해 주세요.');return;}
+    if(!getFinalCheckInputs().every(x=>x.checked)){focusRequiredFinalChecks();return;}
+    clearFinalChecksHighlight();
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
     $('modalAgreedDocs').textContent=`${agreed}건`;$('modalRejectedDocs').textContent=`${rejected}건`;$('modalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;openModal('submitModal');
   }
@@ -2324,14 +2439,27 @@
     else saveDocumentConsent();
   }
 
+  function guideAddressSearchFirst(){
+    if(state.identityProfile.confirmed)return;
+    toast('주소 검색을 먼저 진행해 주세요.');
+    focusRequiredAddressSearch();
+  }
+
   $('documentViewer').addEventListener('scroll',onViewerScroll);$('saveDocBtn').addEventListener('click',saveCurrentDocument);$('prevDocBtn').addEventListener('click',()=>selectAdjacentConsentDocument(-1,true));
   $('saveIdentityProfileBtn').addEventListener('click',()=>void saveIdentityProfile());
   $('identityAddressSearchBtn').addEventListener('click',()=>void openAddressSearch());
+  $('identityPostcode').addEventListener('click',guideAddressSearchFirst);
+  $('identityPostcode').addEventListener('focus',guideAddressSearchFirst);
+  $('identityAddressBase').addEventListener('click',guideAddressSearchFirst);
+  $('identityAddressBase').addEventListener('focus',guideAddressSearchFirst);
   $('identityAddressDetail').addEventListener('input',()=>{
     if($('identityAddressDetail').value.trim())clearAddressDetailHighlight();
   });
   $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
   $('finalDocumentCheck').addEventListener('click',onFinalDocumentCheckClick);
+  getFinalCheckInputs().forEach((input)=>{
+    input.addEventListener('change',syncFinalChecksHighlight);
+  });
   $('confirmSignedPreviewBtn').addEventListener('click',confirmSignedPreview);
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));
