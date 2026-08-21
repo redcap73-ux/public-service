@@ -107,7 +107,14 @@
     .doc-preview-btn{flex:0 0 auto;height:32px;min-height:32px;padding:0 10px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:9px;font-size:10px;font-weight:800;white-space:nowrap}
     .modal.modal-wide{width:min(920px,100%)}
     .signed-preview-shell{position:relative;margin-top:10px}
-    .signed-preview-viewer{height:min(62vh,680px);min-height:280px;margin:0}
+    .signed-preview-shell .pdf-expand-hint{position:absolute;top:10px;right:10px;z-index:2;border:0;border-radius:999px;padding:7px 10px;background:rgba(15,23,42,.72);color:#fff;font-size:10px;font-weight:800;cursor:pointer;backdrop-filter:blur(6px)}
+    .signed-preview-shell.is-expanded{position:fixed;inset:0;z-index:96;background:rgba(15,23,42,.92);padding:12px;margin:0;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
+    .signed-preview-shell.is-expanded .signed-preview-viewer{flex:1;height:auto !important;min-height:0 !important;max-height:none !important;border-radius:14px;background:#cbd5e1}
+    .signed-preview-shell.is-expanded .paper{width:min(100%,1100px)}
+    .signed-preview-shell.is-expanded .pdf-expand-hint{display:none}
+    .signed-preview-shell .pdf-expand-close{display:none;align-self:flex-end;border:0;border-radius:999px;padding:10px 14px;background:#fff;color:#0f172a;font-size:12px;font-weight:800;cursor:pointer}
+    .signed-preview-shell.is-expanded .pdf-expand-close{display:inline-flex;align-items:center;gap:6px}
+    .signed-preview-viewer{height:min(62vh,680px);min-height:280px;margin:0;cursor:zoom-in}
     .signed-preview-viewer.needs-attention{border-color:#f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
     .button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;color:#334155;padding:10px 14px;font-size:12px;font-weight:800}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.primary:hover{background:var(--blue-dark)}.button.secondary{background:#fff}.button.danger{background:#fff1f2;color:#be123c;border-color:#fecaca}.button.success{background:var(--green);color:#fff;border-color:var(--green)}
     .sticky-actions{position:fixed;left:0;right:0;bottom:0;z-index:35;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:11px 18px calc(11px + var(--safe-bottom));box-shadow:0 -8px 28px rgba(15,31,61,.09)}.sticky-inner{max-width:944px;margin:auto;display:flex;gap:9px}.sticky-inner .button{flex:1}.sticky-inner .button.back{max-width:160px}
@@ -386,6 +393,8 @@
     <div class="modal-body">
       <div class="notice" id="signedPreviewNotice">자필서명이 반영된 최종 문서를 확인해 주세요.</div>
       <div class="signed-preview-shell" id="signedPreviewShell">
+        <button class="pdf-expand-hint" type="button" id="signedPreviewExpandBtn" title="크게 보기">크게 보기</button>
+        <button class="pdf-expand-close" type="button" id="signedPreviewExpandCloseBtn">닫기 ✕</button>
         <div class="document-viewer signed-preview-viewer" id="signedPreviewViewer">
           <div class="paper pdf-paper" id="signedPreviewPaper"></div>
         </div>
@@ -2432,6 +2441,55 @@
     cue.setAttribute('aria-hidden',visible?'false':'true');
   }
 
+  function isSignedPreviewExpandOpen(){
+    return Boolean($('signedPreviewShell')?.classList.contains('is-expanded'));
+  }
+
+  function openSignedPreviewExpand(){
+    const shell=$('signedPreviewShell');
+    const viewer=$('signedPreviewViewer');
+    if(!shell || !viewer || isSignedPreviewExpandOpen())return;
+    if(!$('signedPreviewPaper')?.querySelector('.pdf-page-canvas')){
+      toast('문서를 불러온 뒤 크게 볼 수 있습니다.');
+      return;
+    }
+    shell.classList.add('is-expanded');
+    document.body.classList.add('pdf-expand-open');
+    viewer.style.cursor='zoom-out';
+    requestAnimationFrame(()=>checkSignedPreviewScrollComplete());
+  }
+
+  function closeSignedPreviewExpand(){
+    const shell=$('signedPreviewShell');
+    const viewer=$('signedPreviewViewer');
+    if(!shell || !isSignedPreviewExpandOpen())return;
+    shell.classList.remove('is-expanded');
+    document.body.classList.remove('pdf-expand-open');
+    if(viewer)viewer.style.cursor='zoom-in';
+    requestAnimationFrame(()=>checkSignedPreviewScrollComplete());
+  }
+
+  function toggleSignedPreviewExpand(){
+    if(isSignedPreviewExpandOpen())closeSignedPreviewExpand();
+    else openSignedPreviewExpand();
+  }
+
+  let signedPreviewPointer={x:0,y:0,scrollTop:0};
+  function onSignedPreviewPointerDown(event){
+    const viewer=$('signedPreviewViewer');
+    signedPreviewPointer={x:event.clientX,y:event.clientY,scrollTop:viewer?.scrollTop||0};
+  }
+
+  function onSignedPreviewClick(event){
+    if(event.target.closest('#signedPreviewExpandBtn,#signedPreviewExpandCloseBtn,#signedPreviewScrollCue'))return;
+    const viewer=$('signedPreviewViewer');
+    if(!viewer)return;
+    const moved=Math.hypot(event.clientX-signedPreviewPointer.x,event.clientY-signedPreviewPointer.y)>8;
+    const scrolled=Math.abs((viewer.scrollTop||0)-signedPreviewPointer.scrollTop)>8;
+    if(moved || scrolled)return;
+    toggleSignedPreviewExpand();
+  }
+
   function clearSignedPreviewScrollGuide(){
     $('signedPreviewViewer')?.classList.remove('needs-attention');
     setSignedPreviewScrollCueVisible(false);
@@ -2684,6 +2742,7 @@
   function closeModal(id){
     $(id).classList.remove('show');
     if(id==='signedPreviewModal'){
+      closeSignedPreviewExpand();
       clearSignedPreviewScrollGuide();
       if(!signedPreviewConfirmed)$('finalDocumentCheck').checked=false;
     }
@@ -2759,7 +2818,9 @@
   $('pdfExpandBtn').addEventListener('click',(event)=>{event.stopPropagation();openPdfExpand();});
   $('pdfExpandCloseBtn').addEventListener('click',(event)=>{event.stopPropagation();closePdfExpand();});
   document.addEventListener('keydown',(event)=>{
-    if(event.key==='Escape' && isPdfExpandOpen())closePdfExpand();
+    if(event.key!=='Escape')return;
+    if(isSignedPreviewExpandOpen()){closeSignedPreviewExpand();return;}
+    if(isPdfExpandOpen())closePdfExpand();
   });
   $('saveDocBtn').addEventListener('click',saveCurrentDocument);$('prevDocBtn').addEventListener('click',()=>selectAdjacentConsentDocument(-1,true));
   $('docFormPanel').addEventListener('pointerdown',onLockedDocInputAttempt,true);
@@ -2782,6 +2843,10 @@
   });
   $('confirmSignedPreviewBtn').addEventListener('click',confirmSignedPreview);
   $('signedPreviewViewer').addEventListener('scroll',onSignedPreviewScroll);
+  $('signedPreviewViewer').addEventListener('pointerdown',onSignedPreviewPointerDown);
+  $('signedPreviewViewer').addEventListener('click',onSignedPreviewClick);
+  $('signedPreviewExpandBtn').addEventListener('click',(event)=>{event.stopPropagation();openSignedPreviewExpand();});
+  $('signedPreviewExpandCloseBtn').addEventListener('click',(event)=>{event.stopPropagation();closeSignedPreviewExpand();});
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',()=>window.print());$('closeBtn').addEventListener('click',()=>{toast('전자서명이 안전하게 완료되었습니다. 브라우저 창을 닫아 주세요.');});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));
   document.querySelectorAll('.demo-error').forEach(b=>b.addEventListener('click',()=>showError(b.dataset.error)));$('resetDemoBtn').addEventListener('click',resetFlow);$('retryLinkBtn').addEventListener('click',resetFlow);
