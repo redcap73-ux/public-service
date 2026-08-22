@@ -545,6 +545,8 @@
   let signedPreviewScrolled = false;
   let signedPreviewScrollGuideTimer = null;
   let isBuildingSignedPreview = false;
+  /** 미리보기에서 만든 병합 PDF를 제출 시 재사용 */
+  let signedMergedCache = null;
   let pdfJsPromise = null;
   let portOneModulePromise = null;
   let acroformModulePromise = null;
@@ -1490,7 +1492,15 @@
     if(state.currentStep===3){validateAndOpenSubmit();}
   }
 
-  function back(){if(state.currentStep>1 && state.currentStep<4)setStep(state.currentStep-1);}
+  function back(){
+    if(state.currentStep<=1 || state.currentStep>=4)return;
+    if(state.currentStep===3){
+      resetFinalDocumentConfirmation({
+        toast:'입력 내용이 바뀔 수 있어 최종문서확인을 다시 진행해 주세요.',
+      });
+    }
+    setStep(state.currentStep-1);
+  }
 
   function updateAuthVerifyButton(){
     const entryBtn=$('authEntryBtn');
@@ -1537,6 +1547,23 @@
     signedPreviewUrl=null;
   }
 
+  function invalidateSignedMergedCache(){
+    signedMergedCache=null;
+    revokeSignedPreviewUrl();
+  }
+
+  function resetFinalDocumentConfirmation(options={}){
+    const wasConfirmed=signedPreviewConfirmed || Boolean($('finalDocumentCheck')?.checked) || Boolean(signedMergedCache);
+    signedPreviewConfirmed=false;
+    signedPreviewScrolled=false;
+    if($('finalDocumentCheck'))$('finalDocumentCheck').checked=false;
+    invalidateSignedMergedCache();
+    clearSignedPreviewScrollGuide();
+    if(options.toast && wasConfirmed){
+      toast(options.toast);
+    }
+  }
+
   function getAgreeDocsWithPdf(){
     return request.documents
       .map((doc,index)=>({doc,index,consent:state.docs[index].consent}))
@@ -1570,7 +1597,32 @@
 
     onProgress?.('서명 PDF 병합 중…');
     const mergedBytes=await mergePdfByteList(signedParts);
+    signedMergedCache={
+      signatureDataUrl,
+      mergedBytes,
+      agreeDocsWithPdf:agreeDocsWithPdf.map(({index})=>({index})),
+    };
     return {mergedBytes,agreeDocsWithPdf,signatureDataUrl};
+  }
+
+  async function getMergedSignedPdfBytesForSubmit(onProgress){
+    const signatureDataUrl=canvas.toDataURL('image/png');
+    if(
+      signedMergedCache &&
+      signedMergedCache.signatureDataUrl===signatureDataUrl &&
+      signedMergedCache.mergedBytes &&
+      Array.isArray(signedMergedCache.agreeDocsWithPdf) &&
+      signedMergedCache.agreeDocsWithPdf.length
+    ){
+      onProgress?.('확인한 서명 PDF를 사용 중…');
+      return {
+        mergedBytes:signedMergedCache.mergedBytes,
+        agreeDocsWithPdf:signedMergedCache.agreeDocsWithPdf,
+        signatureDataUrl,
+        fromCache:true,
+      };
+    }
+    return buildMergedSignedPdfBytes(onProgress);
   }
 
   function buildIdentityFormValues(userInfo){
@@ -2204,6 +2256,9 @@
     st.answers=answers;
     st.consent=deriveConsentFromAnswers(doc,answers);
     st.reviewedAt=new Date();
+    resetFinalDocumentConfirmation({
+      toast:'문서 응답이 변경되어 최종문서확인을 다시 진행해 주세요.',
+    });
     if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,answers)).length || collectDatePrefixes(doc).length){
       void fillDocumentPreview(doc,verifiedUserInfo,answers).then((filled)=>{
         if(filled && request.documents[state.currentDocIndex]===doc){
@@ -2343,7 +2398,11 @@
     if(!st.scrolled){promptDocumentScrollGuide();return;}
     const selected=radios.find(r=>r.checked);
     if(!selected){toast('동의 또는 미동의를 선택해 주세요.');return;}
-    st.consent=selected.value;st.reviewedAt=new Date();renderDocList();
+    st.consent=selected.value;st.reviewedAt=new Date();
+    resetFinalDocumentConfirmation({
+      toast:'문서 동의 내용이 변경되어 최종문서확인을 다시 진행해 주세요.',
+    });
+    renderDocList();
     if(selected.value==='reject' && request.documents[state.currentDocIndex].required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
     const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
     if(nextConsent>=0)selectDocument(nextConsent,true);
@@ -2368,7 +2427,18 @@
   function setupCanvas(){
     canvas=$('signatureCanvas');ctx=canvas.getContext('2d');
     const pointer=(e)=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*(canvas.width/rect.width),y:(e.clientY-rect.top)*(canvas.height/rect.height)};};
-    canvas.addEventListener('pointerdown',e=>{e.preventDefault();drawing=true;currentStroke=[pointer(e)];canvas.setPointerCapture?.(e.pointerId);$('canvasPlaceholder').classList.add('hidden');});
+    canvas.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      if(signedPreviewConfirmed || $('finalDocumentCheck')?.checked || signedMergedCache){
+        resetFinalDocumentConfirmation({
+          toast:'서명이 변경되어 최종문서확인을 다시 진행해 주세요.',
+        });
+      }
+      drawing=true;
+      currentStroke=[pointer(e)];
+      canvas.setPointerCapture?.(e.pointerId);
+      $('canvasPlaceholder').classList.add('hidden');
+    });
     canvas.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=pointer(e);currentStroke.push(p);drawSegment(currentStroke[currentStroke.length-2],p);});
     const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;if(state.hasSignature)clearSignatureHighlight();};
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('pointerleave',e=>{if(drawing)end(e)});
@@ -2379,8 +2449,20 @@
   }
   function drawSegment(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
   function redraw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111827';ctx.fillStyle='#111827';ctx.lineWidth=Math.max(3,3.1*devicePixelRatio);state.strokes.forEach(st=>{if(st.length===1){ctx.beginPath();ctx.arc(st[0].x,st[0].y,2.2,0,Math.PI*2);ctx.fill();return;}for(let i=1;i<st.length;i++)drawSegment(st[i-1],st[i]);});state.hasSignature=state.strokes.length>0;$('canvasPlaceholder').classList.toggle('hidden',state.hasSignature);}
-  function clearSignature(){state.strokes=[];state.hasSignature=false;signedPreviewConfirmed=false;$('finalDocumentCheck').checked=false;revokeSignedPreviewUrl();redraw();}
-  function undoSignature(){state.strokes.pop();signedPreviewConfirmed=false;$('finalDocumentCheck').checked=false;revokeSignedPreviewUrl();redraw();}
+  function clearSignature(){
+    state.strokes=[];
+    state.hasSignature=false;
+    resetFinalDocumentConfirmation();
+    redraw();
+  }
+  function undoSignature(){
+    state.strokes.pop();
+    state.hasSignature=state.strokes.length>0;
+    resetFinalDocumentConfirmation({
+      toast:state.hasSignature?'서명이 변경되어 최종문서확인을 다시 진행해 주세요.':undefined,
+    });
+    redraw();
+  }
 
   async function buildEvidencePayload(signatureImageSha256,completedAt){
     return {
@@ -2472,6 +2554,9 @@
     if(!response.ok){
       if(result?.code==='ALREADY_COMPLETED'){showError('used');return null;}
       if(result?.code==='TOKEN_EXPIRED'){showError('expired');return null;}
+      if(result?.code==='BACKEND_ERROR'){
+        throw new Error(result?.error||'완료 동기화에 실패했습니다. 잠시 후 다시 제출해 주세요.');
+      }
       throw new Error(result?.error||`전자서명 완료 처리 실패 (${response.status})`);
     }
     return result;
@@ -2743,8 +2828,8 @@
       const completedAt=new Date();
       const evidence=await buildEvidencePayload(signatureImageSha256,completedAt);
       const {sha256HexFromBytes}=await ensureSignedPdf();
-      submitBtn.textContent='서명 PDF 생성 중…';
-      const {mergedBytes,agreeDocsWithPdf}=await buildMergedSignedPdfBytes((message)=>{
+      submitBtn.textContent='서명 PDF 준비 중…';
+      const {mergedBytes,agreeDocsWithPdf}=await getMergedSignedPdfBytesForSubmit((message)=>{
         submitBtn.textContent=message;
       });
       const mergedHash=await sha256HexFromBytes(mergedBytes);
@@ -2789,7 +2874,7 @@
         }));
       }catch(e){}
 
-      toast(result.backendSynced?'전자서명이 완료되었습니다.':'전자서명이 저장되었습니다. (백엔드 동기화는 보류)');
+      toast('전자서명이 완료되었습니다.');
       setStep(4);
     }catch(error){
       console.error(error);
@@ -2898,7 +2983,12 @@
   $('identityAddressDetail').addEventListener('input',()=>{
     if($('identityAddressDetail').value.trim())clearAddressDetailHighlight();
   });
-  $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>$('typedPreview').textContent=e.target.value||'서명자 성명');
+  $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>{
+    $('typedPreview').textContent=e.target.value||'서명자 성명';
+    resetFinalDocumentConfirmation({
+      toast:'서명자 성명이 변경되어 최종문서확인을 다시 진행해 주세요.',
+    });
+  });
   $('finalDocumentCheck').addEventListener('click',onFinalDocumentCheckClick);
   getFinalCheckInputs().forEach((input)=>{
     input.addEventListener('change',syncFinalChecksHighlight);

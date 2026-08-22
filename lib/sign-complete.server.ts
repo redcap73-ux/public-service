@@ -233,8 +233,6 @@ export async function completeSignRequestFromServer(
     contentType: 'application/json; charset=utf-8',
   });
 
-  let backendSynced = false;
-
   try {
     await completePublicServiceSignFromServer({
       token: body.token,
@@ -259,9 +257,13 @@ export async function completeSignRequestFromServer(
       addressDetail: evidence.signer.addressDetail,
       identityConfirmedAt: evidence.signer.identityConfirmedAt,
     });
-    backendSynced = true;
   } catch (error) {
-    console.warn('[sign-complete] backend sync skipped:', error);
+    console.error('[sign-complete] backend sync failed:', error);
+    throw new CompleteSignError(
+      'BACKEND_ERROR',
+      '전자서명 증적은 저장되었지만 완료 동기화에 실패했습니다. 잠시 후 다시 제출해 주세요.',
+      502
+    );
   }
 
   return {
@@ -275,7 +277,7 @@ export async function completeSignRequestFromServer(
       status: 'COMPLETED',
       completed_at: completedAt.toISOString(),
     },
-    backendSynced,
+    backendSynced: true,
   };
 }
 
