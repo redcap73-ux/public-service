@@ -143,9 +143,7 @@
     .hidden{display:none!important}
     @media(max-width:760px){
       .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
-      .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-embed-wrap{max-width:100%;overflow:hidden}.address-embed-wrap.is-open{position:fixed;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));bottom:calc(72px + var(--safe-bottom));z-index:90;margin:0;height:auto !important;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.28)}.address-embed{height:100% !important;min-width:0 !important;width:100% !important}.address-embed iframe{min-width:0 !important;max-width:100% !important}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
-      body.address-search-open{overflow:hidden}
-      body.address-search-open::before{content:'';position:fixed;inset:0;z-index:85;background:rgba(15,23,42,.45)}
+      .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-embed-wrap{max-width:100%;overflow:hidden;margin:0 0 12px}.address-embed{height:min(68vh,520px);min-height:360px;min-width:0 !important;width:100% !important}.address-embed iframe{min-width:0 !important;max-width:100% !important}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
       .card-body{min-width:0}
       #saveIdentityProfileBtn{display:none}
       .site-footer-card{padding:16px 14px 14px}
@@ -1166,8 +1164,6 @@
     const embedWrap=$('addressEmbedWrap');
     const embedEl=$('addressSearchEmbed');
     embedWrap.classList.add('hidden');
-    embedWrap.classList.remove('is-open');
-    document.body.classList.remove('address-search-open');
     embedWrap.style.height='';
     embedEl.replaceChildren();
     embedEl.style.transform='';
@@ -1204,9 +1200,8 @@
         const embedEl=$('addressSearchEmbed');
         closeAddressSearchEmbed();
         embedWrap.classList.remove('hidden');
-        embedWrap.classList.add('is-open');
-        document.body.classList.add('address-search-open');
         embedEl.replaceChildren();
+        embedWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
         new Postcode({
           oncomplete:applyAddressSelection,
           onclose:()=>closeAddressSearchEmbed(),
@@ -1214,16 +1209,16 @@
           height:'100%',
         }).embed(embedEl);
         const fitEmbedToViewport=()=>{
-          const wrapRect=embedWrap.getBoundingClientRect();
-          const wrapW=Math.floor(wrapRect.width);
-          const visualH=Math.floor(wrapRect.height);
-          if(wrapW<=0 || visualH<=0)return;
-          // 다음 우편번호 UI는 내부 최소 폭(~500px). 가로는 축소하되,
-          // 보이는 높이는 오버레이 전체로 유지해 모바일에서 너무 작아 보이지 않게 함.
-          const nativeW=500;
+          const wrapW=Math.floor(embedWrap.getBoundingClientRect().width);
+          if(wrapW<=0)return;
+          // 버튼 아래 인라인 유지. 가로는 화면에 맞추고,
+          // 기준 폭을 조금 낮춰(420) 글씨가 과도하게 작아지지 않게 함.
+          const nativeW=420;
           const scale=Math.min(1, wrapW/nativeW);
+          const visualH=Math.max(360, Math.min(Math.floor(window.innerHeight*0.68), 520));
           const nativeH=Math.max(Math.round(visualH/scale), visualH);
           embedWrap.style.overflow='hidden';
+          embedWrap.style.height=`${visualH}px`;
           embedEl.style.minWidth='0';
           embedEl.style.width=`${nativeW}px`;
           embedEl.style.height=`${nativeH}px`;
