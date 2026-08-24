@@ -48,7 +48,7 @@
     .status-summary{padding:17px 18px 15px;background:linear-gradient(135deg,#fff,#f7faff);display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
     .status-summary h1{font-size:20px;line-height:1.3;margin:0;color:var(--navy)}
     .status-summary p{font-size:11px;line-height:1.55;color:var(--muted);margin:7px 0 0}
-    .expires{border-radius:12px;padding:9px 11px;background:var(--orange-soft);color:#9a3412;text-align:right;min-width:115px}.expires small{display:block;font-size:9px}.expires strong{font-size:13px;display:block;margin-top:2px}
+    .expires{border-radius:12px;padding:9px 11px;background:var(--orange-soft);color:#9a3412;text-align:right;min-width:115px;max-width:min(100%,280px)}.expires small{display:block;font-size:9px}.expires strong{font-size:13px;display:block;margin-top:2px;line-height:1.35;word-break:keep-all}
     .case-strip{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);background:#f8fafc}
     .case-item{padding:11px 12px;border-right:1px solid var(--line);min-width:0}.case-item:last-child{border-right:0}.case-item small{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.case-item strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#334155}
     .stepper-wrap{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 12px 10px;box-shadow:0 5px 16px rgba(15,31,61,.05);margin-bottom:14px;overflow:auto}
@@ -140,15 +140,6 @@
     .site-footer-note{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:9.5px;line-height:1.6;color:#94a3b8}
     .toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,16px);background:#0f172a;color:#fff;border-radius:11px;padding:11px 14px;font-size:10px;opacity:0;pointer-events:none;transition:.2s;z-index:80;max-width:calc(100vw - 32px);text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}
     .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:18px;z-index:70}.modal-backdrop.show{display:flex}.modal{background:#fff;border-radius:18px;width:min(520px,100%);max-height:88vh;overflow:auto;box-shadow:0 28px 80px rgba(0,0,0,.28)}.modal-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}.modal-head h3{margin:0;font-size:15px;color:var(--navy)}.modal-close{border:0;background:transparent;font-size:18px;color:#64748b}.modal-body{padding:16px 17px}.modal-actions{padding:12px 17px;border-top:1px solid var(--line);display:flex;gap:8px}.modal-actions button{flex:1}
-    .auth-entry-btn{width:100%;display:flex;align-items:center;gap:12px;border:1px solid #9ec0ff;background:linear-gradient(135deg,#eff6ff,#f8fbff);border-radius:14px;padding:14px 16px;text-align:left;transition:.15s}
-    .auth-entry-btn:hover{border-color:#7aa5fa;background:var(--blue-soft);box-shadow:0 0 0 3px rgba(43,110,242,.08)}
-    .auth-entry-btn:active{transform:translateY(1px)}
-    .auth-entry-btn:disabled{cursor:not-allowed;opacity:.48;box-shadow:none;transform:none}
-    .auth-entry-icon{font-size:22px;flex:0 0 auto;line-height:1}
-    .auth-entry-text{flex:1;min-width:0}
-    .auth-entry-text strong{display:block;font-size:12px;color:var(--navy)}
-    .auth-entry-text small{display:block;font-size:9px;line-height:1.45;color:#64748b;margin-top:4px}
-    .auth-entry-arrow{font-size:16px;color:#1d4ed8;font-weight:900;flex:0 0 auto}
     .hidden{display:none!important}
     @media(max-width:760px){
       .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
@@ -204,20 +195,9 @@
           <table class="summary-table">
             <tr><th>서명 요청자</th><td id="introSender">T&G 손해사정 · 담당 김수현</td></tr>
             <tr><th>서명 대상자</th><td><span id="introSignerName">홍*동</span> · <span id="introRole">피보험자</span></td></tr>
-            <tr><th>요청 목적</th><td id="introPurpose">누수사고 손해사정 조사 및 관련 개인정보 처리 동의</td></tr>
-            <tr><th>요청 문서</th><td id="introDocs">개인정보 수집·이용 동의서 외 3건</td></tr>
-            <tr><th>링크 유효기간</th><td id="introExpiry">2026-07-23 10:30까지</td></tr>
           </table>
           <div style="height:12px"></div>
           <label class="check-line" id="requestOwnerCheckLine"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
-          <div style="height:11px"></div>
-          <button type="button" class="auth-entry-btn" id="authEntryBtn">
-            <span class="auth-entry-icon">📱</span>
-            <span class="auth-entry-text">
-              <strong>본인인증</strong>
-            </span>
-            <span class="auth-entry-arrow">→</span>
-          </button>
         </div>
       </div>
     </section>
@@ -650,7 +630,12 @@
   }
   function maskPhone(phone){return phone.replace(/(\d{3})(\d{4})(\d{4})/,'$1-****-$3');}
   function formatDate(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
-  function formatExpiry(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
+  function formatExpiry(date){
+    const d=date instanceof Date?date:new Date(date);
+    if(Number.isNaN(d.getTime()))return '-';
+    const pad=(n)=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
   async function sha256(text){
     if(window.crypto?.subtle){const data=new TextEncoder().encode(text);const digest=await crypto.subtle.digest('SHA-256',data);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
     // 로컬 파일처럼 Web Crypto를 사용할 수 없는 환경을 위한 프로토타입용 256비트 대체값.
@@ -1438,15 +1423,11 @@
     $('introSender').textContent=request.sender;
     $('introSignerName').textContent=request.signer.maskedName;
     $('introRole').textContent=request.signer.role;
-    $('introPurpose').textContent=request.purpose;
-    $('introDocs').textContent=formatIntroDocs(request.documents);
-    $('introExpiry').textContent=formatLinkValidity(request.issuedAt,request.expiresAt);
     $('reviewTotalCount').textContent=request.documents.length;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     $('finalRequestNo').textContent=request.requestNo;
     $('typedName').value=request.signer.name;
     $('typedPreview').textContent=request.signer.name;
-    updateAuthVerifyButton();
     renderDocList();
     selectDocument(0,false);
     startCountdown();
@@ -1454,11 +1435,12 @@
 
   function startCountdown(){
     clearInterval(countdownTimer);
+    const expiryLabel=formatExpiry(request.expiresAt);
     const update=()=>{
       const ms=request.expiresAt-Date.now();
-      if(ms<=0){$('expiryCountdown').textContent='만료';showError('expired');clearInterval(countdownTimer);return;}
+      if(ms<=0){$('expiryCountdown').textContent=`만료 (${expiryLabel})`;showError('expired');clearInterval(countdownTimer);return;}
       const total=Math.floor(ms/1000),h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;
-      $('expiryCountdown').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      $('expiryCountdown').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} (${expiryLabel})`;
     };update();countdownTimer=setInterval(update,1000);
   }
 
@@ -1521,19 +1503,6 @@
       });
     }
     setStep(state.currentStep-1);
-  }
-
-  function updateAuthVerifyButton(){
-    const entryBtn=$('authEntryBtn');
-    if(!entryBtn)return;
-    const titleEl=entryBtn.querySelector('.auth-entry-text strong');
-    if(isPortOneVerifying){
-      entryBtn.disabled=true;
-      if(titleEl)titleEl.textContent='인증 진행 중...';
-      return;
-    }
-    entryBtn.disabled=false;
-    if(titleEl)titleEl.textContent=state.verified?'본인인증 완료':'본인인증';
   }
 
   function ensurePortOne(){
@@ -1715,7 +1684,6 @@
     verifiedUserInfo=buildIdentityFormValues(userInfo);
 
     $('finalAuth').textContent='PortOne 인증 완료';
-    updateAuthVerifyButton();
     if(state.currentStep===2)hydrateIdentityProfileCard();
   }
 
@@ -1741,7 +1709,6 @@
     }
 
     isPortOneVerifying=true;
-    updateAuthVerifyButton();
     toast('본인인증을 진행합니다...');
 
     try{
@@ -1793,7 +1760,6 @@
         state.portOneProfile=null;
         request.authTransactionId=null;
         request.identityVerifiedAt=null;
-        updateAuthVerifyButton();
         toast(mismatchMessage);
         return;
       }
@@ -1820,7 +1786,6 @@
       toast(error instanceof Error?error.message:'본인인증 중 오류가 발생했습니다.');
     }finally{
       isPortOneVerifying=false;
-      updateAuthVerifyButton();
     }
   }
 
@@ -2937,7 +2902,7 @@
     const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
   }
   function resetFlow(){
-    state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;revokeFilledPdfUrls();updateAuthVerifyButton();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
+    state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;revokeFilledPdfUrls();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
   async function init(){
@@ -2958,7 +2923,7 @@
     setStep(1);
   }
 
-  $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);$('authEntryBtn').addEventListener('click',goToIdentityVerification);
+  $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);
   $('requestOwnerCheck').addEventListener('change',()=>{
     if($('requestOwnerCheck').checked)clearOwnerCheckHighlight();
   });
