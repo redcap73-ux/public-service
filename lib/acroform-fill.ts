@@ -32,9 +32,9 @@ export type IdentityFormValues = {
   aadjuster?: string;
   /** 요청 JSON company — PDF company* 필드에 매핑 */
   company?: string;
-  /** 요청 JSON adjust_juso — PDF adjust_juso* 필드에 매핑 */
+  /** 요청 JSON adjust_juso — PDF adjust_juso* / juminnum_ad* 필드에 매핑 */
   adjustJuso?: string;
-  /** 요청 JSON adjudst_jumin(또는 adjust_jumin) — PDF adjust_jumin* 필드에 매핑 */
+  /** 요청 JSON adjudst_jumin(또는 adjust_jumin) — PDF adjust_jumin* / juso_ad* 필드에 매핑 */
   adjustJumin?: string;
   /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
   extraFields?: Record<string, string>;
@@ -75,6 +75,8 @@ const BIRTHDAY_ALIASES = [
 const DESC_ALIASES = ['desc', 'description', 'audit', 'audittrail', '증적', '비고', 'remark'];
 const DATE_FIELD_PREFIXES = ['year4', 'year2', 'month', 'day', 'hour', 'min'] as const;
 type DateFieldPrefix = (typeof DATE_FIELD_PREFIXES)[number];
+const COMPANY_OFFICE_ADDRESS =
+  '서울특별시 종로구 창경궁로 109, 세운스퀘어 본관 6층';
 
 const KOREAN_FONT_URL = '/fonts/NotoSansKR-Regular.otf';
 
@@ -903,7 +905,10 @@ export async function fillAcroFormIdentity(
   pushPrefixFieldStamps(fieldNames, 'ppro', prodNm, toStamp);
   pushPrefixFieldStamps(fieldNames, 'company', company, toStamp);
   pushPrefixFieldStamps(fieldNames, 'adjust_juso', adjustJuso, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'juminnum_ad', adjustJuso, toStamp);
   pushPrefixFieldStamps(fieldNames, 'adjust_jumin', adjustJumin, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'juso_ad', adjustJumin, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'coaddress', COMPANY_OFFICE_ADDRESS, toStamp);
   // aadjuster* 를 adjuster* 보다 먼저 채워 겹침을 피합니다.
   pushPrefixFieldStamps(fieldNames, 'aadjuster', aadjuster, toStamp);
   if (adjuster) {

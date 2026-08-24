@@ -19664,6 +19664,7 @@ var BIRTHDAY_ALIASES = [
 ];
 var DESC_ALIASES = ["desc", "description", "audit", "audittrail", "\uC99D\uC801", "\uBE44\uACE0", "remark"];
 var DATE_FIELD_PREFIXES = ["year4", "year2", "month", "day", "hour", "min"];
+var COMPANY_OFFICE_ADDRESS = "\uC11C\uC6B8\uD2B9\uBCC4\uC2DC \uC885\uB85C\uAD6C \uCC3D\uACBD\uAD81\uB85C 109, \uC138\uC6B4\uC2A4\uD018\uC5B4 \uBCF8\uAD00 6\uCE35";
 var KOREAN_FONT_URL = "/fonts/NotoSansKR-Regular.otf";
 function normalizeFieldKey(name) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -20279,7 +20280,10 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   pushPrefixFieldStamps(fieldNames, "ppro", prodNm, toStamp);
   pushPrefixFieldStamps(fieldNames, "company", company, toStamp);
   pushPrefixFieldStamps(fieldNames, "adjust_juso", adjustJuso, toStamp);
+  pushPrefixFieldStamps(fieldNames, "juminnum_ad", adjustJuso, toStamp);
   pushPrefixFieldStamps(fieldNames, "adjust_jumin", adjustJumin, toStamp);
+  pushPrefixFieldStamps(fieldNames, "juso_ad", adjustJumin, toStamp);
+  pushPrefixFieldStamps(fieldNames, "coaddress", COMPANY_OFFICE_ADDRESS, toStamp);
   pushPrefixFieldStamps(fieldNames, "aadjuster", aadjuster, toStamp);
   if (adjuster) {
     for (const fieldName of fieldNames) {
