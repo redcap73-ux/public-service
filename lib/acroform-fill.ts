@@ -18,12 +18,24 @@ export type IdentityFormValues = {
   address?: string;
   /** 요청 JSON의 created_by — PDF adjuster* 필드에 매핑 */
   adjuster?: string;
+  /** 요청 JSON signer_role — PDF my* 필드에 매핑 */
+  signerRole?: string;
+  /** 요청 JSON adjust_phone — PDF aphone* 필드에 매핑 */
+  adjustPhone?: string;
+  /** 요청 JSON claim_no — PDF snumber* 필드에 매핑 */
+  claimNo?: string;
+  /** 요청 JSON pol_no — PDF pnumber* 필드에 매핑 */
+  polNo?: string;
+  /** 요청 JSON prod_nm — PDF ppro* 필드에 매핑 */
+  prodNm?: string;
+  /** 요청 JSON aadjuster — PDF aadjuster* 필드에 매핑 */
+  aadjuster?: string;
   /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
   extraFields?: Record<string, string>;
   /** 선택형 답변 문구. PDF 본문 "동의함" 왼쪽 [ ]에 체크를 찍을 때 사용 */
   checkLabels?: string[];
-  /** template pdf_field_name 이 year4/year2/month/day 인 경우, 같은 접두어 PDF 필드에 오늘 날짜를 넣습니다. */
-  datePrefixes?: Array<'year4' | 'year2' | 'month' | 'day'>;
+  /** template pdf_field_name 이 year4/year2/month/day/hour/min 인 경우, 같은 접두어 PDF 필드에 현재 시각을 넣습니다. */
+  datePrefixes?: Array<'year4' | 'year2' | 'month' | 'day' | 'hour' | 'min'>;
 };
 
 export type FillableDocumentInput = {
@@ -55,7 +67,7 @@ const BIRTHDAY_ALIASES = [
   '생일',
 ];
 const DESC_ALIASES = ['desc', 'description', 'audit', 'audittrail', '증적', '비고', 'remark'];
-const DATE_FIELD_PREFIXES = ['year4', 'year2', 'month', 'day'] as const;
+const DATE_FIELD_PREFIXES = ['year4', 'year2', 'month', 'day', 'hour', 'min'] as const;
 type DateFieldPrefix = (typeof DATE_FIELD_PREFIXES)[number];
 
 const KOREAN_FONT_URL = '/fonts/NotoSansKR-Regular.otf';
@@ -145,17 +157,41 @@ function getKstDateParts(now = new Date()) {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   }).formatToParts(now);
   const year = parts.find((part) => part.type === 'year')?.value ?? '';
   const month = parts.find((part) => part.type === 'month')?.value ?? '';
   const day = parts.find((part) => part.type === 'day')?.value ?? '';
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? '';
+  const min = parts.find((part) => part.type === 'minute')?.value ?? '';
 
   return {
     year4: year,
     year2: year.slice(-2),
     month,
     day,
+    hour,
+    min,
   };
+}
+
+function pushPrefixFieldStamps(
+  fieldNames: string[],
+  prefix: string,
+  text: string | undefined,
+  toStamp: Array<{ fieldName: string; text: string }>
+) {
+  const value = String(text ?? '').trim();
+  if (!value) {
+    return;
+  }
+  for (const fieldName of fieldNames) {
+    if (fieldStartsWithPrefix(fieldName, prefix)) {
+      toStamp.push({ fieldName, text: value });
+    }
+  }
 }
 
 function wrapCanvasLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
@@ -784,6 +820,12 @@ export async function fillAcroFormIdentity(
   const birthDate = values.birthDate?.trim();
   const addressText = formatIdentityAddress(values);
   const adjuster = values.adjuster?.trim();
+  const aadjuster = values.aadjuster?.trim();
+  const signerRole = values.signerRole?.trim();
+  const adjustPhone = values.adjustPhone?.trim();
+  const claimNo = values.claimNo?.trim();
+  const polNo = values.polNo?.trim();
+  const prodNm = values.prodNm?.trim();
 
   const toStamp: Array<{ fieldName: string; text: string }> = [];
   const addressToStamp: Array<{ fieldName: string; text: string }> = [];
@@ -843,9 +885,21 @@ export async function fillAcroFormIdentity(
     }
   }
 
+  pushPrefixFieldStamps(fieldNames, 'my', signerRole, toStamp);
+  if (adjustPhone) {
+    pushPrefixFieldStamps(fieldNames, 'aphone', formatPhoneNumber(adjustPhone), toStamp);
+  }
+  pushPrefixFieldStamps(fieldNames, 'snumber', claimNo, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'pnumber', polNo, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'ppro', prodNm, toStamp);
+  // aadjuster* 를 adjuster* 보다 먼저 채워 겹침을 피합니다.
+  pushPrefixFieldStamps(fieldNames, 'aadjuster', aadjuster, toStamp);
   if (adjuster) {
     for (const fieldName of fieldNames) {
-      if (fieldStartsWithPrefix(fieldName, 'adjuster')) {
+      if (
+        fieldStartsWithPrefix(fieldName, 'adjuster') &&
+        !fieldStartsWithPrefix(fieldName, 'aadjuster')
+      ) {
         toStamp.push({ fieldName, text: adjuster });
       }
     }

@@ -143,7 +143,9 @@
     .hidden{display:none!important}
     @media(max-width:760px){
       .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
-      .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-embed-wrap{max-width:100%;overflow:hidden}.address-embed{height:min(70vh,480px);min-width:0 !important;width:100% !important}.address-embed iframe{min-width:0 !important;max-width:100% !important}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
+      .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-embed-wrap{max-width:100%;overflow:hidden}.address-embed-wrap.is-open{position:fixed;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));bottom:calc(72px + var(--safe-bottom));z-index:90;margin:0;height:auto !important;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.28)}.address-embed{height:100% !important;min-width:0 !important;width:100% !important}.address-embed iframe{min-width:0 !important;max-width:100% !important}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
+      body.address-search-open{overflow:hidden}
+      body.address-search-open::before{content:'';position:fixed;inset:0;z-index:85;background:rgba(15,23,42,.45)}
       .card-body{min-width:0}
       #saveIdentityProfileBtn{display:none}
       .site-footer-card{padding:16px 14px 14px}
@@ -427,6 +429,10 @@
     signer: { name: '홍길동', maskedName: '홍*동', role: '피보험자', phone: '01012341234', birth: '19850314', gender: '', postcode: '', addressBase: '', addressDetail: '', address: '', identityConfirmedAt: null },
     sender: 'T&G 손해사정 · 김수현',
     createdBy: '김수현',
+    adjustPhone: '',
+    polNo: '',
+    prodNm: '',
+    aadjuster: '',
     issuedAt: '2026-07-21 10:30:00',
     expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
     authProvider: 'NICE',
@@ -802,7 +808,7 @@
     const prefixes=[];
     for(const q of doc?.questions||[]){
       const kind=String(q.pdfFieldName||'').trim().toLowerCase();
-      if(['year4','year2','month','day'].includes(kind) && !prefixes.includes(kind)){
+      if(['year4','year2','month','day','hour','min'].includes(kind) && !prefixes.includes(kind)){
         prefixes.push(kind);
       }
     }
@@ -811,7 +817,7 @@
 
   function isDateTemplateField(name){
     const kind=String(name||'').trim().toLowerCase();
-    return ['year4','year2','month','day'].includes(kind);
+    return ['year4','year2','month','day','hour','min'].includes(kind);
   }
 
   function buildTemplatePdfFields(doc,answers){
@@ -852,6 +858,13 @@
       address:request.signer.address||base.address||'',
       // 요청 JSON created_by → PDF adjuster* 필드
       adjuster:request.createdBy||base.adjuster||'',
+      // 요청 JSON 기반 추가 AcroForm 매핑
+      signerRole:request.signer.role||base.signerRole||'',
+      adjustPhone:request.adjustPhone||base.adjustPhone||'',
+      claimNo:request.claimNo||base.claimNo||'',
+      polNo:request.polNo||base.polNo||'',
+      prodNm:request.prodNm||base.prodNm||'',
+      aadjuster:request.aadjuster||base.aadjuster||'',
       extraFields:extraFields||{},
       datePrefixes:datePrefixes||[],
     };
@@ -1143,6 +1156,20 @@
     return daumPostcodePromise;
   }
 
+  function closeAddressSearchEmbed(){
+    const embedWrap=$('addressEmbedWrap');
+    const embedEl=$('addressSearchEmbed');
+    embedWrap.classList.add('hidden');
+    embedWrap.classList.remove('is-open');
+    document.body.classList.remove('address-search-open');
+    embedWrap.style.height='';
+    embedEl.replaceChildren();
+    embedEl.style.transform='';
+    embedEl.style.width='';
+    embedEl.style.height='';
+    embedEl.style.minWidth='';
+  }
+
   function applyAddressSelection(data){
     clearAddressSearchHighlight();
     $('identityPostcode').value=data.zonecode||'';
@@ -1154,13 +1181,7 @@
       request.signer.addressBase=`${base} (${data.buildingName})`;
       $('identityAddressBase').value=request.signer.addressBase;
     }
-    $('addressEmbedWrap').classList.add('hidden');
-    $('addressEmbedWrap').style.height='';
-    const embedEl=$('addressSearchEmbed');
-    embedEl.replaceChildren();
-    embedEl.style.transform='';
-    embedEl.style.width='';
-    embedEl.style.height='';
+    closeAddressSearchEmbed();
     $('identityAddressDetail').focus();
   }
 
@@ -1175,32 +1196,28 @@
       if(isMobileViewport()){
         const embedWrap=$('addressEmbedWrap');
         const embedEl=$('addressSearchEmbed');
+        closeAddressSearchEmbed();
         embedWrap.classList.remove('hidden');
+        embedWrap.classList.add('is-open');
+        document.body.classList.add('address-search-open');
         embedEl.replaceChildren();
-        embedWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
         new Postcode({
           oncomplete:applyAddressSelection,
-          onclose:(stateType)=>{
-            if(stateType!=='COMPLETE_CLOSE')return;
-            embedWrap.classList.add('hidden');
-            embedEl.replaceChildren();
-            embedEl.style.transform='';
-            embedEl.style.width='';
-            embedEl.style.height='';
-            embedWrap.style.height='';
-          },
+          onclose:()=>closeAddressSearchEmbed(),
           width:'100%',
           height:'100%',
         }).embed(embedEl);
         const fitEmbedToViewport=()=>{
-          const wrapW=Math.floor(embedWrap.getBoundingClientRect().width);
-          if(wrapW<=0)return;
-          // 다음 우편번호 UI는 내부 최소 폭(~500px)이 있어, 좁은 화면에서는 축소해 한 화면에 맞춤
+          const wrapRect=embedWrap.getBoundingClientRect();
+          const wrapW=Math.floor(wrapRect.width);
+          const visualH=Math.floor(wrapRect.height);
+          if(wrapW<=0 || visualH<=0)return;
+          // 다음 우편번호 UI는 내부 최소 폭(~500px). 가로는 축소하되,
+          // 보이는 높이는 오버레이 전체로 유지해 모바일에서 너무 작아 보이지 않게 함.
           const nativeW=500;
           const scale=Math.min(1, wrapW/nativeW);
-          const nativeH=Math.min(Math.floor(window.innerHeight*0.7),480);
+          const nativeH=Math.max(Math.round(visualH/scale), visualH);
           embedWrap.style.overflow='hidden';
-          embedWrap.style.height=`${Math.round(nativeH*scale)}px`;
           embedEl.style.minWidth='0';
           embedEl.style.width=`${nativeW}px`;
           embedEl.style.height=`${nativeH}px`;
@@ -1391,6 +1408,10 @@
     request.insurer=insurer;
     request.claimNo=req.claim_no||request.claimNo;
     request.maskedClaimNo=maskClaimNo(req.claim_no);
+    request.adjustPhone=String(req.adjust_phone||'').trim();
+    request.polNo=String(req.pol_no||'').trim();
+    request.prodNm=String(req.prod_nm||'').trim();
+    request.aadjuster=String(req.aadjuster||'').trim();
     request.signer={
       name:req.signer_name||request.signer.name,
       maskedName:maskName(req.signer_name),
@@ -1632,6 +1653,12 @@
       addressDetail:userInfo.addressDetail,
       address:userInfo.address,
       adjuster:userInfo.adjuster,
+      signerRole:userInfo.signerRole,
+      adjustPhone:userInfo.adjustPhone,
+      claimNo:userInfo.claimNo,
+      polNo:userInfo.polNo,
+      prodNm:userInfo.prodNm,
+      aadjuster:userInfo.aadjuster,
     };
   }
 

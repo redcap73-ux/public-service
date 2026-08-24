@@ -19663,7 +19663,7 @@ var BIRTHDAY_ALIASES = [
   "\uC0DD\uC77C"
 ];
 var DESC_ALIASES = ["desc", "description", "audit", "audittrail", "\uC99D\uC801", "\uBE44\uACE0", "remark"];
-var DATE_FIELD_PREFIXES = ["year4", "year2", "month", "day"];
+var DATE_FIELD_PREFIXES = ["year4", "year2", "month", "day", "hour", "min"];
 var KOREAN_FONT_URL = "/fonts/NotoSansKR-Regular.otf";
 function normalizeFieldKey(name) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -19734,17 +19734,35 @@ function getKstDateParts(now = /* @__PURE__ */ new Date()) {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
-    day: "2-digit"
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
   }).formatToParts(now);
   const year = parts.find((part) => part.type === "year")?.value ?? "";
   const month = parts.find((part) => part.type === "month")?.value ?? "";
   const day = parts.find((part) => part.type === "day")?.value ?? "";
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "";
+  const min = parts.find((part) => part.type === "minute")?.value ?? "";
   return {
     year4: year,
     year2: year.slice(-2),
     month,
-    day
+    day,
+    hour,
+    min
   };
+}
+function pushPrefixFieldStamps(fieldNames, prefix, text, toStamp) {
+  const value = String(text ?? "").trim();
+  if (!value) {
+    return;
+  }
+  for (const fieldName of fieldNames) {
+    if (fieldStartsWithPrefix(fieldName, prefix)) {
+      toStamp.push({ fieldName, text: value });
+    }
+  }
 }
 function wrapCanvasLines(ctx, text, maxWidth) {
   const lines = [];
@@ -20190,6 +20208,12 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const birthDate = values2.birthDate?.trim();
   const addressText = formatIdentityAddress(values2);
   const adjuster = values2.adjuster?.trim();
+  const aadjuster = values2.aadjuster?.trim();
+  const signerRole = values2.signerRole?.trim();
+  const adjustPhone = values2.adjustPhone?.trim();
+  const claimNo = values2.claimNo?.trim();
+  const polNo = values2.polNo?.trim();
+  const prodNm = values2.prodNm?.trim();
   const toStamp = [];
   const addressToStamp = [];
   if (name) {
@@ -20243,9 +20267,17 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
       }
     }
   }
+  pushPrefixFieldStamps(fieldNames, "my", signerRole, toStamp);
+  if (adjustPhone) {
+    pushPrefixFieldStamps(fieldNames, "aphone", formatPhoneNumber(adjustPhone), toStamp);
+  }
+  pushPrefixFieldStamps(fieldNames, "snumber", claimNo, toStamp);
+  pushPrefixFieldStamps(fieldNames, "pnumber", polNo, toStamp);
+  pushPrefixFieldStamps(fieldNames, "ppro", prodNm, toStamp);
+  pushPrefixFieldStamps(fieldNames, "aadjuster", aadjuster, toStamp);
   if (adjuster) {
     for (const fieldName of fieldNames) {
-      if (fieldStartsWithPrefix(fieldName, "adjuster")) {
+      if (fieldStartsWithPrefix(fieldName, "adjuster") && !fieldStartsWithPrefix(fieldName, "aadjuster")) {
         toStamp.push({ fieldName, text: adjuster });
       }
     }
