@@ -507,7 +507,7 @@
   };
 
   function resetDocState(){
-    state.docs = request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null, answers:{}}));
+    state.docs = request.documents.map(d => ({id:d.id, viewed:false, scrolled:false, consent:null, reviewedAt:null, answers:{}, needsResave:false, savedReviewedAt:null, draftConsent:null}));
   }
 
   resetDocState();
@@ -2218,6 +2218,88 @@
       }
       return `<div class="form-item-box"><div class="form-item-title"><strong>Q${q.order}. ${escapeHtml(q.label)}</strong></div>${inputHtml}</div>`;
     }).join('');
+    bindDocFormDirtyWatchers();
+  }
+
+  function answersEqual(left,right){
+    const a=left&&typeof left==='object'?left:{};
+    const b=right&&typeof right==='object'?right:{};
+    const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+    for(const key of keys){
+      const av=a[key];
+      const bv=b[key];
+      if(Array.isArray(av) || Array.isArray(bv)){
+        const aa=Array.isArray(av)?[...av].map(String).sort():[];
+        const bb=Array.isArray(bv)?[...bv].map(String).sort():[];
+        if(aa.length!==bb.length || aa.some((item,idx)=>item!==bb[idx]))return false;
+        continue;
+      }
+      if(String(av??'').trim()!==String(bv??'').trim())return false;
+    }
+    return true;
+  }
+
+  function isCurrentDocFormDirtyAfterSave(){
+    const i=state.currentDocIndex;
+    const doc=request.documents[i];
+    const st=state.docs[i];
+    if(!doc||!st||!hasTemplateItems(doc))return false;
+    if(!st.reviewedAt && !st.needsResave)return false;
+    if($('docFormPanel')?.classList.contains('hidden'))return false;
+    return !answersEqual(collectDocFormAnswers(i),st.answers||{});
+  }
+
+  let docFormDirtyTimer=null;
+  function bindDocFormDirtyWatchers(){
+    const items=$('docFormItems');
+    if(!items)return;
+    items.querySelectorAll('input').forEach((el)=>{
+      const handler=()=>{
+        if(el.type==='text'){
+          clearTimeout(docFormDirtyTimer);
+          docFormDirtyTimer=setTimeout(checkDocFormDirtyAfterSave,350);
+          return;
+        }
+        checkDocFormDirtyAfterSave();
+      };
+      el.addEventListener(el.type==='text'?'input':'change',handler);
+    });
+  }
+
+  function checkDocFormDirtyAfterSave(){
+    const i=state.currentDocIndex;
+    const doc=request.documents[i];
+    const st=state.docs[i];
+    if(!doc||!st||!hasTemplateItems(doc))return;
+    if(!st.reviewedAt && !st.needsResave)return;
+    if(!isCurrentDocFormDirtyAfterSave()){
+      if(st.needsResave && answersEqual(collectDocFormAnswers(i),st.answers||{})){
+        // 저장값으로 되돌린 경우
+        st.needsResave=false;
+        if(!st.reviewedAt && st.savedReviewedAt){
+          st.reviewedAt=st.savedReviewedAt;
+          st.savedReviewedAt=null;
+          renderDocList();
+          updateDocProgress();
+          updateStickyNextLabel();
+        }
+        clearSaveDocHighlight();
+      }
+      return;
+    }
+    if(!st.needsResave){
+      st.needsResave=true;
+      if(st.reviewedAt){
+        st.savedReviewedAt=st.reviewedAt;
+        st.reviewedAt=null;
+      }
+      renderDocList();
+      updateDocProgress();
+      updateStickyNextLabel();
+      focusRequiredSaveDoc('문서 확인 질문이 변경되었습니다. 다시 「응답 저장」을 눌러 주세요.');
+    }else if(!$('saveDocBtn')?.classList.contains('needs-attention')){
+      focusRequiredSaveDoc('문서 확인 질문이 변경되었습니다. 다시 「응답 저장」을 눌러 주세요.');
+    }
   }
 
   function collectDocFormAnswers(docIndex){
@@ -2346,6 +2428,9 @@
     st.answers=answers;
     st.consent=deriveConsentFromAnswers(doc,answers);
     st.reviewedAt=new Date();
+    st.needsResave=false;
+    st.savedReviewedAt=null;
+    clearSaveDocHighlight();
     resetFinalDocumentConfirmation({
       toast:'문서 응답이 변경되어 최종문서확인을 다시 진행해 주세요.',
     });
