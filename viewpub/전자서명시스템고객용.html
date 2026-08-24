@@ -1372,7 +1372,9 @@
 
     const req=data.request;
     const apiDocuments=Array.isArray(data.documents)?data.documents:[];
-    const insurer=apiDocuments[0]?.file_path?extractInsurerFromPath(apiDocuments[0].file_path):'보험사';
+    const insurer=String(req.insur_nm||'').trim()
+      || (apiDocuments[0]?.file_path?extractInsurerFromPath(apiDocuments[0].file_path):'')
+      || '보험사';
     const expiresAt=req.expires_at?new Date(req.expires_at):new Date(Date.now()+48*60*60*1000);
 
     if(expiresAt.getTime()<=Date.now()){
