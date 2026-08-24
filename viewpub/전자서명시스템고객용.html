@@ -321,7 +321,6 @@
               <h3>최종 제출 정보</h3>
               <table class="summary-table">
                 <tr><th>서명자</th><td id="finalSigner">홍길동 / 피보험자</td></tr>
-                <tr><th>본인인증</th><td id="finalAuth">NICE 인증 완료</td></tr>
                 <tr><th>동의 문서</th><td id="finalDocs">4건</td></tr>
                 <tr><th>미동의 문서</th><td id="finalRejected">0건</td></tr>
                 <tr><th>요청번호</th><td id="finalRequestNo">CON-20260721-0101</td></tr>
@@ -1129,8 +1128,8 @@
     if(state.currentStep===2){
       const identityOk=state.identityProfile.confirmed;
       nextBtn.textContent=identityOk?'문서 확인 완료':'인적사항 확인 저장';
-      // 동의/응답 문서 미완료면 비활성. 다운로드만 남은 경우는 클릭해 안내할 수 있게 활성 유지
-      nextBtn.disabled=identityOk && !areAllConsentDocumentsComplete();
+      // 미완료여도 클릭해 「응답/동의 저장」 안내를 띄울 수 있게 활성 유지
+      nextBtn.disabled=false;
       return;
     }
     if(state.currentStep===3){
@@ -1212,8 +1211,8 @@
           const wrapW=Math.floor(embedWrap.getBoundingClientRect().width);
           if(wrapW<=0)return;
           // 버튼 아래 인라인 유지. 가로는 화면에 맞추고,
-          // 기준 폭을 조금 낮춰(420) 글씨가 과도하게 작아지지 않게 함.
-          const nativeW=420;
+          // 기준 폭 350(=420/1.2)으로 글씨를 이전 대비 약 1.2배 크게 표시.
+          const nativeW=350;
           const scale=Math.min(1, wrapW/nativeW);
           const visualH=Math.max(360, Math.min(Math.floor(window.innerHeight*0.68), 520));
           const nativeH=Math.max(Math.round(visualH/scale), visualH);
@@ -1512,8 +1511,18 @@
         return;
       }
       clearNextBtnHighlight();
-      const incomplete=state.docs.filter((d,i)=>isConsentDocument(request.documents[i]) && !isDocumentComplete(request.documents[i],d));
-      if(incomplete.length){toast(`확인하지 않은 문서가 ${incomplete.length}건 있습니다.`);const idx=state.docs.findIndex((d,i)=>isConsentDocument(request.documents[i]) && !isDocumentComplete(request.documents[i],d));selectDocument(idx,true);return;}
+      const incompleteIdx=state.docs.findIndex((d,i)=>isConsentDocument(request.documents[i]) && !isDocumentComplete(request.documents[i],d));
+      if(incompleteIdx>=0){
+        const incompleteDoc=request.documents[incompleteIdx];
+        const saveLabel=hasTemplateItems(incompleteDoc)?'응답 저장':'동의 저장';
+        selectDocument(incompleteIdx,true);
+        requestAnimationFrame(()=>{
+          setTimeout(()=>{
+            focusRequiredSaveDoc(`아직 확인하지 않은 문서가 있습니다. 먼저 「${saveLabel}」을 눌러 주세요.`);
+          },80);
+        });
+        return;
+      }
       if(!areAllDownloadDocumentsComplete()){focusRequiredDownloads();return;}
       const rejectedRequired=state.docs.findIndex((d,i)=>request.documents[i].required && d.consent==='reject');
       if(rejectedRequired>=0){toast('필수 동의서에 미동의하여 전자서명을 진행할 수 없습니다.');selectDocument(rejectedRequired,true);return;}
@@ -1522,12 +1531,39 @@
     if(state.currentStep===3){validateAndOpenSubmit();}
   }
 
+  function reopenIdentityProfileScreen(){
+    // 문서 확인 화면에서 이전 → 인적사항 확인 화면으로 복귀 (값은 유지, 다시 저장 가능)
+    state.identityProfile.confirmed=false;
+    state.identityProfile.confirmedAt=null;
+    request.signer.identityConfirmedAt=null;
+    hydrateIdentityProfileCard();
+    $('identityProfileConfirmCheck').checked=true;
+    clearIdentityConfirmHighlight();
+    updateIdentityProfileGate();
+    updateStickyNextLabel();
+    requestAnimationFrame(()=>{
+      $('identityProfileCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
+
   function back(){
     if(state.currentStep<=1 || state.currentStep>=4)return;
     if(state.currentStep===3){
       resetFinalDocumentConfirmation({
         toast:'입력 내용이 바뀔 수 있어 최종문서확인을 다시 진행해 주세요.',
       });
+      setStep(2);
+      return;
+    }
+    if(state.currentStep===2){
+      // 전자문서 확인/동의 → 본인 인적사항 확인
+      if(state.identityProfile.confirmed){
+        reopenIdentityProfileScreen();
+        return;
+      }
+      // 본인 인적사항 확인 → 전자서명 요청 안내
+      setStep(1);
+      return;
     }
     setStep(state.currentStep-1);
   }
@@ -1719,7 +1755,6 @@
 
     verifiedUserInfo=buildIdentityFormValues(userInfo);
 
-    $('finalAuth').textContent='PortOne 인증 완료';
     if(state.currentStep===2)hydrateIdentityProfileCard();
   }
 
@@ -1847,10 +1882,11 @@
       const actionButton=downloadType===2
         ? `<button class="doc-action download" type="button" data-download-doc="${i}">${escapeHtml(actionLabel)}</button>`
         : `<button class="doc-action" type="button" data-open-doc="${i}">${escapeHtml(actionLabel)}</button>`;
-      const badgeLabel=downloadType===2?'다운로드':doc.required?'필수':'선택';
-      const badgeClass=downloadType===2?'gray':doc.required?'orange':'gray';
+      const badgeHtml=downloadType===2
+        ? ''
+        : ` <span class="badge ${doc.required?'orange':'gray'}">${doc.required?'필수':'선택'}</span>`;
       return `<div class="doc-row ${i===state.currentDocIndex?'current':''} ${isDocumentComplete(doc,st)?'done':''}" data-doc-index="${i}">
-        <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)} <span class="badge ${badgeClass}">${badgeLabel}</span></div></div>
+        <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)}${badgeHtml}</div></div>
         ${actionButton}</div>`;
     }).join('');
     document.querySelectorAll('.doc-row').forEach(row=>{
@@ -2232,6 +2268,26 @@
     btn.setAttribute('aria-disabled','false');
   }
 
+  let saveDocHighlightTimer=null;
+  function clearSaveDocHighlight(){
+    $('saveDocBtn')?.classList.remove('needs-attention');
+    if(saveDocHighlightTimer){
+      clearTimeout(saveDocHighlightTimer);
+      saveDocHighlightTimer=null;
+    }
+  }
+
+  function focusRequiredSaveDoc(message){
+    const btn=$('saveDocBtn');
+    if(!btn || btn.classList.contains('hidden'))return;
+    clearSaveDocHighlight();
+    btn.classList.add('needs-attention');
+    btn.scrollIntoView({behavior:'smooth',block:'center'});
+    try{btn.focus({preventScroll:true});}catch{btn.focus();}
+    toast(message||'먼저 「응답 저장」을 눌러 주세요.');
+    saveDocHighlightTimer=setTimeout(()=>clearSaveDocHighlight(),4500);
+  }
+
   let nextBtnHighlightTimer=null;
   function clearNextBtnHighlight(){
     $('nextBtn')?.classList.remove('needs-attention');
@@ -2444,7 +2500,7 @@
 
   function updateFinalSummary(){
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
-    $('finalDocs').textContent=`${agreed}건`;$('finalRejected').textContent=`${rejected}건`;$('finalAuth').textContent=`${request.authProvider} 인증 완료`;
+    $('finalDocs').textContent=`${agreed}건`;$('finalRejected').textContent=`${rejected}건`;
   }
 
   function setupCanvas(){
@@ -2967,6 +3023,7 @@
     if($('identityProfileConfirmCheck').checked)clearIdentityConfirmHighlight();
   });
   function saveCurrentDocument(){
+    clearSaveDocHighlight();
     const doc=request.documents[state.currentDocIndex];
     if(hasTemplateItems(doc))saveDocumentAnswers();
     else saveDocumentConsent();
