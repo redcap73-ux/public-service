@@ -1211,8 +1211,8 @@
           const wrapW=Math.floor(embedWrap.getBoundingClientRect().width);
           if(wrapW<=0)return;
           // 버튼 아래 인라인 유지. 가로는 화면에 맞추고,
-          // 기준 폭 350(=420/1.2)으로 글씨를 이전 대비 약 1.2배 크게 표시.
-          const nativeW=350;
+          // 기준 폭 304(=350/1.15)로 글씨를 직전 대비 약 1.15배 크게 표시.
+          const nativeW=304;
           const scale=Math.min(1, wrapW/nativeW);
           const visualH=Math.max(360, Math.min(Math.floor(window.innerHeight*0.68), 520));
           const nativeH=Math.max(Math.round(visualH/scale), visualH);
@@ -1515,7 +1515,13 @@
       if(incompleteIdx>=0){
         const incompleteDoc=request.documents[incompleteIdx];
         const saveLabel=hasTemplateItems(incompleteDoc)?'응답 저장':'동의 저장';
-        selectDocument(incompleteIdx,true);
+        // 안내만 할 때는 같은 문서 폼을 다시 그리지 않아 미저장 입력을 유지
+        if(incompleteIdx!==state.currentDocIndex){
+          persistCurrentDocDraft();
+          selectDocument(incompleteIdx,true);
+        }else{
+          $('viewerCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+        }
         requestAnimationFrame(()=>{
           setTimeout(()=>{
             focusRequiredSaveDoc(`아직 확인하지 않은 문서가 있습니다. 먼저 「${saveLabel}」을 눌러 주세요.`);
@@ -2232,6 +2238,20 @@
     return answers;
   }
 
+  function persistCurrentDocDraft(){
+    const i=state.currentDocIndex;
+    const doc=request.documents[i];
+    const st=state.docs[i];
+    if(!doc||!st||!isConsentDocument(doc))return;
+    if(hasTemplateItems(doc)){
+      if($('docFormPanel')?.classList.contains('hidden'))return;
+      st.answers=collectDocFormAnswers(i);
+      return;
+    }
+    const selected=radios.find(r=>r.checked);
+    if(selected)st.draftConsent=selected.value;
+  }
+
   function validateDocAnswers(doc,answers){
     for(const q of doc.questions){
       if(!q.required)continue;
@@ -2388,7 +2408,7 @@
       $('viewerBadge').className=`badge ${st.consent==='agree'?'green':st.consent==='reject'?'red':st.scrolled?'orange':'gray'}`;
       $('viewerBadge').textContent=st.consent==='agree'?'동의 완료':st.consent==='reject'?'미동의':st.scrolled?'동의 선택 가능':'미확인';
       $('consentQuestion').textContent=`“${doc.name}” 내용을 확인하고 동의하십니까?`;
-      radios.forEach(r=>{r.disabled=!st.scrolled;r.checked=r.value===st.consent;});
+      radios.forEach(r=>{r.disabled=!st.scrolled;r.checked=r.value===(st.consent||st.draftConsent);});
       $('consentBox').classList.toggle('locked',!st.scrolled);
       $('consentLockBadge').className=`badge ${st.scrolled?'blue':'gray'}`;$('consentLockBadge').textContent=st.scrolled?'선택 가능':'열람 필요';
       setScrollTipContent(st.scrolled,'consent');
@@ -2473,6 +2493,7 @@
     const selected=radios.find(r=>r.checked);
     if(!selected){toast('동의 또는 미동의를 선택해 주세요.');return;}
     st.consent=selected.value;st.reviewedAt=new Date();
+    st.draftConsent=null;
     resetFinalDocumentConfirmation({
       toast:'문서 동의 내용이 변경되어 최종문서확인을 다시 진행해 주세요.',
     });
