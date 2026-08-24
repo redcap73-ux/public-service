@@ -20188,6 +20188,9 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const claimNo = values2.claimNo?.trim();
   const polNo = values2.polNo?.trim();
   const prodNm = values2.prodNm?.trim();
+  const company = values2.company?.trim();
+  const adjustJuso = values2.adjustJuso?.trim();
+  const adjustJumin = values2.adjustJumin?.trim();
   const toStamp = [];
   const addressToStamp = [];
   if (name) {
@@ -20248,6 +20251,9 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   pushPrefixFieldStamps(fieldNames, "snumber", claimNo, toStamp);
   pushPrefixFieldStamps(fieldNames, "pnumber", polNo, toStamp);
   pushPrefixFieldStamps(fieldNames, "ppro", prodNm, toStamp);
+  pushPrefixFieldStamps(fieldNames, "company", company, toStamp);
+  pushPrefixFieldStamps(fieldNames, "adjust_juso", adjustJuso, toStamp);
+  pushPrefixFieldStamps(fieldNames, "adjust_jumin", adjustJumin, toStamp);
   pushPrefixFieldStamps(fieldNames, "aadjuster", aadjuster, toStamp);
   if (adjuster) {
     for (const fieldName of fieldNames) {

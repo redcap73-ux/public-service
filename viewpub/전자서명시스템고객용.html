@@ -433,6 +433,9 @@
     polNo: '',
     prodNm: '',
     aadjuster: '',
+    company: '',
+    adjustJuso: '',
+    adjustJumin: '',
     issuedAt: '2026-07-21 10:30:00',
     expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
     authProvider: 'NICE',
@@ -865,6 +868,9 @@
       polNo:request.polNo||base.polNo||'',
       prodNm:request.prodNm||base.prodNm||'',
       aadjuster:request.aadjuster||base.aadjuster||'',
+      company:request.company||base.company||'',
+      adjustJuso:request.adjustJuso||base.adjustJuso||'',
+      adjustJumin:request.adjustJumin||base.adjustJumin||'',
       extraFields:extraFields||{},
       datePrefixes:datePrefixes||[],
     };
@@ -1412,6 +1418,9 @@
     request.polNo=String(req.pol_no||'').trim();
     request.prodNm=String(req.prod_nm||'').trim();
     request.aadjuster=String(req.aadjuster||'').trim();
+    request.company=String(req.company||'').trim();
+    request.adjustJuso=String(req.adjust_juso||'').trim();
+    request.adjustJumin=String(req.adjudst_jumin||req.adjust_jumin||'').trim();
     request.signer={
       name:req.signer_name||request.signer.name,
       maskedName:maskName(req.signer_name),
@@ -1659,6 +1668,9 @@
       polNo:userInfo.polNo,
       prodNm:userInfo.prodNm,
       aadjuster:userInfo.aadjuster,
+      company:userInfo.company,
+      adjustJuso:userInfo.adjustJuso,
+      adjustJumin:userInfo.adjustJumin,
     };
   }
 

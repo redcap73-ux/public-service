@@ -30,6 +30,12 @@ export type IdentityFormValues = {
   prodNm?: string;
   /** 요청 JSON aadjuster — PDF aadjuster* 필드에 매핑 */
   aadjuster?: string;
+  /** 요청 JSON company — PDF company* 필드에 매핑 */
+  company?: string;
+  /** 요청 JSON adjust_juso — PDF adjust_juso* 필드에 매핑 */
+  adjustJuso?: string;
+  /** 요청 JSON adjudst_jumin(또는 adjust_jumin) — PDF adjust_jumin* 필드에 매핑 */
+  adjustJumin?: string;
   /** pdf_field_name -> 사용자 답변. 예: { text_1: '소개자 없음' } */
   extraFields?: Record<string, string>;
   /** 선택형 답변 문구. PDF 본문 "동의함" 왼쪽 [ ]에 체크를 찍을 때 사용 */
@@ -826,6 +832,9 @@ export async function fillAcroFormIdentity(
   const claimNo = values.claimNo?.trim();
   const polNo = values.polNo?.trim();
   const prodNm = values.prodNm?.trim();
+  const company = values.company?.trim();
+  const adjustJuso = values.adjustJuso?.trim();
+  const adjustJumin = values.adjustJumin?.trim();
 
   const toStamp: Array<{ fieldName: string; text: string }> = [];
   const addressToStamp: Array<{ fieldName: string; text: string }> = [];
@@ -892,6 +901,9 @@ export async function fillAcroFormIdentity(
   pushPrefixFieldStamps(fieldNames, 'snumber', claimNo, toStamp);
   pushPrefixFieldStamps(fieldNames, 'pnumber', polNo, toStamp);
   pushPrefixFieldStamps(fieldNames, 'ppro', prodNm, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'company', company, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'adjust_juso', adjustJuso, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'adjust_jumin', adjustJumin, toStamp);
   // aadjuster* 를 adjuster* 보다 먼저 채워 겹침을 피합니다.
   pushPrefixFieldStamps(fieldNames, 'aadjuster', aadjuster, toStamp);
   if (adjuster) {
