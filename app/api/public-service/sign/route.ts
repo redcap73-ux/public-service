@@ -19,9 +19,10 @@ function resolveUpstreamError(error: unknown) {
       ? (error as { body: string }).body
       : '';
 
-  let parsed: { code?: string; error?: string; message?: string } | null = null;
+  type UpstreamErrorBody = { code?: string; error?: string; message?: string };
+  let parsed: UpstreamErrorBody | null = null;
   try {
-    parsed = bodyText ? (JSON.parse(bodyText) as typeof parsed) : null;
+    parsed = bodyText ? (JSON.parse(bodyText) as UpstreamErrorBody) : null;
   } catch {
     parsed = null;
   }
