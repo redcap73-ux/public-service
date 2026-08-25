@@ -322,6 +322,7 @@
               <table class="summary-table">
                 <tr><th>서명자</th><td id="finalSigner">홍길동 / 피보험자</td></tr>
                 <tr><th>동의 문서</th><td id="finalDocs">4건</td></tr>
+                <tr id="finalDownloadRow" class="hidden"><th>다운로드 문서</th><td id="finalDownloadDocs">0건</td></tr>
                 <tr><th>미동의 문서</th><td id="finalRejected">0건</td></tr>
                 <tr><th>사고번호</th><td id="finalClaimNo">DB-2026-123456</td></tr>
               </table>
@@ -374,7 +375,7 @@
 <div class="modal-backdrop" id="submitModal">
   <div class="modal">
     <div class="modal-head"><h3>전자서명을 최종 제출하시겠습니까?</h3><button class="modal-close" type="button" data-close="submitModal">×</button></div>
-    <div class="modal-body"><div class="notice warn">제출과 동시에 문서 Snapshot, 동의 결과, 자필서명, 본인인증 거래정보를 결합해 전자서명 증적을 생성합니다.</div><table class="summary-table"><tr><th>동의 문서</th><td id="modalAgreedDocs">-</td></tr><tr><th>미동의 문서</th><td id="modalRejectedDocs">-</td></tr><tr><th>서명자</th><td id="modalSigner">-</td></tr></table></div>
+    <div class="modal-body"><div class="notice warn">제출과 동시에 문서 Snapshot, 동의 결과, 자필서명, 본인인증 거래정보를 결합해 전자서명 증적을 생성합니다.</div><table class="summary-table"><tr><th>동의 문서</th><td id="modalAgreedDocs">-</td></tr><tr id="modalDownloadRow" class="hidden"><th>다운로드 문서</th><td id="modalDownloadDocs">-</td></tr><tr><th>미동의 문서</th><td id="modalRejectedDocs">-</td></tr><tr><th>서명자</th><td id="modalSigner">-</td></tr></table></div>
     <div class="modal-actions"><button class="button secondary" type="button" data-close="submitModal">취소</button><button class="button primary" type="button" id="confirmSubmitBtn">최종 제출</button></div>
   </div>
 </div>
@@ -2677,9 +2678,33 @@
     updateStickyNextLabel();
   }
 
+  function formatDownloadDocsSummary(){
+    const downloadDocs=request.documents.filter((doc)=>isDownloadDocument(doc));
+    if(!downloadDocs.length)return null;
+    const names=downloadDocs.map((doc)=>doc.name).filter(Boolean);
+    return {
+      count:downloadDocs.length,
+      text:names.length
+        ? `${downloadDocs.length}건 (${names.join(', ')})`
+        : `${downloadDocs.length}건`,
+    };
+  }
+
   function updateFinalSummary(){
-    const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
-    $('finalDocs').textContent=`${agreed}건`;$('finalRejected').textContent=`${rejected}건`;
+    const agreed=state.docs.filter(d=>d.consent==='agree').length;
+    const rejected=state.docs.filter(d=>d.consent==='reject').length;
+    $('finalDocs').textContent=`${agreed}건`;
+    $('finalRejected').textContent=`${rejected}건`;
+    const downloadSummary=formatDownloadDocsSummary();
+    const downloadRow=$('finalDownloadRow');
+    const downloadCell=$('finalDownloadDocs');
+    if(downloadSummary){
+      downloadRow?.classList.remove('hidden');
+      if(downloadCell)downloadCell.textContent=downloadSummary.text;
+    }else{
+      downloadRow?.classList.add('hidden');
+      if(downloadCell)downloadCell.textContent='0건';
+    }
   }
 
   function setupCanvas(){
@@ -3068,7 +3093,20 @@
     clearFinalChecksHighlight();
     clearSignatureHighlight();
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
-    $('modalAgreedDocs').textContent=`${agreed}건`;$('modalRejectedDocs').textContent=`${rejected}건`;$('modalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;openModal('submitModal');
+    $('modalAgreedDocs').textContent=`${agreed}건`;
+    $('modalRejectedDocs').textContent=`${rejected}건`;
+    $('modalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
+    const downloadSummary=formatDownloadDocsSummary();
+    const downloadRow=$('modalDownloadRow');
+    const downloadCell=$('modalDownloadDocs');
+    if(downloadSummary){
+      downloadRow?.classList.remove('hidden');
+      if(downloadCell)downloadCell.textContent=downloadSummary.text;
+    }else{
+      downloadRow?.classList.add('hidden');
+      if(downloadCell)downloadCell.textContent='-';
+    }
+    openModal('submitModal');
   }
 
   async function submitSignature(){
