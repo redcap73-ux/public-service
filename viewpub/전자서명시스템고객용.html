@@ -49,8 +49,6 @@
     .status-summary h1{font-size:20px;line-height:1.3;margin:0;color:var(--navy)}
     .status-summary p{font-size:11px;line-height:1.55;color:var(--muted);margin:7px 0 0}
     .expires{border-radius:12px;padding:9px 11px;background:var(--orange-soft);color:#9a3412;text-align:right;min-width:115px;max-width:min(100%,280px)}.expires small{display:block;font-size:9px}.expires strong{font-size:13px;display:block;margin-top:2px;line-height:1.35;word-break:keep-all}
-    .case-strip{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);background:#f8fafc}
-    .case-item{padding:11px 12px;border-right:1px solid var(--line);min-width:0}.case-item:last-child{border-right:0}.case-item small{display:block;color:var(--muted);font-size:9px;margin-bottom:4px}.case-item strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#334155}
     .stepper-wrap{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 12px 10px;box-shadow:0 5px 16px rgba(15,31,61,.05);margin-bottom:14px;overflow:auto}
     .stepper{display:grid;grid-template-columns:repeat(4,minmax(118px,1fr));min-width:500px;gap:6px}
     .step{position:relative;border:1px solid var(--line);border-radius:11px;padding:9px 10px;background:#f8fafc;color:var(--muted)}
@@ -113,6 +111,7 @@
     #identityProfileCard.identity-confirmed{margin-bottom:10px}
     .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell.needs-attention{border-color:#f59e0b !important;background:#fffbeb;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:12px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
+    .intro-sender-phone{display:block;margin-top:6px;font-size:12px;font-weight:800;color:#1d4ed8;text-decoration:none;line-height:1.4}.intro-sender-phone:hover{text-decoration:underline}
     .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
     .final-checks.needs-attention{border:1px solid #f59e0b;background:#fffbeb;border-radius:12px;padding:12px;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}
     .final-checks.needs-attention .check-line:not(:has(input:checked)){border:1px solid #f59e0b;background:#fff7ed;border-radius:12px;padding:10px 12px;color:#9a3412}
@@ -142,13 +141,13 @@
     .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:18px;z-index:70}.modal-backdrop.show{display:flex}.modal{background:#fff;border-radius:18px;width:min(520px,100%);max-height:88vh;overflow:auto;box-shadow:0 28px 80px rgba(0,0,0,.28)}.modal-head{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}.modal-head h3{margin:0;font-size:15px;color:var(--navy)}.modal-close{border:0;background:transparent;font-size:18px;color:#64748b}.modal-body{padding:16px 17px}.modal-actions{padding:12px 17px;border-top:1px solid var(--line);display:flex;gap:8px}.modal-actions button{flex:1}
     .hidden{display:none!important}
     @media(max-width:760px){
-      .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}.case-strip{grid-template-columns:repeat(2,1fr)}.case-item:nth-child(2){border-right:0}.case-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
+      .site-header{padding:13px 14px}.secure-badge span:last-child{display:none}.main{padding:13px 12px calc(100px + var(--safe-bottom))}.status-summary{grid-template-columns:1fr}.expires{text-align:left;min-width:0}
       .form-grid{grid-template-columns:1fr;min-width:0}.field,.field.full{grid-column:auto;min-width:0;max-width:100%}.address-row{grid-template-columns:1fr}.address-embed-wrap{max-width:100%;overflow:hidden;margin:0 0 12px}.address-embed{height:min(68vh,520px);min-height:360px;min-width:0 !important;width:100% !important}.address-embed iframe{min-width:0 !important;max-width:100% !important}.provider-list{grid-template-columns:repeat(2,1fr)}.doc-overview,.signature-layout{grid-template-columns:1fr}.progress-panel{position:static;order:-1}.document-viewer{height:54vh;min-height:360px;padding:8px}.paper{padding:32px 24px;min-height:820px}.paper h1{font-size:18px}.paper p,.paper li{font-size:10px}.sticky-inner .button.back{max-width:110px}.doc-row{grid-template-columns:34px minmax(0,1fr)}.doc-action{grid-column:1/-1;width:100%}.canvas-shell{height:180px}.check-line-row{flex-direction:column;align-items:stretch}.doc-preview-btn{width:100%}
       .card-body{min-width:0}
       #saveIdentityProfileBtn{display:none}
       .site-footer-card{padding:16px 14px 14px}
     }
-    @media(max-width:390px){.brand-text small{max-width:190px}.status-summary h1{font-size:18px}.case-item{padding:10px 9px}.button{font-size:11px}.paper{padding:28px 18px}.input-row{grid-template-columns:1fr 96px}}
+    @media(max-width:390px){.brand-text small{max-width:190px}.status-summary h1{font-size:18px}.button{font-size:11px}.paper{padding:28px 18px}.input-row{grid-template-columns:1fr 96px}}
     @media print{.site-header,.stepper-wrap,.sticky-actions,.site-footer,.toast{display:none!important}.main{max-width:none;padding:0}.screen{display:none!important}.screen#printScreen{display:block!important}.card{box-shadow:none;border:0}.certificate{border:0}.app-shell{display:block}}
   </style>
 </head>
@@ -170,12 +169,6 @@
         <div><h1 id="requestTitle">전자서명 요청을 확인해 주세요</h1><p id="requestDescription">본인확인 후 요청된 여러 동의문서를 차례대로 확인하고 한 번의 자필서명으로 제출할 수 있습니다.</p></div>
         <div class="expires"><small>링크 남은 시간</small><strong id="expiryCountdown">47:59:59</strong></div>
       </div>
-      <div class="case-strip">
-        <div class="case-item"><small>요청번호</small><strong id="summaryRequestNo">CON-20260721-0101</strong></div>
-        <div class="case-item"><small>보험사</small><strong id="summaryInsurer">DB손해보험</strong></div>
-        <div class="case-item"><small>사고번호</small><strong id="summaryClaimNo">DB-2026-123456</strong></div>
-        <div class="case-item"><small>요청 문서</small><strong><span id="summaryDocCount">4</span>건</strong></div>
-      </div>
     </section>
 
     <div class="stepper-wrap">
@@ -193,8 +186,11 @@
         <div class="card-body">
           <div class="notice">문자 또는 알림톡으로 받은 링크는 <b>본인만 사용</b>해야 합니다.</div>
           <table class="summary-table">
-            <tr><th>서명 요청자</th><td id="introSender">T&G 손해사정 · 담당 김수현</td></tr>
+            <tr><th>서명 요청자</th><td><div id="introSender">T&G 손해사정 · 담당 김수현</div><a class="intro-sender-phone hidden" id="introSenderPhone" href="#"></a></td></tr>
             <tr><th>서명 대상자</th><td><span id="introSignerName">홍*동</span> · <span id="introRole">피보험자</span></td></tr>
+            <tr><th>보험사</th><td id="introInsurer">DB손해보험</td></tr>
+            <tr><th>사고번호</th><td id="introClaimNo">2026-123456</td></tr>
+            <tr><th>요청 문서</th><td><span id="introDocCount">4</span>건</td></tr>
           </table>
           <div style="height:12px"></div>
           <label class="check-line" id="requestOwnerCheckLine"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
@@ -324,7 +320,7 @@
                 <tr><th>동의 문서</th><td id="finalDocs">4건</td></tr>
                 <tr id="finalDownloadRow" class="hidden"><th>다운로드 문서</th><td id="finalDownloadDocs">0건</td></tr>
                 <tr><th>미동의 문서</th><td id="finalRejected">0건</td></tr>
-                <tr><th>사고번호</th><td id="finalClaimNo">DB-2026-123456</td></tr>
+                <tr><th>사고번호</th><td id="finalClaimNo">2026-123456</td></tr>
               </table>
               <div class="notice warn" style="margin:12px 0 0">제출 후에는 문서 내용과 서명을 수정할 수 없습니다. 수정이 필요하면 담당자에게 새 요청을 받아야 합니다.</div>
             </aside>
@@ -635,6 +631,20 @@
     identityConfirmHighlightTimer=setTimeout(()=>clearIdentityConfirmHighlight(),4500);
   }
   function maskPhone(phone){return phone.replace(/(\d{3})(\d{4})(\d{4})/,'$1-****-$3');}
+  function formatPhoneDigits(phone){
+    return String(phone||'').replace(/\D/g,'');
+  }
+  function formatPhoneDisplay(phone){
+    const digits=formatPhoneDigits(phone);
+    if(digits.length===11)return `${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7)}`;
+    if(digits.length===10)return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+    return String(phone||'').trim();
+  }
+  function formatClaimNoForDisplay(claimNo){
+    if(!claimNo)return '-';
+    const value=String(claimNo);
+    return value.length>3?value.slice(3):value;
+  }
   function formatDate(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
   function formatExpiry(date){
     const d=date instanceof Date?date:new Date(date);
@@ -1448,18 +1458,33 @@
     return true;
   }
 
+  function updateIntroSenderPhone(){
+    const phoneLink=$('introSenderPhone');
+    if(!phoneLink)return;
+    const digits=formatPhoneDigits(request.adjustPhone);
+    if(!digits){
+      phoneLink.classList.add('hidden');
+      phoneLink.removeAttribute('href');
+      phoneLink.textContent='';
+      return;
+    }
+    phoneLink.classList.remove('hidden');
+    phoneLink.href=`tel:${digits}`;
+    phoneLink.textContent=formatPhoneDisplay(request.adjustPhone);
+  }
+
   function hydrateRequest(){
-    $('summaryRequestNo').textContent=request.requestNo;
-    $('summaryInsurer').textContent=request.insurer;
-    $('summaryClaimNo').textContent=request.claimNo||'-';
-    $('summaryDocCount').textContent=request.documents.length;
     $('requestDescription').textContent='본인확인 후 요청된 여러 동의문서를 차례대로 확인하고 한 번의 자필서명으로 제출할 수 있습니다.';
     $('introSender').textContent=request.sender;
+    updateIntroSenderPhone();
     $('introSignerName').textContent=request.signer.maskedName;
     $('introRole').textContent=request.signer.role;
+    $('introInsurer').textContent=request.insurer||'-';
+    $('introClaimNo').textContent=formatClaimNoForDisplay(request.claimNo);
+    $('introDocCount').textContent=request.documents.length;
     $('reviewTotalCount').textContent=request.documents.length;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
-    $('finalClaimNo').textContent=request.claimNo||'-';
+    $('finalClaimNo').textContent=formatClaimNoForDisplay(request.claimNo);
     $('typedName').value=request.signer.name;
     $('typedPreview').textContent=request.signer.name;
     renderDocList();
@@ -2221,7 +2246,7 @@
 
   function buildPaper(doc,index){
     return `<h1>${escapeHtml(doc.name)}</h1>
-      <table class="meta-table"><tr><th>사고번호</th><td>${escapeHtml(request.claimNo||'-')}</td><th>서명자</th><td>${escapeHtml(request.signer.maskedName)}</td></tr><tr><th>보험사</th><td>${escapeHtml(request.insurer)}</td><th>양식 버전</th><td>${escapeHtml(doc.version)}</td></tr></table>
+      <table class="meta-table"><tr><th>사고번호</th><td>${escapeHtml(formatClaimNoForDisplay(request.claimNo))}</td><th>서명자</th><td>${escapeHtml(request.signer.maskedName)}</td></tr><tr><th>보험사</th><td>${escapeHtml(request.insurer)}</td><th>양식 버전</th><td>${escapeHtml(doc.version)}</td></tr></table>
       <p>본 동의서는 ${escapeHtml(request.insurer)} 보험사고의 손해사정 조사 업무와 관련하여 필요한 사항을 안내하고 정보주체의 동의를 받기 위한 전자문서입니다.</p>
       ${doc.sections.map(([title,body])=>`<h3>${escapeHtml(title)}</h3><div class="agreement-box"><p>${escapeHtml(body)}</p></div>`).join('')}
       <h3>${doc.sections.length+1}. 전자적 처리와 증적</h3><p>본 문서는 요청 시점의 내용과 버전이 고정되며, 본인확인 결과, 문서 열람·동의 시각, 자필서명 및 최종 문서 해시가 전자서명 증적에 포함됩니다.</p>
@@ -3151,7 +3176,7 @@
 
       const agreedDocs=request.documents.filter((_,i)=>state.docs[i].consent==='agree');
       closeModal('submitModal');
-      $('completeClaimNo').textContent=request.claimNo||'-';
+      $('completeClaimNo').textContent=formatClaimNoForDisplay(request.claimNo);
       $('completeSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
       $('completeDocs').textContent=`${agreedDocs.length}건 (${agreedDocs.map(d=>d.name).join(', ')})`;
       $('completeAuthTx').textContent=request.authTransactionId;
@@ -3209,10 +3234,9 @@
     }
   }
   function clearUnavailableRequestSummary(type){
-    $('summaryRequestNo').textContent='-';
-    $('summaryInsurer').textContent='-';
-    $('summaryClaimNo').textContent='-';
-    $('summaryDocCount').textContent='-';
+    $('introInsurer').textContent='-';
+    $('introClaimNo').textContent='-';
+    $('introDocCount').textContent='-';
     $('expiryCountdown').textContent='만료';
     if(type==='expired' || type==='used'){
       $('requestTitle').textContent=type==='used'?'이미 전자서명이 완료되었습니다':'서명 링크가 만료되었습니다';
