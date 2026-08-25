@@ -1394,12 +1394,12 @@
       || '보험사';
     const expiresAt=req.expires_at?new Date(req.expires_at):new Date(Date.now()+48*60*60*1000);
 
-    if(expiresAt.getTime()<=Date.now()){
-      showError('expired');
-      return false;
-    }
     if(req.status==='COMPLETED'||req.completed_at){
       showError('used');
+      return false;
+    }
+    if(expiresAt.getTime()<=Date.now()){
+      showError('expired');
       return false;
     }
 
@@ -1629,9 +1629,38 @@
       .filter(item=>item.consent==='agree' && item.doc.file_path);
   }
 
+  async function mergeSignedPdfPartsOnServer(signedParts,onProgress){
+    if(!signedParts.length){
+      throw new Error('병합할 PDF가 없습니다.');
+    }
+    if(signedParts.length===1){
+      return signedParts[0];
+    }
+    onProgress?.('서명 PDF 서버 병합 중…');
+    const formData=new FormData();
+    formData.append('token',request.token||'');
+    signedParts.forEach((bytes,index)=>{
+      formData.append(
+        'files',
+        new Blob([bytes],{type:'application/pdf'}),
+        `signed-part-${index+1}.pdf`
+      );
+    });
+    const response=await fetch('/api/pdf/merge',{
+      method:'POST',
+      body:formData,
+      cache:'no-store',
+    });
+    if(!response.ok){
+      const errorBody=await response.json().catch(()=>null);
+      throw new Error(errorBody?.error||`PDF 병합 실패 (${response.status})`);
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
   async function buildMergedSignedPdfBytes(onProgress){
     const signatureDataUrl=canvas.toDataURL('image/png');
-    const {generateSignedPdfBytes,mergePdfByteList}=await ensureSignedPdf();
+    const {generateSignedPdfBytes}=await ensureSignedPdf();
     const agreeDocsWithPdf=getAgreeDocsWithPdf();
     if(!agreeDocsWithPdf.length){
       throw new Error('서명할 동의 문서가 없습니다.');
@@ -1654,8 +1683,7 @@
       signedParts.push(bytes);
     }
 
-    onProgress?.('서명 PDF 병합 중…');
-    const mergedBytes=await mergePdfByteList(signedParts);
+    const mergedBytes=await mergeSignedPdfPartsOnServer(signedParts,onProgress);
     signedMergedCache={
       signatureDataUrl,
       mergedBytes,
