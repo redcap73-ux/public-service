@@ -20,7 +20,7 @@ export type IdentityFormValues = {
   adjuster?: string;
   /** 요청 JSON signer_role — PDF my* 필드에 매핑 */
   signerRole?: string;
-  /** 요청 JSON adjust_phone — PDF aphone* 필드에 매핑 */
+  /** 요청 JSON의 aphone — PDF aphone* 필드에 매핑 */
   adjustPhone?: string;
   /** 요청 JSON claim_no — PDF snumber* 필드에 매핑 */
   claimNo?: string;
