@@ -31,11 +31,14 @@ async function fetchWithApiKey(url: string, init?: RequestInit) {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(
+    const error = new Error(
       `외부 API 호출 실패: 상태 코드 ${response.status}${
         errorBody ? ` (${errorBody.slice(0, 300)})` : ''
       }`
-    );
+    ) as Error & { status?: number; body?: string };
+    error.status = response.status;
+    error.body = errorBody;
+    throw error;
   }
 
   if (response.status === 204) {

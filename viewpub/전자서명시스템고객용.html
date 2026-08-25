@@ -323,7 +323,7 @@
                 <tr><th>서명자</th><td id="finalSigner">홍길동 / 피보험자</td></tr>
                 <tr><th>동의 문서</th><td id="finalDocs">4건</td></tr>
                 <tr><th>미동의 문서</th><td id="finalRejected">0건</td></tr>
-                <tr><th>요청번호</th><td id="finalRequestNo">CON-20260721-0101</td></tr>
+                <tr><th>사고번호</th><td id="finalClaimNo">DB-2026-12****</td></tr>
               </table>
               <div class="notice warn" style="margin:12px 0 0">제출 후에는 문서 내용과 서명을 수정할 수 없습니다. 수정이 필요하면 담당자에게 새 요청을 받아야 합니다.</div>
             </aside>
@@ -1377,15 +1377,33 @@
     };
   }
 
+  function classifySignLoadError(status,errorBody,fallbackMessage){
+    const code=String(errorBody?.code||'').toUpperCase();
+    const msg=`${code} ${errorBody?.error||''} ${errorBody?.message||''} ${fallbackMessage||''}`;
+    if(code==='TOKEN_EXPIRED'||code==='EXPIRED'||status===410||/만료|expired|expire/i.test(msg)){
+      return 'expired';
+    }
+    if(code==='ALREADY_COMPLETED'||code==='USED'||status===409||/이미\s*완료|already.?completed/i.test(msg)){
+      return 'used';
+    }
+    return 'invalid';
+  }
+
   async function loadRequestFromApi(token){
     const response=await fetch(`/api/public-service/sign?token=${encodeURIComponent(token)}`,{cache:'no-store'});
     if(!response.ok){
       const errorBody=await response.json().catch(()=>null);
-      throw new Error(errorBody?.error||`API 호출 실패 (${response.status})`);
+      const kind=classifySignLoadError(response.status,errorBody,errorBody?.error||'');
+      showError(kind);
+      return false;
     }
 
     const data=await response.json();
-    if(!data?.ok || !data.request)throw new Error('요청 정보를 찾을 수 없습니다.');
+    if(!data?.ok || !data.request){
+      const kind=classifySignLoadError(response.status,data,'요청 정보를 찾을 수 없습니다.');
+      showError(kind);
+      return false;
+    }
 
     const req=data.request;
     const apiDocuments=Array.isArray(data.documents)?data.documents:[];
@@ -1451,7 +1469,7 @@
     $('introRole').textContent=request.signer.role;
     $('reviewTotalCount').textContent=request.documents.length;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
-    $('finalRequestNo').textContent=request.requestNo;
+    $('finalClaimNo').textContent=request.maskedClaimNo;
     $('typedName').value=request.signer.name;
     $('typedPreview').textContent=request.signer.name;
     renderDocList();
@@ -3140,7 +3158,9 @@
         if(!loaded)return;
       }catch(error){
         console.error(error);
-        showError('invalid');
+        const msg=error instanceof Error?error.message:'';
+        const kind=classifySignLoadError(0,{error:msg},msg);
+        showError(kind);
         return;
       }
     }
