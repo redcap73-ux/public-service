@@ -19806,6 +19806,11 @@ function formatPhoneNumber(value) {
   }
   return value;
 }
+function formatClaimNoForDisplay(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.length > 3 ? trimmed.slice(3) : trimmed;
+}
 function formatIdentityAddress(values2) {
   const postcode = values2.postcode?.trim() ?? "";
   const base = values2.addressBase?.trim() ?? "";
@@ -20212,7 +20217,7 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const aadjuster = values2.aadjuster?.trim();
   const signerRole = values2.signerRole?.trim();
   const adjustPhone = values2.adjustPhone?.trim();
-  const claimNo = values2.claimNo?.trim();
+  const claimNo = formatClaimNoForDisplay(values2.claimNo || "");
   const polNo = values2.polNo?.trim();
   const prodNm = values2.prodNm?.trim();
   const company = values2.company?.trim();

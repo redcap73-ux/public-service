@@ -255,6 +255,13 @@ function formatPhoneNumber(value: string) {
   return value;
 }
 
+/** 화면·PDF 표기용: 사고번호 앞 3자리 제거 */
+function formatClaimNoForDisplay(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return trimmed.length > 3 ? trimmed.slice(3) : trimmed;
+}
+
 /** 우편번호 + 기본주소 + 상세주소를 PDF용 한 줄로 조합 */
 export function formatIdentityAddress(values: {
   postcode?: string;
@@ -831,7 +838,7 @@ export async function fillAcroFormIdentity(
   const aadjuster = values.aadjuster?.trim();
   const signerRole = values.signerRole?.trim();
   const adjustPhone = values.adjustPhone?.trim();
-  const claimNo = values.claimNo?.trim();
+  const claimNo = formatClaimNoForDisplay(values.claimNo || '');
   const polNo = values.polNo?.trim();
   const prodNm = values.prodNm?.trim();
   const company = values.company?.trim();
