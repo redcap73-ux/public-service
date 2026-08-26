@@ -150,7 +150,9 @@ export async function completePublicServiceSignFromServer(body: {
       gender: body.gender ?? '',
       postcode: body.postcode ?? '',
       address_base: body.addressBase ?? '',
-      identity_confirmed_at: body.identityConfirmedAt ?? '',
+      identity_confirmed_at: body.identityConfirmedAt
+        ? toKstIsoString(body.identityConfirmedAt)
+        : '',
       identity_verified_at: body.identityVerifiedAt
         ? toKstIsoString(body.identityVerifiedAt)
         : '',
