@@ -256,6 +256,7 @@ export async function completeSignRequestFromServer(
       addressBase: evidence.signer.addressBase,
       addressDetail: evidence.signer.addressDetail,
       identityConfirmedAt: evidence.signer.identityConfirmedAt,
+      identityVerifiedAt: evidence.auth.identityVerifiedAt,
     });
   } catch (error) {
     console.error('[sign-complete] backend sync failed:', error);

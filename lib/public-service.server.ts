@@ -140,6 +140,8 @@ export async function completePublicServiceSignFromServer(body: {
   addressBase?: string;
   addressDetail?: string;
   identityConfirmedAt?: string;
+  /** PortOne 본인인증 성공 시각 */
+  identityVerifiedAt?: string;
 }) {
   const payload = {
     token: body.token,
@@ -158,6 +160,9 @@ export async function completePublicServiceSignFromServer(body: {
       address_detail: body.addressDetail ?? '',
       signer_address: body.address ?? '',
       identity_confirmed_at: body.identityConfirmedAt ?? '',
+      identity_verified_at: body.identityVerifiedAt
+        ? toKstIsoString(body.identityVerifiedAt)
+        : '',
       finalHash: body.finalHash,
       evidenceObjectKey: body.evidenceObjectKey,
       signed_file_path: body.signedFilePath ?? '',
