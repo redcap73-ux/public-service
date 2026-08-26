@@ -235,7 +235,11 @@ function formatBirthDate(value: string) {
   const digits = value.replace(/\D/g, '');
 
   if (digits.length === 8) {
-    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+    return `${digits.slice(2, 4)}${digits.slice(4, 6)}${digits.slice(6, 8)}`;
+  }
+
+  if (digits.length === 6) {
+    return digits;
   }
 
   return value;
