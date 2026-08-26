@@ -804,7 +804,7 @@
       label:item.content||'',
       category:normalizeTemplateCategory(item.category),
       input_type:mapTemplateCategory(item.category),
-      required:mapTemplateCategory(item.category)!=='text',
+      required:true,
       options:buildTemplateItemOptions(item),
       selection_mode:normalizeTemplateCategory(item.category)==='CHECKBOX'?'multiple':'single',
       block_submit_values:normalizeTemplateCategory(item.category)==='AGREE_DISAGREE'?['동의하지 않음']:[],
@@ -2470,7 +2470,12 @@
         }
         continue;
       }
-      if(q.input_type==='text')continue;
+      if(q.input_type==='text'){
+        if(!String(answers[q.id]??'').trim()){
+          return {ok:false,message:`Q${q.order} 항목을 입력해 주세요.`,qid:q.id};
+        }
+        continue;
+      }
       if(!answers[q.id]){
         return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`,qid:q.id};
       }
@@ -2497,7 +2502,10 @@
         if(!Array.isArray(answers[q.id])||!answers[q.id].length)ids.push(q.id);
         continue;
       }
-      if(q.input_type==='text')continue;
+      if(q.input_type==='text'){
+        if(!String(answers[q.id]??'').trim())ids.push(q.id);
+        continue;
+      }
       if(!answers[q.id])ids.push(q.id);
     }
     return ids;
