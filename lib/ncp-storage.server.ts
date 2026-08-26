@@ -1,6 +1,11 @@
 import 'server-only';
 
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  encryptFileBuffer,
+  hasFileEncryptionKey,
+  isEncryptedPayload,
+} from '@/lib/file-encryption.server';
 
 function getRequiredEnv(name: string) {
   const value = process.env[name];
@@ -98,10 +103,15 @@ export async function getObjectFromNcp(filePath: string) {
   }
 
   const bytes = await response.Body.transformToByteArray();
+  // 이 서버는 주로 암호화 저장만 담당.
+  // 템플릿 등 기존 평문 객체는 그대로 반환하고, 암호문(TNGENC01)은 복호화하지 않습니다.
+  // 복호화·열람은 FILE_ENCRYPTION_KEY를 공유한 다른 서버에서 수행합니다.
+  const body = Buffer.from(bytes);
 
   return {
     objectKey,
-    body: Buffer.from(bytes),
+    body,
+    encrypted: isEncryptedPayload(body),
     contentType: response.ContentType || getContentTypeFromKey(objectKey),
     contentLength: response.ContentLength,
     fileName: getFileNameFromKey(objectKey),
@@ -113,24 +123,37 @@ export async function putObjectToNcp(options: {
   body: Buffer | Uint8Array;
   contentType?: string;
 }) {
+  if (!hasFileEncryptionKey()) {
+    throw new Error(
+      'FILE_ENCRYPTION_KEY가 없어 암호화 저장을 할 수 없습니다. openssl rand -base64 32 로 키를 생성하세요.'
+    );
+  }
+
   const objectKey = normalizeObjectKey(options.objectKey);
   const client = getS3Client();
   const bucket = getNcpBucketName();
-  const body =
+  const plain =
     options.body instanceof Buffer ? options.body : Buffer.from(options.body);
+  const body = encryptFileBuffer(plain);
+  const contentType = options.contentType || getContentTypeFromKey(objectKey);
 
   await client.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: objectKey,
       Body: body,
-      ContentType: options.contentType || getContentTypeFromKey(objectKey),
+      ContentType: contentType,
+      Metadata: {
+        'tng-encrypted': 'aes-256-gcm',
+        'tng-enc-version': '1',
+      },
     })
   );
 
   return {
     objectKey,
     sizeBytes: body.length,
-    contentType: options.contentType || getContentTypeFromKey(objectKey),
+    contentType,
+    encrypted: true,
   };
 }
