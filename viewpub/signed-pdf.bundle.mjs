@@ -20075,7 +20075,7 @@ async function stampMappedTextField(pdfDoc, fieldName, text) {
   field.setText(text);
   const widgets = field.acroField.getWidgets();
   const useCheckMark = isCheckMarkText(text);
-  const useWrapped = !useCheckMark && (field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22));
+  const useWrapped = !useCheckMark && (field.isMultiline() || text.includes("\n") || text.length > 18 || widgets.some((widget) => widget.getRectangle().height > 16));
   if (useWrapped) {
     field.enableMultiline();
   }
@@ -20124,6 +20124,15 @@ async function stampMappedExtraField(pdfDoc, fieldName, text) {
     return stampMappedTextField(pdfDoc, fieldName, text);
   }
   const useCheckMark = isCheckMarkText(text);
+  const useWrapped = !useCheckMark;
+  if (useWrapped) {
+    try {
+      const textField = form.getTextField(fieldName);
+      textField.enableMultiline();
+      textField.setText(text);
+    } catch {
+    }
+  }
   for (const widget of widgets) {
     const page = getPageForWidget(pdfDoc, widget);
     if (!page) {
@@ -20131,7 +20140,7 @@ async function stampMappedExtraField(pdfDoc, fieldName, text) {
     }
     const rect = widget.getRectangle();
     const drawRect = useCheckMark ? checkMarkDrawRect(rect) : rect;
-    const pngBytes = useCheckMark ? await renderCenteredMarkPng(text, drawRect.width, drawRect.height) : await renderSingleLinePng(text, drawRect.width, drawRect.height);
+    const pngBytes = useCheckMark ? await renderCenteredMarkPng(text, drawRect.width, drawRect.height) : useWrapped ? await renderWrappedTextPng(text, drawRect.width, drawRect.height) : await renderSingleLinePng(text, drawRect.width, drawRect.height);
     const image = await pdfDoc.embedPng(pngBytes);
     page.drawImage(image, {
       x: drawRect.x,

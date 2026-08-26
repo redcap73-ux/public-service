@@ -668,7 +668,10 @@ async function stampMappedTextField(
   const useCheckMark = isCheckMarkText(text);
   const useWrapped =
     !useCheckMark &&
-    (field.isMultiline() || widgets.some((widget) => widget.getRectangle().height > 22));
+    (field.isMultiline() ||
+      text.includes('\n') ||
+      text.length > 18 ||
+      widgets.some((widget) => widget.getRectangle().height > 16));
 
   if (useWrapped) {
     field.enableMultiline();
@@ -737,6 +740,18 @@ async function stampMappedExtraField(
   }
 
   const useCheckMark = isCheckMarkText(text);
+  // 질문 응답 text는 세로 칸/줄바꿈을 반영하도록 체크 표시가 아니면 여러 줄 렌더
+  const useWrapped = !useCheckMark;
+
+  if (useWrapped) {
+    try {
+      const textField = form.getTextField(fieldName);
+      textField.enableMultiline();
+      textField.setText(text);
+    } catch {
+      // non-text widgets keep image-only stamping
+    }
+  }
 
   for (const widget of widgets) {
     const page = getPageForWidget(pdfDoc, widget);
@@ -748,7 +763,9 @@ async function stampMappedExtraField(
     const drawRect = useCheckMark ? checkMarkDrawRect(rect) : rect;
     const pngBytes = useCheckMark
       ? await renderCenteredMarkPng(text, drawRect.width, drawRect.height)
-      : await renderSingleLinePng(text, drawRect.width, drawRect.height);
+      : useWrapped
+        ? await renderWrappedTextPng(text, drawRect.width, drawRect.height)
+        : await renderSingleLinePng(text, drawRect.width, drawRect.height);
     const image = await pdfDoc.embedPng(pngBytes);
 
     page.drawImage(image, {
