@@ -99,7 +99,7 @@
     .scroll-down-cue .scroll-down-label{line-height:1.2}
     @keyframes scrollArrowBounce{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(7px);opacity:.72}}
     .scroll-tip.needs-attention .scroll-tip-arrow{display:inline-block;margin-right:4px;animation:scrollArrowBounce 1s ease-in-out infinite}
-    .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc;cursor:pointer}.doc-form-panel{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.doc-form-panel.locked{background:#f8fafc;cursor:pointer}.form-item-box{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;margin-top:10px}.form-item-box:first-child{margin-top:0}.form-item-title{margin-bottom:8px}.form-item-title strong{font-size:12px;color:#1e293b;line-height:1.5}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:12px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice-stack{display:flex;flex-direction:column;gap:8px}.checkbox-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800}.choice input{accent-color:var(--blue)}.choice:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}.form-text-input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-size:12px;color:#1f2937;background:#fff;box-sizing:border-box}.form-text-input.form-text-area{height:auto;min-height:42px;padding:10px 11px;resize:vertical;line-height:1.45;font-family:inherit}.form-text-input:disabled{background:#f8fafc;color:#94a3b8}
+    .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc;cursor:pointer}.doc-form-panel{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.doc-form-panel.locked{background:#f8fafc;cursor:pointer}.form-item-box{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;margin-top:10px}.form-item-box:first-child{margin-top:0}.form-item-box.needs-attention{border-color:#f59e0b !important;background:#fffbeb !important;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3;position:relative;z-index:1}.form-item-box.needs-attention::after{content:'여기';position:absolute;top:-10px;right:8px;padding:2px 7px;border-radius:999px;background:#f59e0b;color:#fff;font-size:9px;font-weight:800;white-space:nowrap}.form-item-title{margin-bottom:8px}.form-item-title strong{font-size:12px;color:#1e293b;line-height:1.5}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:12px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice-stack{display:flex;flex-direction:column;gap:8px}.checkbox-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800}.choice input{accent-color:var(--blue)}.choice:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}.form-text-input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-size:12px;color:#1f2937;background:#fff;box-sizing:border-box}.form-text-input.form-text-area{height:auto;min-height:42px;padding:10px 11px;resize:vertical;line-height:1.45;font-family:inherit}.form-text-input:disabled{background:#f8fafc;color:#94a3b8}
     .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}.field-readonly .form-text-input,.field-readonly select{background:#f8fafc;color:#334155}.field-source{display:inline-block;margin-left:6px;font-size:8px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 6px;vertical-align:middle}.address-search-btn{display:block;width:100%;height:42px;margin:0 0 8px;padding:0 12px;font-size:11px;white-space:nowrap}.address-row{display:grid;grid-template-columns:108px minmax(0,1fr);gap:8px;align-items:end}.address-embed-wrap{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed{height:460px;width:100%;min-width:0;box-sizing:border-box}.address-embed iframe{width:100% !important;min-width:0 !important;max-width:100% !important;height:100% !important;border:0;display:block}
     .doc-flow-section.doc-flow-locked{opacity:.58;pointer-events:none;user-select:none;filter:grayscale(.08)}.identity-save-row{display:flex;flex-direction:column;gap:10px;margin-top:12px}
     #screen2.identity-pending{overflow:hidden}
@@ -1083,6 +1083,15 @@
     window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
   }
 
+  function scrollCompleteStepToTop(){
+    const el=$('printScreen')||document.querySelector('#screen4 .complete-hero');
+    if(!el)return;
+    const header=document.querySelector('.site-header');
+    const headerH=header?Math.ceil(header.getBoundingClientRect().height):72;
+    const top=window.scrollY+el.getBoundingClientRect().top-headerH-8;
+    window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+  }
+
   function updateIdentityProfileGate(){
     const pending=!state.identityProfile.confirmed;
     $('docFlowSection').classList.toggle('doc-flow-locked',pending);
@@ -1553,6 +1562,14 @@
       requestAnimationFrame(()=>{
         requestAnimationFrame(()=>{
           setTimeout(scrollSignatureStepToTop,60);
+        });
+      });
+      return;
+    }
+    if(step===4){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          setTimeout(scrollCompleteStepToTop,60);
         });
       });
       return;
@@ -2324,7 +2341,7 @@
           inputHtml=`<input class="form-text-input" type="text" data-qid="${qId}" value="${value}" placeholder="입력해 주세요"${locked?' disabled':''} />`;
         }
       }
-      return `<div class="form-item-box"><div class="form-item-title"><strong>Q${q.order}. ${escapeHtml(q.label)}</strong></div>${inputHtml}</div>`;
+      return `<div class="form-item-box" data-qid="${qId}"><div class="form-item-title"><strong>Q${q.order}. ${escapeHtml(q.label)}</strong></div>${inputHtml}</div>`;
     }).join('');
     bindDocFormDirtyWatchers();
   }
@@ -2364,6 +2381,7 @@
     items.querySelectorAll('input, textarea').forEach((el)=>{
       const isTextLike=el.tagName==='TEXTAREA' || el.type==='text';
       const handler=()=>{
+        syncDocFormAnswerHighlight();
         if(isTextLike){
           clearTimeout(docFormDirtyTimer);
           docFormDirtyTimer=setTimeout(checkDocFormDirtyAfterSave,350);
@@ -2448,13 +2466,13 @@
       if(!q.required)continue;
       if(q.input_type==='checkbox'){
         if(!Array.isArray(answers[q.id])||!answers[q.id].length){
-          return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`};
+          return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`,qid:q.id};
         }
         continue;
       }
       if(q.input_type==='text')continue;
       if(!answers[q.id]){
-        return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`};
+        return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`,qid:q.id};
       }
     }
     for(const q of doc.questions){
@@ -2462,13 +2480,75 @@
       if(!q.block_submit_values?.length)continue;
       if(Array.isArray(value)){
         if(value.some(item=>q.block_submit_values.includes(item))){
-          return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.'};
+          return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.',qid:q.id};
         }
       }else if(q.block_submit_values.includes(value)){
-        return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.'};
+        return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.',qid:q.id};
       }
     }
     return {ok:true};
+  }
+
+  function getMissingRequiredQuestionIds(doc,answers){
+    const ids=[];
+    for(const q of doc.questions||[]){
+      if(!q.required)continue;
+      if(q.input_type==='checkbox'){
+        if(!Array.isArray(answers[q.id])||!answers[q.id].length)ids.push(q.id);
+        continue;
+      }
+      if(q.input_type==='text')continue;
+      if(!answers[q.id])ids.push(q.id);
+    }
+    return ids;
+  }
+
+  let docFormAnswerHighlightTimer=null;
+  function clearDocFormAnswerHighlight(){
+    $('docFormItems')?.querySelectorAll('.form-item-box.needs-attention').forEach((el)=>{
+      el.classList.remove('needs-attention');
+    });
+    if(docFormAnswerHighlightTimer){
+      clearTimeout(docFormAnswerHighlightTimer);
+      docFormAnswerHighlightTimer=null;
+    }
+  }
+
+  function focusRequiredDocAnswers(validation,doc,answers){
+    clearDocFormAnswerHighlight();
+    const items=$('docFormItems');
+    if(!items){
+      toast(validation?.message||'질문에 응답해 주세요.');
+      return;
+    }
+    let qids=getMissingRequiredQuestionIds(doc,answers);
+    if(!qids.length && validation?.qid)qids=[validation.qid];
+    qids.forEach((qid)=>{
+      const box=items.querySelector(`.form-item-box[data-qid="${CSS.escape(String(qid))}"]`);
+      box?.classList.add('needs-attention');
+    });
+    const first=items.querySelector('.form-item-box.needs-attention');
+    first?.scrollIntoView({behavior:'smooth',block:'center'});
+    const focusEl=first?.querySelector('input:not([disabled]), textarea:not([disabled])');
+    if(focusEl){
+      try{focusEl.focus({preventScroll:true});}catch{focusEl.focus();}
+    }
+    toast(validation?.message||'질문에 응답해 주세요.');
+    docFormAnswerHighlightTimer=setTimeout(()=>clearDocFormAnswerHighlight(),4500);
+  }
+
+  function syncDocFormAnswerHighlight(){
+    const items=$('docFormItems');
+    if(!items?.querySelector('.form-item-box.needs-attention'))return;
+    const doc=request.documents[state.currentDocIndex];
+    const answers=collectDocFormAnswers(state.currentDocIndex);
+    const missing=new Set(getMissingRequiredQuestionIds(doc,answers).map(String));
+    items.querySelectorAll('.form-item-box').forEach((box)=>{
+      const qid=String(box.getAttribute('data-qid')||'');
+      if(missing.has(qid))box.classList.add('needs-attention');
+      else box.classList.remove('needs-attention');
+    });
+    if(!items.querySelector('.form-item-box.needs-attention'))clearDocFormAnswerHighlight();
   }
 
   function updateSaveDocButtonState(){
@@ -2519,6 +2599,16 @@
     nextBtnHighlightTimer=setTimeout(()=>clearNextBtnHighlight(),4500);
   }
 
+  function promptFinalSubmitGuide(){
+    const nextBtn=$('nextBtn');
+    if(!nextBtn || state.currentStep!==3)return;
+    clearNextBtnHighlight();
+    nextBtn.classList.add('needs-attention');
+    nextBtn.scrollIntoView({behavior:'smooth',block:'nearest'});
+    try{nextBtn.focus({preventScroll:true});}catch{nextBtn.focus();}
+    nextBtnHighlightTimer=setTimeout(()=>clearNextBtnHighlight(),4500);
+  }
+
   function maybeGuideDocumentCompleteAfterSave(){
     if(state.currentStep!==2)return;
     if(!state.identityProfile.confirmed)return;
@@ -2541,13 +2631,17 @@
     if(!st.scrolled){promptDocumentScrollGuide();return;}
     const answers=collectDocFormAnswers(state.currentDocIndex);
     const validation=validateDocAnswers(doc,answers);
-    if(!validation.ok){toast(validation.message);return;}
+    if(!validation.ok){
+      focusRequiredDocAnswers(validation,doc,answers);
+      return;
+    }
     st.answers=answers;
     st.consent=deriveConsentFromAnswers(doc,answers);
     st.reviewedAt=new Date();
     st.needsResave=false;
     st.savedReviewedAt=null;
     clearSaveDocHighlight();
+    clearDocFormAnswerHighlight();
     resetFinalDocumentConfirmation({
       toast:'문서 응답이 변경되어 최종문서확인을 다시 진행해 주세요.',
     });
@@ -2990,10 +3084,31 @@
     }
   }
 
+  let signedPreviewConfirmHighlightTimer=null;
+  function clearSignedPreviewConfirmHighlight(){
+    $('confirmSignedPreviewBtn')?.classList.remove('needs-attention');
+    if(signedPreviewConfirmHighlightTimer){
+      clearTimeout(signedPreviewConfirmHighlightTimer);
+      signedPreviewConfirmHighlightTimer=null;
+    }
+  }
+
+  function promptSignedPreviewConfirmGuide(){
+    const btn=$('confirmSignedPreviewBtn');
+    if(!btn)return;
+    clearSignedPreviewConfirmHighlight();
+    btn.classList.add('needs-attention');
+    btn.scrollIntoView({behavior:'smooth',block:'nearest'});
+    try{btn.focus({preventScroll:true});}catch{btn.focus();}
+    toast('맨 아래까지 확인했습니다. 「문서 확인 완료」를 눌러 주세요.');
+    signedPreviewConfirmHighlightTimer=setTimeout(()=>clearSignedPreviewConfirmHighlight(),4500);
+  }
+
   function promptSignedPreviewScrollGuide(){
     const viewer=$('signedPreviewViewer');
     if(!viewer)return;
     clearSignedPreviewScrollGuide();
+    clearSignedPreviewConfirmHighlight();
     viewer.classList.add('needs-attention');
     setSignedPreviewScrollCueVisible(true);
     toast('최종 문서를 맨 아래까지 스크롤해 확인해 주세요.');
@@ -3004,6 +3119,7 @@
     if(signedPreviewScrolled)return;
     signedPreviewScrolled=true;
     clearSignedPreviewScrollGuide();
+    promptSignedPreviewConfirmGuide();
   }
 
   function checkSignedPreviewScrollComplete(){
@@ -3038,6 +3154,7 @@
     signedPreviewConfirmed=false;
     signedPreviewScrolled=false;
     clearSignedPreviewScrollGuide();
+    clearSignedPreviewConfirmHighlight();
     $('finalDocumentCheck').checked=false;
     signedPreviewGeneration+=1;
     const generation=signedPreviewGeneration;
@@ -3081,8 +3198,12 @@
     signedPreviewConfirmed=true;
     $('finalDocumentCheck').checked=true;
     clearSignedPreviewScrollGuide();
+    clearSignedPreviewConfirmHighlight();
     closeModal('signedPreviewModal');
     toast('최종 문서를 확인했습니다.');
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>promptFinalSubmitGuide());
+    });
   }
 
   function onFinalDocumentCheckClick(event){
@@ -3153,6 +3274,7 @@
     if(!getFinalCheckInputs().every(x=>x.checked)){focusRequiredFinalChecks();return;}
     clearFinalChecksHighlight();
     clearSignatureHighlight();
+    clearNextBtnHighlight();
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
     $('modalAgreedDocs').textContent=`${agreed}건`;
     $('modalRejectedDocs').textContent=`${rejected}건`;
@@ -3168,9 +3290,33 @@
       if(downloadCell)downloadCell.textContent='-';
     }
     openModal('submitModal');
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>promptConfirmSubmitGuide());
+    });
+  }
+
+  let confirmSubmitHighlightTimer=null;
+  function clearConfirmSubmitHighlight(){
+    $('confirmSubmitBtn')?.classList.remove('needs-attention');
+    if(confirmSubmitHighlightTimer){
+      clearTimeout(confirmSubmitHighlightTimer);
+      confirmSubmitHighlightTimer=null;
+    }
+  }
+
+  function promptConfirmSubmitGuide(){
+    const btn=$('confirmSubmitBtn');
+    if(!btn)return;
+    clearConfirmSubmitHighlight();
+    btn.classList.add('needs-attention');
+    btn.scrollIntoView({behavior:'smooth',block:'nearest'});
+    try{btn.focus({preventScroll:true});}catch{btn.focus();}
+    toast('「최종 제출」을 눌러 전자서명을 완료해 주세요.');
+    confirmSubmitHighlightTimer=setTimeout(()=>clearConfirmSubmitHighlight(),4500);
   }
 
   async function submitSignature(){
+    clearConfirmSubmitHighlight();
     const submitBtn=$('confirmSubmitBtn');
     submitBtn.disabled=true;
     submitBtn.textContent='증적 생성 중…';
@@ -3266,7 +3412,11 @@
     if(id==='signedPreviewModal'){
       closeSignedPreviewExpand();
       clearSignedPreviewScrollGuide();
+      clearSignedPreviewConfirmHighlight();
       if(!signedPreviewConfirmed)$('finalDocumentCheck').checked=false;
+    }
+    if(id==='submitModal'){
+      clearConfirmSubmitHighlight();
     }
   }
   function clearUnavailableRequestSummary(type){
