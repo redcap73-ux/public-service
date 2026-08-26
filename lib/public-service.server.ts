@@ -127,18 +127,14 @@ export async function completePublicServiceSignFromServer(body: {
   evidenceObjectKey: string;
   signedFilePath?: string;
   name?: string;
-  phone?: string;
   ci?: string;
   ip?: string;
   userAgent?: string;
   /** PortOne 본인인증 Transaction ID (identityVerificationId) */
   transactionId?: string;
-  birth?: string;
   gender?: string;
   postcode?: string;
-  address?: string;
   addressBase?: string;
-  addressDetail?: string;
   identityConfirmedAt?: string;
   /** PortOne 본인인증 성공 시각 */
   identityVerifiedAt?: string;
@@ -150,15 +146,10 @@ export async function completePublicServiceSignFromServer(body: {
       note: body.signTransactionId,
       requestNo: body.requestNo,
       name: body.name ?? '',
-      phone: body.phone ?? '',
       ci: body.ci ?? '',
-      birth: body.birth ?? '',
       gender: body.gender ?? '',
       postcode: body.postcode ?? '',
-      address: body.address ?? '',
       address_base: body.addressBase ?? '',
-      address_detail: body.addressDetail ?? '',
-      signer_address: body.address ?? '',
       identity_confirmed_at: body.identityConfirmedAt ?? '',
       identity_verified_at: body.identityVerifiedAt
         ? toKstIsoString(body.identityVerifiedAt)
