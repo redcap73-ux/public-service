@@ -1845,7 +1845,7 @@
     signedParts.forEach((bytes,index)=>{
       formData.append(
         'files',
-        new Blob([bytes],{type:'application/pdf'}),
+        new Blob([copyPdfBytes(bytes)],{type:'application/pdf'}),
         `signed-part-${index+1}.pdf`
       );
     });
@@ -1863,6 +1863,7 @@
 
   async function buildMergedSignedPdfBytes(onProgress){
     const signatureDataUrl=canvas.toDataURL('image/png');
+    onProgress?.('서명 모듈 준비 중…');
     const {generateSignedPdfBytes}=await ensureSignedPdf();
     const agreeDocsWithPdf=getAgreeDocsWithPdf();
     if(!agreeDocsWithPdf.length){
@@ -1873,26 +1874,34 @@
     for(let i=0;i<agreeDocsWithPdf.length;i+=1){
       const {doc,index}=agreeDocsWithPdf[i];
       onProgress?.(`(${i+1}/${agreeDocsWithPdf.length}) 서명 PDF 생성 중…`);
-      const {bytes}=await generateSignedPdfBytes({
-        filePath:doc.file_path,
-        fileUrl:buildFileApiUrl(doc.file_path),
-        signatureDataUrl,
+      // iOS에서 연속 생성 시 메인 스레드 고정을 줄이기 위해 한 틱 양보
+      await new Promise((resolve)=>setTimeout(resolve,0));
+      try{
+        const {bytes}=await generateSignedPdfBytes({
+          filePath:doc.file_path,
+          fileUrl:buildFileApiUrl(doc.file_path),
+          signatureDataUrl,
           identity:buildFillValues(
             verifiedUserInfo,
             buildTemplatePdfFields(doc,state.docs[index].answers||{}),
             collectDatePrefixes(doc)
           ),
-      });
-      signedParts.push(bytes);
+        });
+        signedParts.push(copyPdfBytes(bytes));
+      }catch(error){
+        const label=doc.name||`문서 ${i+1}`;
+        throw new Error(`${label} 서명 PDF 생성 실패: ${error instanceof Error?error.message:'알 수 없는 오류'}`);
+      }
     }
 
     const mergedBytes=await mergeSignedPdfPartsOnServer(signedParts,onProgress);
+    const mergedCopy=copyPdfBytes(mergedBytes);
     signedMergedCache={
       signatureDataUrl,
-      mergedBytes,
+      mergedBytes:mergedCopy,
       agreeDocsWithPdf:agreeDocsWithPdf.map(({index})=>({index})),
     };
-    return {mergedBytes,agreeDocsWithPdf,signatureDataUrl};
+    return {mergedBytes:mergedCopy,agreeDocsWithPdf,signatureDataUrl};
   }
 
   async function getMergedSignedPdfBytesForSubmit(onProgress){
@@ -2235,6 +2244,96 @@
     return pdfJsPromise;
   }
 
+  function isAppleTouchDevice(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  }
+
+  function copyPdfBytes(bytes){
+    if(bytes instanceof ArrayBuffer)return new Uint8Array(bytes.slice(0));
+    const view=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes||[]);
+    const copy=new Uint8Array(view.byteLength);
+    copy.set(view);
+    return copy;
+  }
+
+  function getPdfRenderPixelRatio(){
+    const dpr=Number(window.devicePixelRatio)||1;
+    // iPhone 고해상도에서 다중 페이지 canvas 메모리 초과를 피함
+    if(isAppleTouchDevice())return Math.min(dpr,2);
+    return Math.min(dpr,3);
+  }
+
+  async function renderPdfFromData(pdfData,paperEl,generation,getGeneration){
+    paperEl.className='paper pdf-paper';
+    paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
+    try{
+      const pdfjsLib=await ensurePdfJs();
+      if(generation!==getGeneration())return false;
+      const data=copyPdfBytes(pdfData);
+      const loadingTask=pdfjsLib.getDocument({
+        data,
+        // iOS: URL/worker 경로 대신 바이너리 직접 전달
+        disableRange:true,
+        disableStream:true,
+        disableAutoFetch:true,
+      });
+      const pdf=await loadingTask.promise;
+      if(generation!==getGeneration())return false;
+      paperEl.replaceChildren();
+      // 모달이 막 열린 직후 clientWidth=0 인 경우 대비
+      let containerWidth=Math.max(Math.min(paperEl.clientWidth || paperEl.parentElement?.clientWidth || 0,720),280);
+      if(!paperEl.clientWidth){
+        await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+        containerWidth=Math.max(Math.min(paperEl.clientWidth || paperEl.parentElement?.clientWidth || 690,720),280);
+      }
+      const pixelRatio=getPdfRenderPixelRatio();
+      for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber+=1){
+        if(generation!==getGeneration())return false;
+        const page=await pdf.getPage(pageNumber);
+        const unscaledViewport=page.getViewport({scale:1});
+        const scale=(containerWidth/unscaledViewport.width)*pixelRatio;
+        const viewport=page.getViewport({scale});
+        const canvasEl=document.createElement('canvas');
+        const context=canvasEl.getContext('2d',{alpha:false});
+        if(!context)throw new Error('캔버스를 초기화하지 못했습니다.');
+        canvasEl.width=Math.max(1,Math.floor(viewport.width));
+        canvasEl.height=Math.max(1,Math.floor(viewport.height));
+        canvasEl.className='pdf-page-canvas';
+        paperEl.appendChild(canvasEl);
+        await page.render({canvasContext:context,viewport,annotationMode:0}).promise;
+        // iOS 메인 스레드 freeze 완화
+        if(pageNumber%2===0){
+          await new Promise((resolve)=>setTimeout(resolve,0));
+        }
+      }
+      return true;
+    }catch(error){
+      if(generation!==getGeneration())return false;
+      console.error(error);
+      paperEl.innerHTML=`<p class="pdf-error">PDF를 불러오지 못했습니다.<br/>${escapeHtml(error instanceof Error?error.message:'알 수 없는 오류')}</p>`;
+      return false;
+    }
+  }
+
+  async function renderPdfFromUrl(url,paperEl,generation,getGeneration){
+    paperEl.className='paper pdf-paper';
+    paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
+    try{
+      // iOS Safari는 blob: URL + pdf.js worker 조합이 자주 실패하므로 ArrayBuffer로 변환
+      const response=await fetch(url,{cache:'no-store'});
+      if(!response.ok)throw new Error(`PDF를 가져오지 못했습니다. (${response.status})`);
+      const buffer=await response.arrayBuffer();
+      if(generation!==getGeneration())return false;
+      return renderPdfFromData(buffer,paperEl,generation,getGeneration);
+    }catch(error){
+      if(generation!==getGeneration())return false;
+      console.error(error);
+      paperEl.innerHTML=`<p class="pdf-error">PDF를 불러오지 못했습니다.<br/>${escapeHtml(error instanceof Error?error.message:'알 수 없는 오류')}</p>`;
+      return false;
+    }
+  }
+
   let scrollGuideHighlightTimer=null;
   function setScrollDownCueVisible(visible){
     const cue=$('scrollDownCue');
@@ -2335,40 +2434,6 @@
     if(!el || !st || st.scrolled)return;
     if(el.scrollHeight<=el.clientHeight+24 || el.scrollTop+el.clientHeight>=el.scrollHeight-24){
       markDocumentScrolled();
-    }
-  }
-
-  async function renderPdfFromUrl(url,paperEl,generation,getGeneration){
-    paperEl.className='paper pdf-paper';
-    paperEl.innerHTML='<p class="pdf-status">PDF를 불러오는 중...</p>';
-    try{
-      const pdfjsLib=await ensurePdfJs();
-      if(generation!==getGeneration())return;
-      const pdf=await pdfjsLib.getDocument({url}).promise;
-      if(generation!==getGeneration())return;
-      paperEl.replaceChildren();
-      const containerWidth=Math.max(Math.min(paperEl.clientWidth || 690,720),280);
-      const pixelRatio=Math.min(window.devicePixelRatio||1,3);
-      for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber+=1){
-        if(generation!==getGeneration())return;
-        const page=await pdf.getPage(pageNumber);
-        const unscaledViewport=page.getViewport({scale:1});
-        const scale=(containerWidth/unscaledViewport.width)*pixelRatio;
-        const viewport=page.getViewport({scale});
-        const canvasEl=document.createElement('canvas');
-        const context=canvasEl.getContext('2d');
-        if(!context)throw new Error('캔버스를 초기화하지 못했습니다.');
-        canvasEl.width=viewport.width;
-        canvasEl.height=viewport.height;
-        canvasEl.className='pdf-page-canvas';
-        paperEl.appendChild(canvasEl);
-        await page.render({canvasContext:context,viewport,annotationMode:0}).promise;
-      }
-      return true;
-    }catch(error){
-      if(generation!==getGeneration())return false;
-      paperEl.innerHTML=`<p class="pdf-error">PDF를 불러오지 못했습니다.<br/>${escapeHtml(error instanceof Error?error.message:'알 수 없는 오류')}</p>`;
-      return false;
     }
   }
 
@@ -3300,6 +3365,8 @@
     paperEl.innerHTML='<p class="pdf-status">서명 PDF를 생성하는 중...</p>';
     if(viewer)viewer.scrollTop=0;
     openModal('signedPreviewModal');
+    // 모달 레이아웃이 잡힌 뒤 생성 시작 (iOS clientWidth=0 방지)
+    await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 
     try{
       const {mergedBytes}=await buildMergedSignedPdfBytes((message)=>{
@@ -3308,9 +3375,11 @@
       if(generation!==signedPreviewGeneration)return;
 
       revokeSignedPreviewUrl();
-      signedPreviewUrl=URL.createObjectURL(new Blob([mergedBytes],{type:'application/pdf'}));
+      const previewBytes=copyPdfBytes(mergedBytes);
+      signedPreviewUrl=URL.createObjectURL(new Blob([previewBytes],{type:'application/pdf'}));
       noticeEl.textContent='자필서명과 입력값이 반영된 최종 문서입니다. 내용을 맨 아래까지 확인한 뒤 문서 확인 완료를 눌러 주세요.';
-      await renderPdfFromUrl(signedPreviewUrl,paperEl,generation,()=>signedPreviewGeneration);
+      // iOS: blob URL 대신 바이너리로 렌더
+      await renderPdfFromData(previewBytes,paperEl,generation,()=>signedPreviewGeneration);
       if(generation!==signedPreviewGeneration)return;
       if(viewer)viewer.scrollTop=0;
       signedPreviewScrolled=false;
