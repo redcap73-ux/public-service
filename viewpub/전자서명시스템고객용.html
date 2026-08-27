@@ -104,6 +104,7 @@
     .doc-flow-section.doc-flow-locked{opacity:.58;pointer-events:none;user-select:none;filter:grayscale(.08)}.identity-save-row{display:flex;flex-direction:column;gap:10px;margin-top:12px}
     #screen2.identity-pending{overflow:hidden}
     #screen2.identity-pending #docFlowSection{display:none !important}
+    #screenError{scroll-margin-top:12px}
     #identityProfileCard{scroll-margin-top:84px}
     #identityProfileCard .field label{font-size:12px}
     #identityProfileCard .form-text-input,
@@ -1412,14 +1413,41 @@
     };
   }
 
+  function parseCompletedAtFromMessage(text){
+    const match=String(text||'').match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})/);
+    if(!match)return '';
+    return `${match[1]} ${match[2]}`;
+  }
+
+  function isCompletedConsentMessage(text){
+    return /전자서명\s*동의(가)?\s*완료|동의가\s*완료되었습니다|이미\s*전자서명(이)?\s*완료|already.?completed/i.test(String(text||''));
+  }
+
+  function extractCompletedMetaFromPayload(data,fallbackMessage){
+    const errorText=`${data?.error||''} ${data?.message||''} ${fallbackMessage||''}`.trim();
+    const fromMessage=parseCompletedAtFromMessage(errorText);
+    const req=data?.request||data?.data?.request||null;
+    let fromRequest='';
+    for(const key of ['completed_at','signed_at','sign_completed_at','finished_at','complete_at']){
+      if(!req?.[key])continue;
+      const raw=String(req[key]);
+      fromRequest=parseCompletedAtFromMessage(raw.replace('T',' '))||raw.slice(0,16).replace('T',' ');
+      break;
+    }
+    const completedAt=fromMessage||fromRequest||'';
+    const isCompleted=isCompletedConsentMessage(errorText)||isRequestAlreadyCompleted(req);
+    return {isCompleted,completedAt,sourceMessage:errorText};
+  }
+
   function classifySignLoadError(status,errorBody,fallbackMessage){
     const code=String(errorBody?.code||'').toUpperCase();
     const msg=`${code} ${errorBody?.error||''} ${errorBody?.message||''} ${fallbackMessage||''}`;
-    // 완료를 만료보다 먼저 판별 (메시지에 '만료'가 함께 있어도 완료 우선)
+    // 완료를 만료보다 먼저 판별
     if(
       code==='ALREADY_COMPLETED'
       || code==='USED'
       || status===409
+      || isCompletedConsentMessage(msg)
       || /이미\s*완료|already.?completed|already.?used|1회\s*사용/i.test(msg)
     ){
       return 'used';
@@ -1477,48 +1505,61 @@
   }
 
   function resolveUnavailableKind({status,errorBody,fallbackMessage,token,requestCandidate}){
-    if(isRequestAlreadyCompleted(requestCandidate)||hasLocalSignedCompletion(token,requestCandidate?.request_no)){
-      return 'used';
+    const completedMeta=extractCompletedMetaFromPayload(errorBody,fallbackMessage);
+    if(
+      completedMeta.isCompleted
+      || isRequestAlreadyCompleted(requestCandidate)
+      || hasLocalSignedCompletion(token,requestCandidate?.request_no)
+    ){
+      return {kind:'used',completedAt:completedMeta.completedAt,sourceMessage:completedMeta.sourceMessage};
     }
     const kind=classifySignLoadError(status,errorBody,fallbackMessage);
     if(kind==='expired'&&hasLocalSignedCompletion(token,requestCandidate?.request_no||errorBody?.request_no)){
-      return 'used';
+      return {kind:'used',completedAt:'',sourceMessage:''};
     }
-    return kind;
+    if(kind==='used'){
+      return {kind:'used',completedAt:completedMeta.completedAt,sourceMessage:completedMeta.sourceMessage};
+    }
+    return {kind,completedAt:'',sourceMessage:''};
   }
 
   async function loadRequestFromApi(token){
     const response=await fetch(`/api/public-service/sign?token=${encodeURIComponent(token)}`,{cache:'no-store'});
     const data=await response.json().catch(()=>null);
     const requestCandidate=data?.request||data?.data?.request||null;
+    const completedMeta=extractCompletedMetaFromPayload(data);
 
-    // 만료 응답이어도 완료 신호(본문/로컬)가 있으면 완료 화면
-    if(isRequestAlreadyCompleted(requestCandidate)||hasLocalSignedCompletion(token,requestCandidate?.request_no)){
-      showError('used');
+    // 만료 응답이어도 완료 메시지/로컬 기록이 있으면 완료 화면
+    if(
+      completedMeta.isCompleted
+      || isRequestAlreadyCompleted(requestCandidate)
+      || hasLocalSignedCompletion(token,requestCandidate?.request_no)
+    ){
+      showError('used',{completedAt:completedMeta.completedAt,sourceMessage:completedMeta.sourceMessage});
       return false;
     }
 
     if(!response.ok){
-      const kind=resolveUnavailableKind({
+      const resolved=resolveUnavailableKind({
         status:response.status,
         errorBody:data,
         fallbackMessage:data?.error||'',
         token,
         requestCandidate,
       });
-      showError(kind);
+      showError(resolved.kind,{completedAt:resolved.completedAt,sourceMessage:resolved.sourceMessage});
       return false;
     }
 
     if(!data?.ok || !data.request){
-      const kind=resolveUnavailableKind({
+      const resolved=resolveUnavailableKind({
         status:response.status,
         errorBody:data,
-        fallbackMessage:'요청 정보를 찾을 수 없습니다.',
+        fallbackMessage:data?.error||'요청 정보를 찾을 수 없습니다.',
         token,
         requestCandidate,
       });
-      showError(kind);
+      showError(resolved.kind,{completedAt:resolved.completedAt,sourceMessage:resolved.sourceMessage});
       return false;
     }
 
@@ -1530,7 +1571,7 @@
     const expiresAt=req.expires_at?new Date(req.expires_at):new Date(Date.now()+48*60*60*1000);
 
     if(isRequestAlreadyCompleted(req)||hasLocalSignedCompletion(token,req.request_no)){
-      showError('used');
+      showError('used',{completedAt:completedMeta.completedAt,sourceMessage:completedMeta.sourceMessage});
       return false;
     }
     if(expiresAt.getTime()<=Date.now()){
@@ -3080,7 +3121,10 @@
     });
     const result=await response.json().catch(()=>null);
     if(!response.ok){
-      if(result?.code==='ALREADY_COMPLETED'){showError('used');return null;}
+      if(result?.code==='ALREADY_COMPLETED'){
+        showError('used',{sourceMessage:result?.error||''});
+        return null;
+      }
       if(result?.code==='TOKEN_EXPIRED'){showError('expired');return null;}
       if(result?.code==='BACKEND_ERROR'){
         throw new Error(result?.error||'완료 동기화에 실패했습니다. 잠시 후 다시 제출해 주세요.');
@@ -3508,14 +3552,19 @@
       clearConfirmSubmitHighlight();
     }
   }
-  function clearUnavailableRequestSummary(type){
+  function clearUnavailableRequestSummary(type,options={}){
     $('introInsurer').textContent='-';
     $('introClaimNo').textContent='-';
     $('introDocCount').textContent='-';
     $('expiryCountdown').textContent='만료';
+    const completedAt=options.completedAt||parseCompletedAtFromMessage(options.sourceMessage||'');
     if(type==='used'){
-      $('requestTitle').textContent='이미 전자서명이 완료되었습니다';
-      $('requestDescription').textContent='이 링크는 이미 서명이 완료되어 다시 진행할 수 없습니다.';
+      $('requestTitle').textContent=completedAt
+        ? `${completedAt} 전자서명이 완료되었습니다`
+        : '이미 전자서명이 완료되었습니다';
+      $('requestDescription').textContent=completedAt
+        ? `${completedAt}에 전자서명 동의가 완료되어 다시 진행할 수 없습니다.`
+        : '이 링크는 이미 서명이 완료되어 다시 진행할 수 없습니다.';
       return;
     }
     if(type==='expired'){
@@ -3527,12 +3576,62 @@
     $('requestDescription').textContent='동의 정보를 확인할 수 없습니다.';
   }
 
-  function showError(type){
-    const map={expired:['서명 링크가 만료되었습니다','이 보안 링크의 유효시간이 종료되었습니다.','담당 손해사정사에게 새 전자서명 요청을 보내 달라고 요청해 주세요.'],used:['이미 전자서명이 완료되었습니다','이 링크는 1회 사용이 완료되어 다시 사용할 수 없습니다.','완료 문서 사본 또는 처리 결과는 담당 손해사정사에게 문의해 주세요.'],invalid:['잘못된 접근입니다','전자서명 요청 토큰을 확인할 수 없습니다.','문자 또는 알림톡에 포함된 원래 링크를 다시 열어 주세요.']};
-    clearUnavailableRequestSummary(type);
-    const [title,msg,detail]=map[type]||map.invalid;$('errorTitle').textContent=title;$('errorMessage').textContent=msg;$('errorDetail').textContent=detail;screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));steps.forEach(s=>s.classList.remove('active','done'));$('stickyActions').classList.add('hidden');closeModal('demoModal');window.scrollTo({top:0,behavior:'smooth'});
+  function setErrorChromeVisible(visible){
+    $('requestSummary')?.classList.toggle('hidden',!visible);
+    document.querySelector('.stepper-wrap')?.classList.toggle('hidden',!visible);
+  }
+
+  function showError(type,options={}){
+    const completedAt=options.completedAt||parseCompletedAtFromMessage(options.sourceMessage||'');
+    const usedTitle=completedAt
+      ? `${completedAt} 전자서명이 완료되었습니다`
+      : '이미 전자서명이 완료되었습니다';
+    const usedMessage=completedAt
+      ? `${completedAt}에 전자서명 동의가 완료되어 다시 진행할 수 없습니다.`
+      : '이 링크는 1회 사용이 완료되어 다시 사용할 수 없습니다.';
+    const map={
+      expired:['서명 링크가 만료되었습니다','이 보안 링크의 유효시간이 종료되었습니다.','담당 손해사정사에게 새 전자서명 요청을 보내 달라고 요청해 주세요.'],
+      used:[usedTitle,usedMessage,'완료 문서 사본 또는 처리 결과는 담당 손해사정사에게 문의해 주세요.'],
+      invalid:['잘못된 접근입니다','전자서명 요청 토큰을 확인할 수 없습니다.','문자 또는 알림톡에 포함된 원래 링크를 다시 열어 주세요.']
+    };
+    clearUnavailableRequestSummary(type,{completedAt,sourceMessage:options.sourceMessage||''});
+    setErrorChromeVisible(false);
+    const [title,msg,detail]=map[type]||map.invalid;
+    $('errorTitle').textContent=title;
+    $('errorMessage').textContent=msg;
+    $('errorDetail').textContent=detail;
+    const errorIcon=$('screenError')?.querySelector('.complete-icon');
+    const errorNotice=$('errorDetail');
+    if(type==='used'){
+      if(errorIcon){
+        errorIcon.style.background='#d1fae5';
+        errorIcon.style.color='#047857';
+        errorIcon.style.boxShadow='0 0 0 9px #ecfdf5';
+        errorIcon.textContent='✓';
+      }
+      errorNotice?.classList.remove('danger');
+      errorNotice?.classList.add('success');
+    }else{
+      if(errorIcon){
+        errorIcon.style.background='#fee2e2';
+        errorIcon.style.color='#b91c1c';
+        errorIcon.style.boxShadow='0 0 0 9px #fff1f2';
+        errorIcon.textContent='!';
+      }
+      errorNotice?.classList.remove('success');
+      errorNotice?.classList.add('danger');
+    }
+    screens.forEach(s=>s.classList.toggle('active',s.dataset.screen==='error'));
+    steps.forEach(s=>s.classList.remove('active','done'));
+    $('stickyActions').classList.add('hidden');
+    closeModal('demoModal');
+    requestAnimationFrame(()=>{
+      window.scrollTo({top:0,behavior:'smooth'});
+      $('screenError')?.scrollIntoView({behavior:'smooth',block:'start'});
+    });
   }
   function resetFlow(){
+    setErrorChromeVisible(true);
     state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;completedSignedPdfBytes=null;signedMergedCache=null;revokeFilledPdfUrls();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
@@ -3553,7 +3652,7 @@
           token,
           requestCandidate:null,
         });
-        showError(kind);
+        showError(kind.kind,{completedAt:kind.completedAt,sourceMessage:kind.sourceMessage});
         return;
       }
     }

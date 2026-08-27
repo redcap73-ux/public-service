@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchPublicServiceSignFromServer } from '@/lib/public-service.server';
 
 type UpstreamErrorBody = {
+  ok?: boolean;
   code?: string;
   error?: string;
   message?: string;
   request?: Record<string, unknown> | null;
   data?: { request?: Record<string, unknown> | null };
 };
+
+function isCompletedConsentMessage(text: string) {
+  return /전자서명\s*동의(가)?\s*완료|동의가\s*완료되었습니다|이미\s*전자서명(이)?\s*완료|already.?completed/i.test(
+    text
+  );
+}
 
 function isRequestAlreadyCompleted(req: Record<string, unknown> | null | undefined) {
   if (!req || typeof req !== 'object') return false;
@@ -57,6 +64,13 @@ function extractRequestFromBody(parsed: UpstreamErrorBody | null) {
   return parsed?.request || parsed?.data?.request || null;
 }
 
+function resolveCompletedCode(combined: string, requestRecord: Record<string, unknown> | null) {
+  if (isRequestAlreadyCompleted(requestRecord) || isCompletedConsentMessage(combined)) {
+    return 'ALREADY_COMPLETED';
+  }
+  return null;
+}
+
 function resolveUpstreamError(error: unknown) {
   const message =
     error instanceof Error ? error.message : '서명 API 호출 중 오류가 발생했습니다.';
@@ -83,18 +97,17 @@ function resolveUpstreamError(error: unknown) {
   }
 
   const requestRecord = extractRequestFromBody(parsed);
-  const combined = `${parsed?.code || ''} ${parsed?.error || ''} ${parsed?.message || ''} ${message} ${bodyText}`;
+  const originalError = parsed?.error || parsed?.message || '';
+  const combined = `${parsed?.code || ''} ${originalError} ${message} ${bodyText}`;
   let code = parsed?.code ? String(parsed.code).toUpperCase() : undefined;
 
-  // 만료 코드여도 본문에 완료 요청이 있으면 완료로 보정
-  if (isRequestAlreadyCompleted(requestRecord)) {
-    code = 'ALREADY_COMPLETED';
+  const completedCode = resolveCompletedCode(combined, requestRecord);
+  if (completedCode) {
+    code = completedCode;
   } else if (!code) {
     if (
       status === 409 ||
-      /ALREADY_COMPLETED|이미\s*완료|already.?completed|already.?used|1회\s*사용/i.test(
-        combined
-      )
+      /ALREADY_COMPLETED|이미\s*완료|already.?used|1회\s*사용/i.test(combined)
     ) {
       code = 'ALREADY_COMPLETED';
     } else if (
@@ -104,18 +117,7 @@ function resolveUpstreamError(error: unknown) {
       code = 'TOKEN_EXPIRED';
     }
   } else {
-    const normalized = String(code).toUpperCase();
-    code = normalized;
-    if (
-      normalized !== 'ALREADY_COMPLETED' &&
-      normalized !== 'USED' &&
-      (status === 409 ||
-        /ALREADY_COMPLETED|이미\s*완료|already.?completed|already.?used/i.test(
-          combined
-        ))
-    ) {
-      code = 'ALREADY_COMPLETED';
-    }
+    code = String(code).toUpperCase();
   }
 
   if (code === 'USED') {
@@ -134,10 +136,11 @@ function resolveUpstreamError(error: unknown) {
   return {
     status: responseStatus,
     body: {
+      // 완료 시각이 포함된 원문 메시지 유지 (예: "2026-08-27 10:51 전자서명 동의가 완료되었습니다.")
       error:
         code === 'ALREADY_COMPLETED'
-          ? '이미 전자서명이 완료된 요청입니다.'
-          : parsed?.error || parsed?.message || message,
+          ? originalError || '이미 전자서명이 완료된 요청입니다.'
+          : originalError || message,
       code,
       request: requestRecord || undefined,
     },
@@ -155,20 +158,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = (await fetchPublicServiceSignFromServer(token)) as {
-      ok?: boolean;
-      request?: Record<string, unknown> | null;
+    const data = (await fetchPublicServiceSignFromServer(token)) as UpstreamErrorBody & {
       documents?: unknown;
-      code?: string;
-      error?: string;
-      message?: string;
     };
 
-    // HTTP 200이어도 본문이 만료/완료 상태일 수 있음 → 완료 우선
-    if (isRequestAlreadyCompleted(data?.request || null)) {
+    const combined = `${data?.code || ''} ${data?.error || ''} ${data?.message || ''}`;
+    const requestRecord = extractRequestFromBody(data);
+
+    if (resolveCompletedCode(combined, requestRecord)) {
       return NextResponse.json(
         {
-          error: '이미 전자서명이 완료된 요청입니다.',
+          ok: false,
+          error: data.error || data.message || '이미 전자서명이 완료된 요청입니다.',
           code: 'ALREADY_COMPLETED',
           request: data.request,
           documents: data.documents,
@@ -178,22 +179,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (data && data.ok === false) {
-      const combined = `${data.code || ''} ${data.error || ''} ${data.message || ''}`;
-      if (
-        /ALREADY_COMPLETED|이미\s*완료|already.?completed|already.?used/i.test(combined)
-      ) {
-        return NextResponse.json(
-          {
-            error: data.error || data.message || '이미 전자서명이 완료된 요청입니다.',
-            code: 'ALREADY_COMPLETED',
-            request: data.request,
-          },
-          { status: 409 }
-        );
-      }
       if (/TOKEN_EXPIRED|만료|expired|expire/i.test(combined)) {
         return NextResponse.json(
           {
+            ok: false,
             error: data.error || data.message || '서명 링크가 만료되었습니다.',
             code: 'TOKEN_EXPIRED',
             request: data.request,
