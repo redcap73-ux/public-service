@@ -28,20 +28,41 @@ function resolveUpstreamError(error: unknown) {
   }
 
   const combined = `${parsed?.code || ''} ${parsed?.error || ''} ${parsed?.message || ''} ${message} ${bodyText}`;
-  let code = parsed?.code;
+  let code = parsed?.code ? String(parsed.code).toUpperCase() : undefined;
 
   if (!code) {
+    // 완료를 만료보다 먼저 판별
     if (
+      status === 409 ||
+      /ALREADY_COMPLETED|이미\s*완료|already.?completed|already.?used|1회\s*사용/i.test(
+        combined
+      )
+    ) {
+      code = 'ALREADY_COMPLETED';
+    } else if (
       status === 410 ||
       /TOKEN_EXPIRED|만료|expired|expire/i.test(combined)
     ) {
       code = 'TOKEN_EXPIRED';
-    } else if (
-      status === 409 ||
-      /ALREADY_COMPLETED|이미\s*완료|already.?completed/i.test(combined)
+    }
+  } else {
+    const normalized = String(code).toUpperCase();
+    code = normalized;
+    // 업스트림 code가 만료여도 본문에 완료 신호가 있으면 완료로 보정
+    if (
+      normalized !== 'ALREADY_COMPLETED' &&
+      normalized !== 'USED' &&
+      (status === 409 ||
+        /ALREADY_COMPLETED|이미\s*완료|already.?completed|already.?used/i.test(
+          combined
+        ))
     ) {
       code = 'ALREADY_COMPLETED';
     }
+  }
+
+  if (code === 'USED') {
+    code = 'ALREADY_COMPLETED';
   }
 
   const responseStatus =

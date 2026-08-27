@@ -278,15 +278,44 @@ export async function completeSignRequestFromServer(
   };
 }
 
-export function buildSignedObjectKey(requestNo: string) {
-  const dateFolder = new Intl.DateTimeFormat('en-CA', {
+export function getKstDateFolder(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Seoul',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date());
+  }).format(date);
+}
 
-  return `signed/${dateFolder}/${requestNo}/signed.pdf`;
+/** Object Storage 키에 안전한 파일명 조각으로 정리 */
+export function sanitizeObjectKeySegment(value: string, fallback = 'unknown') {
+  const cleaned = String(value ?? '')
+    .normalize('NFKC')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+  return cleaned || fallback;
+}
+
+/**
+ * 서명 PDF object key
+ * 예: signed/2026-08-27/REQ-xxx/[사고번호]홍길동(2026-08-27).pdf
+ */
+export function buildSignedObjectKey(
+  requestNo: string,
+  options?: {
+    claimNo?: string | null;
+    signerName?: string | null;
+    date?: Date;
+  }
+) {
+  const dateFolder = getKstDateFolder(options?.date);
+  const safeRequestNo = sanitizeObjectKeySegment(requestNo, 'request');
+  const claimNo = sanitizeObjectKeySegment(options?.claimNo || '', safeRequestNo);
+  const signerName = sanitizeObjectKeySegment(options?.signerName || '', '고객');
+  const fileName = `[${claimNo}]${signerName}(${dateFolder}).pdf`;
+
+  return `signed/${dateFolder}/${safeRequestNo}/${fileName}`;
 }
 
 export function verifySignedUploadHash(fileBuffer: Buffer, signedHash: string) {

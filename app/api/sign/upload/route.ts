@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
         request_no?: string;
         status?: string;
         completed_at?: string | null;
+        claim_no?: string;
+        signer_name?: string;
       };
     };
     const apiRequest = signPayload?.request;
@@ -67,7 +69,10 @@ export async function POST(request: NextRequest) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     verifySignedUploadHash(fileBuffer, signedHash);
 
-    const objectKey = buildSignedObjectKey(requestNo);
+    const objectKey = buildSignedObjectKey(requestNo, {
+      claimNo: apiRequest.claim_no,
+      signerName: apiRequest.signer_name,
+    });
     const uploaded = await putObjectToNcp({
       objectKey,
       body: fileBuffer,
