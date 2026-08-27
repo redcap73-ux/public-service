@@ -3625,10 +3625,10 @@
     steps.forEach(s=>s.classList.remove('active','done'));
     $('stickyActions').classList.add('hidden');
     closeModal('demoModal');
-    requestAnimationFrame(()=>{
-      window.scrollTo({top:0,behavior:'smooth'});
-      $('screenError')?.scrollIntoView({behavior:'smooth',block:'start'});
-    });
+    // 모바일에서 scrollIntoView 하면 하단 푸터로 내려가므로 맨 위만 고정
+    window.scrollTo({top:0,behavior:'auto'});
+    document.documentElement.scrollTop=0;
+    document.body.scrollTop=0;
   }
   function resetFlow(){
     setErrorChromeVisible(true);
