@@ -346,6 +346,11 @@ const KOREAN_FONT_FAMILY = 'NotoSansKREmbed';
 let koreanWebFontReady: Promise<void> | null = null;
 
 async function ensureKoreanWebFont() {
+  // 서버(@napi-rs/canvas GlobalFonts)에서 미리 등록된 경우
+  if ((globalThis as { __TNG_SERVER_KOREAN_FONT__?: boolean }).__TNG_SERVER_KOREAN_FONT__) {
+    return;
+  }
+
   if (typeof document === 'undefined') {
     throw new Error('한글 캔버스 렌더링은 브라우저에서만 가능합니다.');
   }
