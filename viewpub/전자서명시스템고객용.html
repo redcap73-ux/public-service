@@ -1432,23 +1432,92 @@
 
   function isRequestAlreadyCompleted(req){
     if(!req||typeof req!=='object')return false;
-    if(req.completed_at)return true;
-    const status=String(req.status||'').trim().toUpperCase();
-    return status==='COMPLETED'||status==='SIGNED'||status==='DONE'||status==='USED';
+    const truthy=(value)=>value===true||value===1||value==='1'||/^(true|y|yes)$/i.test(String(value||'').trim());
+    if(truthy(req.is_completed)||truthy(req.signed)||truthy(req.is_signed)||truthy(req.completed))return true;
+    for(const key of ['completed_at','signed_at','sign_completed_at','finished_at','complete_at','signed_completed_at']){
+      if(req[key])return true;
+    }
+    const status=String(req.status??req.sign_status??req.request_status??'').trim();
+    const upper=status.toUpperCase();
+    if(['COMPLETED','SIGNED','DONE','USED','COMPLETE','FINISH','FINISHED'].includes(upper))return true;
+    if(/완료|서명\s*완료|처리\s*완료/.test(status))return true;
+    return false;
+  }
+
+  function readLocalSignRecord(token,requestNo){
+    const keys=[];
+    if(token)keys.push(`tng-esign-token-${token}`);
+    if(requestNo)keys.push(`tng-esign-${requestNo}`);
+    for(const key of keys){
+      try{
+        const raw=localStorage.getItem(key);
+        if(!raw)continue;
+        const parsed=JSON.parse(raw);
+        if(parsed&&(parsed.status==='SIGNED'||parsed.status==='COMPLETED'))return parsed;
+      }catch(e){}
+    }
+    return null;
+  }
+
+  function hasLocalSignedCompletion(token,requestNo){
+    return Boolean(readLocalSignRecord(token,requestNo));
+  }
+
+  function saveLocalSignedCompletion(token,requestNo,payload){
+    const record={
+      status:'SIGNED',
+      requestNo:requestNo||'',
+      token:token||'',
+      ...payload,
+    };
+    try{
+      if(requestNo)localStorage.setItem(`tng-esign-${requestNo}`,JSON.stringify(record));
+      if(token)localStorage.setItem(`tng-esign-token-${token}`,JSON.stringify(record));
+    }catch(e){}
+  }
+
+  function resolveUnavailableKind({status,errorBody,fallbackMessage,token,requestCandidate}){
+    if(isRequestAlreadyCompleted(requestCandidate)||hasLocalSignedCompletion(token,requestCandidate?.request_no)){
+      return 'used';
+    }
+    const kind=classifySignLoadError(status,errorBody,fallbackMessage);
+    if(kind==='expired'&&hasLocalSignedCompletion(token,requestCandidate?.request_no||errorBody?.request_no)){
+      return 'used';
+    }
+    return kind;
   }
 
   async function loadRequestFromApi(token){
     const response=await fetch(`/api/public-service/sign?token=${encodeURIComponent(token)}`,{cache:'no-store'});
+    const data=await response.json().catch(()=>null);
+    const requestCandidate=data?.request||data?.data?.request||null;
+
+    // 만료 응답이어도 완료 신호(본문/로컬)가 있으면 완료 화면
+    if(isRequestAlreadyCompleted(requestCandidate)||hasLocalSignedCompletion(token,requestCandidate?.request_no)){
+      showError('used');
+      return false;
+    }
+
     if(!response.ok){
-      const errorBody=await response.json().catch(()=>null);
-      const kind=classifySignLoadError(response.status,errorBody,errorBody?.error||'');
+      const kind=resolveUnavailableKind({
+        status:response.status,
+        errorBody:data,
+        fallbackMessage:data?.error||'',
+        token,
+        requestCandidate,
+      });
       showError(kind);
       return false;
     }
 
-    const data=await response.json();
     if(!data?.ok || !data.request){
-      const kind=classifySignLoadError(response.status,data,'요청 정보를 찾을 수 없습니다.');
+      const kind=resolveUnavailableKind({
+        status:response.status,
+        errorBody:data,
+        fallbackMessage:'요청 정보를 찾을 수 없습니다.',
+        token,
+        requestCandidate,
+      });
       showError(kind);
       return false;
     }
@@ -1460,7 +1529,7 @@
       || '보험사';
     const expiresAt=req.expires_at?new Date(req.expires_at):new Date(Date.now()+48*60*60*1000);
 
-    if(isRequestAlreadyCompleted(req)){
+    if(isRequestAlreadyCompleted(req)||hasLocalSignedCompletion(token,req.request_no)){
       showError('used');
       return false;
     }
@@ -3388,14 +3457,13 @@
       $('completeHash').textContent=state.finalHash;
 
       try{
-        localStorage.setItem(`tng-esign-${request.requestNo}`,JSON.stringify({
-          status:'SIGNED',
+        saveLocalSignedCompletion(request.token,request.requestNo,{
           completedAt:state.completedAt.toISOString(),
           signTransactionId:state.signTransactionId,
           hash:state.finalHash,
           evidenceObjectKey:result.evidenceObjectKey,
           backendSynced:result.backendSynced,
-        }));
+        });
       }catch(e){}
 
       toast('전자서명이 완료되었습니다.');
@@ -3478,7 +3546,13 @@
       }catch(error){
         console.error(error);
         const msg=error instanceof Error?error.message:'';
-        const kind=classifySignLoadError(0,{error:msg},msg);
+        const kind=resolveUnavailableKind({
+          status:0,
+          errorBody:{error:msg},
+          fallbackMessage:msg,
+          token,
+          requestCandidate:null,
+        });
         showError(kind);
         return;
       }
