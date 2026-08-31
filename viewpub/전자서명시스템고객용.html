@@ -118,7 +118,7 @@
     #signatureSubmitCard{scroll-margin-top:84px}
     #identityProfileCard.identity-confirmed .card-body{display:none}
     #identityProfileCard.identity-confirmed{margin-bottom:10px}
-    .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell.needs-attention{border-color:#f59e0b !important;background:#fffbeb;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.typed-sign{margin-top:10px}.typed-sign label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}.typed-sign input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px}.sign-preview{font-family:"Nanum Pen Script","Segoe Script",cursive;font-size:28px;color:#111827;text-align:center;padding:12px;border-bottom:1px solid #94a3b8;min-height:58px}
+    .signature-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}.canvas-card{border:1px solid var(--line);border-radius:14px;padding:13px}.canvas-shell{height:220px;border:2px dashed #b9c6da;border-radius:12px;background:#fff;overflow:hidden;touch-action:none;position:relative}.canvas-shell.needs-attention{border-color:#f59e0b !important;background:#fffbeb;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3}.canvas-shell.canvas-shell-name{margin-top:6px}.canvas-shell canvas{width:100%;height:100%;display:block;touch-action:none}.canvas-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#94a3b8;font-size:11px;pointer-events:none}.canvas-tools{display:flex;gap:7px;margin-top:8px}.canvas-tools button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-size:10px;font-weight:800}.name-sign-block{margin:0 0 14px}.name-sign-block .consent-title{margin-bottom:0}
     .summary-table{width:100%;border-collapse:collapse}.summary-table th,.summary-table td{padding:9px;border-bottom:1px solid #edf1f7;font-size:12px;text-align:left;vertical-align:top}.summary-table th{color:#64748b;width:34%;font-weight:700}.summary-table td{color:#334155;font-weight:700}.hash{font-family:Consolas,monospace;word-break:break-all;font-size:9px!important;font-weight:500!important}
     .intro-sender-phone{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:7px 10px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1d4ed8;text-decoration:none;line-height:1.35;max-width:100%;box-sizing:border-box}.intro-sender-phone:hover,.intro-sender-phone:focus-visible{background:#dbeafe;border-color:#93c5fd;outline:none}.intro-sender-phone-icon{flex:0 0 auto;width:16px;height:16px;display:block}.intro-sender-phone-num{font-size:12px;font-weight:800;text-decoration:underline;text-underline-offset:2px}
     .final-checks{display:flex;flex-direction:column;gap:9px;margin-top:12px}
@@ -311,11 +311,14 @@
           <div class="signature-layout">
             <div>
               <div class="canvas-card">
+                <div class="name-sign-block">
+                  <div class="consent-title"><strong>성명 서명</strong><span class="badge blue">필수</span></div>
+                  <div class="canvas-shell canvas-shell-name" id="nameCanvasShell"><canvas id="nameSignatureCanvas"></canvas><div class="canvas-placeholder" id="nameCanvasPlaceholder">손가락 또는 마우스로 성명을 서명해 주세요</div></div>
+                  <div class="canvas-tools"><button type="button" id="clearNameSignatureBtn">성명 지우기</button><button type="button" id="undoNameSignatureBtn">한 획 되돌리기</button></div>
+                </div>
                 <div class="consent-title"><strong>화면에 직접 서명해 주세요</strong><span class="badge blue">필수</span></div>
                 <div class="canvas-shell" id="canvasShell"><canvas id="signatureCanvas"></canvas><div class="canvas-placeholder" id="canvasPlaceholder">손가락 또는 마우스로 서명</div></div>
                 <div class="canvas-tools"><button type="button" id="clearSignatureBtn">서명 지우기</button><button type="button" id="undoSignatureBtn">한 획 되돌리기</button></div>
-                <div class="typed-sign"><label for="typedName">서명자 성명 확인</label><input id="typedName" value="홍길동" /></div>
-                <div class="sign-preview" id="typedPreview">홍길동</div>
               </div>
               <div class="final-checks" id="finalChecks">
                 <label class="check-line"><input type="checkbox" id="finalOwnerCheck" /> 위 서명은 본인이 직접 작성했으며, 타인에게 인증번호 또는 링크를 전달하지 않았습니다.</label>
@@ -500,6 +503,8 @@
     docs: [],
     strokes: [],
     hasSignature: false,
+    nameStrokes: [],
+    hasNameSignature: false,
     submitted: false,
     completedAt: null,
     signTransactionId: null,
@@ -539,6 +544,10 @@
   let currentStroke = [];
   let ctx;
   let canvas;
+  let nameDrawing = false;
+  let nameCurrentStroke = [];
+  let nameCtx;
+  let nameCanvas;
   let resizeTimer;
   let pdfRenderGeneration = 0;
   let viewerContentReady = false;
@@ -875,8 +884,15 @@
 
   function buildFillValues(userInfo,extraFields,datePrefixes){
     const base=buildIdentityFormValues(userInfo||{});
+    const nameSystem=request.signer.name||base.name||'';
+    const nameSystemDataUrl=state.hasNameSignature && nameCanvas
+      ? nameCanvas.toDataURL('image/png')
+      : '';
     return {
       ...base,
+      // 성명 서명 캔버스 → PDF name_system* 필드
+      nameSystem,
+      nameSystemDataUrl,
       // 요청 JSON signer_phone(또는 인적사항 화면 전화번호) → PDF phone* 필드
       phoneNumber:request.signer.phone||base.phoneNumber||'',
       // 본인 인적사항 확인 화면의 주소를 PDF address* 필드에 우선 반영
@@ -1327,8 +1343,6 @@
     request.signer.identityConfirmedAt=confirmedAt.toISOString();
     state.identityProfile.confirmed=true;
     state.identityProfile.confirmedAt=confirmedAt;
-    $('typedName').value=request.signer.name;
-    $('typedPreview').textContent=request.signer.name;
     $('introSignerName').textContent=request.signer.maskedName;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
 
@@ -1647,8 +1661,6 @@
     $('reviewTotalCount').textContent=request.documents.length;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     $('finalClaimNo').textContent=formatClaimNoForDisplay(request.claimNo);
-    $('typedName').value=request.signer.name;
-    $('typedPreview').textContent=request.signer.name;
     renderDocList();
     selectDocument(0,false);
     startCountdown();
@@ -1863,6 +1875,9 @@
 
   async function buildMergedSignedPdfBytes(onProgress){
     const signatureDataUrl=canvas.toDataURL('image/png');
+    const nameSystemDataUrl=state.hasNameSignature && nameCanvas
+      ? nameCanvas.toDataURL('image/png')
+      : '';
     const agreeDocsWithPdf=getAgreeDocsWithPdf();
     if(!agreeDocsWithPdf.length){
       throw new Error('서명할 동의 문서가 없습니다.');
@@ -1898,6 +1913,7 @@
     const mergedBytes=copyPdfBytes(new Uint8Array(await response.arrayBuffer()));
     signedMergedCache={
       signatureDataUrl,
+      nameSystemDataUrl,
       mergedBytes,
       agreeDocsWithPdf:agreeDocsWithPdf.map(({index})=>({index})),
       mergedHash:response.headers.get('X-Signed-Hash')||'',
@@ -1913,9 +1929,13 @@
 
   async function getMergedSignedPdfBytesForSubmit(onProgress){
     const signatureDataUrl=canvas.toDataURL('image/png');
+    const nameSystemDataUrl=state.hasNameSignature && nameCanvas
+      ? nameCanvas.toDataURL('image/png')
+      : '';
     if(
       signedMergedCache &&
       signedMergedCache.signatureDataUrl===signatureDataUrl &&
+      signedMergedCache.nameSystemDataUrl===nameSystemDataUrl &&
       signedMergedCache.mergedBytes &&
       Array.isArray(signedMergedCache.agreeDocsWithPdf) &&
       signedMergedCache.agreeDocsWithPdf.length
@@ -2000,8 +2020,6 @@
     applyPortOneProfilePriority(userInfo);
 
     if(userInfo.name){
-      $('typedName').value=userInfo.name;
-      $('typedPreview').textContent=userInfo.name;
       $('introSignerName').textContent=request.signer.maskedName;
       $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     }
@@ -3083,21 +3101,89 @@
       canvas.setPointerCapture?.(e.pointerId);
       $('canvasPlaceholder').classList.add('hidden');
     });
-    canvas.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=pointer(e);currentStroke.push(p);drawSegment(currentStroke[currentStroke.length-2],p);});
+    canvas.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=pointer(e);currentStroke.push(p);drawSegment(ctx,currentStroke[currentStroke.length-2],p);});
     const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;if(state.hasSignature)clearSignatureHighlight();};
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('pointerleave',e=>{if(drawing)end(e)});
+
+    nameCanvas=$('nameSignatureCanvas');nameCtx=nameCanvas.getContext('2d');
+    const namePointer=(e)=>{const rect=nameCanvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*(nameCanvas.width/rect.width),y:(e.clientY-rect.top)*(nameCanvas.height/rect.height)};};
+    nameCanvas.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      if(signedPreviewConfirmed || $('finalDocumentCheck')?.checked || signedMergedCache){
+        resetFinalDocumentConfirmation({
+          toast:'성명 서명이 변경되어 최종문서확인을 다시 진행해 주세요.',
+        });
+      }
+      nameDrawing=true;
+      nameCurrentStroke=[namePointer(e)];
+      nameCanvas.setPointerCapture?.(e.pointerId);
+      $('nameCanvasPlaceholder').classList.add('hidden');
+    });
+    nameCanvas.addEventListener('pointermove',e=>{if(!nameDrawing)return;e.preventDefault();const p=namePointer(e);nameCurrentStroke.push(p);drawSegment(nameCtx,nameCurrentStroke[nameCurrentStroke.length-2],p);});
+    const nameEnd=e=>{if(!nameDrawing)return;nameDrawing=false;if(nameCurrentStroke.length===1){const p=nameCurrentStroke[0];nameCtx.beginPath();nameCtx.arc(p.x,p.y,2.2,0,Math.PI*2);nameCtx.fill();}state.nameStrokes.push(nameCurrentStroke);nameCurrentStroke=[];state.hasNameSignature=state.nameStrokes.length>0;if(state.hasNameSignature)clearNameSignatureHighlight();};
+    nameCanvas.addEventListener('pointerup',nameEnd);nameCanvas.addEventListener('pointercancel',nameEnd);nameCanvas.addEventListener('pointerleave',e=>{if(nameDrawing)nameEnd(e)});
+
     resizeCanvas();
   }
   function resizeCanvas(){
-    if(!canvas)return;const rect=canvas.getBoundingClientRect();if(rect.width===0||rect.height===0)return;const snapshot=state.strokes.map(st=>st.map(p=>({...p})));canvas.width=Math.max(1,Math.round(rect.width*devicePixelRatio));canvas.height=Math.max(1,Math.round(rect.height*devicePixelRatio));ctx=canvas.getContext('2d');ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111827';ctx.fillStyle='#111827';ctx.lineWidth=Math.max(3,3.1*devicePixelRatio);state.strokes=snapshot;redraw();
+    if(canvas){
+      const rect=canvas.getBoundingClientRect();
+      if(rect.width>0&&rect.height>0){
+        const snapshot=state.strokes.map(st=>st.map(p=>({...p})));
+        canvas.width=Math.max(1,Math.round(rect.width*devicePixelRatio));
+        canvas.height=Math.max(1,Math.round(rect.height*devicePixelRatio));
+        ctx=canvas.getContext('2d');
+        applyStrokeStyle(ctx);
+        state.strokes=snapshot;
+        redrawSignature();
+      }
+    }
+    if(nameCanvas){
+      const rect=nameCanvas.getBoundingClientRect();
+      if(rect.width>0&&rect.height>0){
+        const snapshot=state.nameStrokes.map(st=>st.map(p=>({...p})));
+        nameCanvas.width=Math.max(1,Math.round(rect.width*devicePixelRatio));
+        nameCanvas.height=Math.max(1,Math.round(rect.height*devicePixelRatio));
+        nameCtx=nameCanvas.getContext('2d');
+        applyStrokeStyle(nameCtx);
+        state.nameStrokes=snapshot;
+        redrawNameSignature();
+      }
+    }
   }
-  function drawSegment(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
-  function redraw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111827';ctx.fillStyle='#111827';ctx.lineWidth=Math.max(3,3.1*devicePixelRatio);state.strokes.forEach(st=>{if(st.length===1){ctx.beginPath();ctx.arc(st[0].x,st[0].y,2.2,0,Math.PI*2);ctx.fill();return;}for(let i=1;i<st.length;i++)drawSegment(st[i-1],st[i]);});state.hasSignature=state.strokes.length>0;$('canvasPlaceholder').classList.toggle('hidden',state.hasSignature);}
+  function applyStrokeStyle(targetCtx){
+    if(!targetCtx)return;
+    targetCtx.lineCap='round';
+    targetCtx.lineJoin='round';
+    targetCtx.strokeStyle='#111827';
+    targetCtx.fillStyle='#111827';
+    targetCtx.lineWidth=Math.max(3,3.1*devicePixelRatio);
+  }
+  function drawSegment(targetCtx,a,b){targetCtx.beginPath();targetCtx.moveTo(a.x,a.y);targetCtx.lineTo(b.x,b.y);targetCtx.stroke();}
+  function redrawStrokes(targetCtx,targetCanvas,strokes){
+    if(!targetCtx||!targetCanvas)return;
+    targetCtx.clearRect(0,0,targetCanvas.width,targetCanvas.height);
+    applyStrokeStyle(targetCtx);
+    strokes.forEach(st=>{
+      if(st.length===1){targetCtx.beginPath();targetCtx.arc(st[0].x,st[0].y,2.2,0,Math.PI*2);targetCtx.fill();return;}
+      for(let i=1;i<st.length;i++)drawSegment(targetCtx,st[i-1],st[i]);
+    });
+  }
+  function redrawSignature(){
+    redrawStrokes(ctx,canvas,state.strokes);
+    state.hasSignature=state.strokes.length>0;
+    $('canvasPlaceholder')?.classList.toggle('hidden',state.hasSignature);
+  }
+  function redrawNameSignature(){
+    redrawStrokes(nameCtx,nameCanvas,state.nameStrokes);
+    state.hasNameSignature=state.nameStrokes.length>0;
+    $('nameCanvasPlaceholder')?.classList.toggle('hidden',state.hasNameSignature);
+  }
   function clearSignature(){
     state.strokes=[];
     state.hasSignature=false;
     resetFinalDocumentConfirmation();
-    redraw();
+    redrawSignature();
   }
   function undoSignature(){
     state.strokes.pop();
@@ -3105,7 +3191,21 @@
     resetFinalDocumentConfirmation({
       toast:state.hasSignature?'서명이 변경되어 최종문서확인을 다시 진행해 주세요.':undefined,
     });
-    redraw();
+    redrawSignature();
+  }
+  function clearNameSignature(){
+    state.nameStrokes=[];
+    state.hasNameSignature=false;
+    resetFinalDocumentConfirmation();
+    redrawNameSignature();
+  }
+  function undoNameSignature(){
+    state.nameStrokes.pop();
+    state.hasNameSignature=state.nameStrokes.length>0;
+    resetFinalDocumentConfirmation({
+      toast:state.hasNameSignature?'성명 서명이 변경되어 최종문서확인을 다시 진행해 주세요.':undefined,
+    });
+    redrawNameSignature();
   }
 
   async function buildEvidencePayload(signatureImageSha256,completedAt){
@@ -3157,7 +3257,7 @@
         return payload;
       }),
       signature:{
-        typedName:$('typedName').value.trim(),
+        typedName:request.signer.name,
         imageSha256:signatureImageSha256,
         pointCount:state.strokes.reduce((n,s)=>n+s.length,0),
       },
@@ -3210,11 +3310,19 @@
   }
 
   let signatureHighlightTimer=null;
+  let nameSignatureHighlightTimer=null;
   function clearSignatureHighlight(){
     $('canvasShell')?.classList.remove('needs-attention');
     if(signatureHighlightTimer){
       clearTimeout(signatureHighlightTimer);
       signatureHighlightTimer=null;
+    }
+  }
+  function clearNameSignatureHighlight(){
+    $('nameCanvasShell')?.classList.remove('needs-attention');
+    if(nameSignatureHighlightTimer){
+      clearTimeout(nameSignatureHighlightTimer);
+      nameSignatureHighlightTimer=null;
     }
   }
 
@@ -3226,6 +3334,15 @@
     shell.scrollIntoView({behavior:'smooth',block:'center'});
     toast(message||'자필서명을 입력해 주세요.');
     signatureHighlightTimer=setTimeout(()=>clearSignatureHighlight(),4500);
+  }
+  function focusRequiredNameSignature(message){
+    const shell=$('nameCanvasShell');
+    if(!shell)return;
+    clearNameSignatureHighlight();
+    shell.classList.add('needs-attention');
+    shell.scrollIntoView({behavior:'smooth',block:'center'});
+    toast(message||'성명 서명을 입력해 주세요.');
+    nameSignatureHighlightTimer=setTimeout(()=>clearNameSignatureHighlight(),4500);
   }
 
   function setSignedPreviewScrollCueVisible(visible){
@@ -3345,6 +3462,10 @@
   }
 
   async function openSignedPreview(){
+    if(!state.hasNameSignature){
+      focusRequiredNameSignature('성명 서명을 먼저 입력해 주세요.');
+      return;
+    }
     if(!state.hasSignature){
       focusRequiredSignature('자필서명을 먼저 입력해 주세요.');
       return;
@@ -3482,11 +3603,12 @@
 
   function validateAndOpenSubmit(){
     if(!state.verified||!request.authTransactionId){toast('본인인증을 먼저 완료해 주세요.');return;}
+    if(!state.hasNameSignature){focusRequiredNameSignature('성명 서명을 입력해 주세요.');return;}
     if(!state.hasSignature){focusRequiredSignature('자필서명을 입력해 주세요.');return;}
-    if($('typedName').value.trim()!==request.signer.name){toast('서명자 성명이 본인인증 정보와 일치하지 않습니다.');return;}
     if(!getFinalCheckInputs().every(x=>x.checked)){focusRequiredFinalChecks();return;}
     clearFinalChecksHighlight();
     clearSignatureHighlight();
+    clearNameSignatureHighlight();
     clearNextBtnHighlight();
     const agreed=state.docs.filter(d=>d.consent==='agree').length,rejected=state.docs.filter(d=>d.consent==='reject').length;
     $('modalAgreedDocs').textContent=`${agreed}건`;
@@ -3710,7 +3832,7 @@
   }
   function resetFlow(){
     setErrorChromeVisible(true);
-    state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;completedSignedPdfBytes=null;signedMergedCache=null;revokeFilledPdfUrls();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
+    state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.nameStrokes=[];state.hasNameSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;completedSignedPdfBytes=null;signedMergedCache=null;revokeFilledPdfUrls();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();clearNameSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
   async function init(){
@@ -3783,12 +3905,8 @@
   $('identityAddressDetail').addEventListener('input',()=>{
     if($('identityAddressDetail').value.trim())clearAddressDetailHighlight();
   });
-  $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);$('typedName').addEventListener('input',e=>{
-    $('typedPreview').textContent=e.target.value||'서명자 성명';
-    resetFinalDocumentConfirmation({
-      toast:'서명자 성명이 변경되어 최종문서확인을 다시 진행해 주세요.',
-    });
-  });
+  $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);
+  $('clearNameSignatureBtn').addEventListener('click',clearNameSignature);$('undoNameSignatureBtn').addEventListener('click',undoNameSignature);
   $('finalDocumentCheck').addEventListener('click',onFinalDocumentCheckClick);
   getFinalCheckInputs().forEach((input)=>{
     input.addEventListener('change',syncFinalChecksHighlight);

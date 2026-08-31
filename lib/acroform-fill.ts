@@ -2,6 +2,10 @@ import { PDFDocument, PDFName, PDFRef, type PDFPage } from 'pdf-lib';
 
 export type IdentityFormValues = {
   name?: string;
+  /** 성명 서명 입력값 — PDF name_system* AcroForm 필드에 매핑 (텍스트 폴백) */
+  nameSystem?: string;
+  /** 성명 서명 캔버스 PNG data URL — 있으면 name_system*에 이미지로 스탬프 */
+  nameSystemDataUrl?: string;
   phoneNumber?: string;
   birthDate?: string;
   ci?: string;
@@ -133,6 +137,11 @@ function resolveExtraFieldName(fieldNames: string[], rawName: string) {
     }
   }
   return null;
+}
+
+function isNameSystemField(fieldName: string) {
+  const normalized = normalizeFieldKey(fieldName);
+  return normalized === 'namesystem' || normalized.startsWith('namesystem');
 }
 
 function fieldStartsWithPrefix(fieldName: string, prefix: string) {
@@ -490,6 +499,42 @@ async function renderSingleLinePng(text: string, width: number, height: number) 
   return dataUrlToUint8Array(canvas.toDataURL('image/png'));
 }
 
+/** 성명 서명(name_system)용 — 필드 높이에 맞춰 더 큰 글씨로 스탬프 */
+async function renderSignatureStylePng(text: string, width: number, height: number) {
+  await ensureKoreanWebFont();
+
+  const scale = 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(width * scale));
+  canvas.height = Math.max(1, Math.ceil(height * scale));
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('텍스트 캔버스를 초기화하지 못했습니다.');
+  }
+
+  ctx.scale(scale, scale);
+  ctx.clearRect(0, 0, width, height);
+
+  const maxWidth = Math.max(width - 6, 10);
+  let fontSize = Math.min(Math.max(height * 0.72, 14), Math.max(height - 2, 14), 36);
+  ctx.fillStyle = '#111111';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    ctx.font = `italic ${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+    if (ctx.measureText(text).width <= maxWidth || fontSize <= 10) {
+      break;
+    }
+    fontSize -= 2;
+  }
+
+  ctx.fillText(fitCanvasText(ctx, text, maxWidth), 3, height / 2);
+
+  return dataUrlToUint8Array(canvas.toDataURL('image/png'));
+}
+
 function isCheckMarkText(text: string) {
   return ['v', 'V', '✓', '✔'].includes(text.trim());
 }
@@ -623,17 +668,23 @@ function getPageForWidget(
 }
 
 /**
- * Stamp text as a PNG image so Korean glyphs stay intact in all PDF viewers.
+ * Stamp an image (e.g. handwritten name) onto a text AcroForm field.
  */
-async function stampTextField(
+async function stampImageOnField(
   pdfDoc: PDFDocument,
   fieldName: string,
-  text: string
+  imageDataUrl: string
 ) {
   const form = pdfDoc.getForm();
-  const field = form.getTextField(fieldName);
-  field.setText(text);
+  let field;
+  try {
+    field = form.getTextField(fieldName);
+  } catch {
+    return false;
+  }
 
+  const pngBytes = dataUrlToUint8Array(imageDataUrl);
+  const embeddedImage = await pdfDoc.embedPng(pngBytes);
   const widgets = field.acroField.getWidgets();
 
   for (const widget of widgets) {
@@ -643,7 +694,59 @@ async function stampTextField(
     }
 
     const rect = widget.getRectangle();
-    const pngBytes = await renderSingleLinePng(text, rect.width, rect.height);
+    const padding = 2;
+    const maxWidth = Math.max(rect.width - padding * 2, 10);
+    const maxHeight = Math.max(rect.height - padding * 2, 10);
+    const scale = Math.min(
+      maxWidth / embeddedImage.width,
+      maxHeight / embeddedImage.height
+    );
+    const drawWidth = embeddedImage.width * scale;
+    const drawHeight = embeddedImage.height * scale;
+
+    page.drawImage(embeddedImage, {
+      x: rect.x + (rect.width - drawWidth) / 2,
+      y: rect.y + (rect.height - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+    });
+  }
+
+  try {
+    form.removeField(field);
+  } catch {
+    // ignore
+  }
+  return true;
+}
+
+/**
+ * Stamp text as a PNG image so Korean glyphs stay intact in all PDF viewers.
+ */
+async function stampTextField(
+  pdfDoc: PDFDocument,
+  fieldName: string,
+  text: string,
+  options?: { style?: 'default' | 'signature' }
+) {
+  const form = pdfDoc.getForm();
+  const field = form.getTextField(fieldName);
+  field.setText(text);
+
+  const widgets = field.acroField.getWidgets();
+  const style = options?.style ?? 'default';
+
+  for (const widget of widgets) {
+    const page = getPageForWidget(pdfDoc, widget);
+    if (!page) {
+      continue;
+    }
+
+    const rect = widget.getRectangle();
+    const pngBytes =
+      style === 'signature'
+        ? await renderSignatureStylePng(text, rect.width, rect.height)
+        : await renderSingleLinePng(text, rect.width, rect.height);
     const image = await pdfDoc.embedPng(pngBytes);
 
     page.drawImage(image, {
@@ -857,6 +960,9 @@ export async function fillAcroFormIdentity(
   const descField = findFieldName(fieldNames, DESC_ALIASES);
 
   const name = values.name?.trim();
+  const nameSystem = values.nameSystem?.trim() || name;
+  const nameSystemDataUrl = values.nameSystemDataUrl?.trim() || '';
+  const useNameSystemImage = nameSystemDataUrl.startsWith('data:image/');
   const phone = values.phoneNumber?.trim();
   const birthDate = values.birthDate?.trim();
   const addressText = formatIdentityAddress(values);
@@ -871,21 +977,37 @@ export async function fillAcroFormIdentity(
   const adjustJuso = values.adjustJuso?.trim();
   const adjustJumin = values.adjustJumin?.trim();
 
-  const toStamp: Array<{ fieldName: string; text: string }> = [];
+  const toStamp: Array<{
+    fieldName: string;
+    text: string;
+    style?: 'default' | 'signature';
+  }> = [];
   const addressToStamp: Array<{ fieldName: string; text: string }> = [];
+  const nameSystemImageFields: string[] = [];
 
   if (name) {
     const nameTargets = new Set<string>();
-    if (nameField) {
+    if (nameField && !isNameSystemField(nameField)) {
       nameTargets.add(nameField);
     }
     for (const fieldName of fieldNames) {
-      if (fieldStartsWithPrefix(fieldName, 'name')) {
+      if (fieldStartsWithPrefix(fieldName, 'name') && !isNameSystemField(fieldName)) {
         nameTargets.add(fieldName);
       }
     }
     for (const fieldName of nameTargets) {
       toStamp.push({ fieldName, text: name });
+    }
+  }
+
+  for (const fieldName of fieldNames) {
+    if (!isNameSystemField(fieldName)) {
+      continue;
+    }
+    if (useNameSystemImage) {
+      nameSystemImageFields.push(fieldName);
+    } else if (nameSystem) {
+      toStamp.push({ fieldName, text: nameSystem, style: 'signature' });
     }
   }
 
@@ -959,6 +1081,7 @@ export async function fillAcroFormIdentity(
   const reservedNames = new Set([
     ...toStamp.map((item) => item.fieldName),
     ...addressToStamp.map((item) => item.fieldName),
+    ...nameSystemImageFields,
   ]);
   if (shouldFillDesc && descField) {
     reservedNames.add(descField);
@@ -997,6 +1120,7 @@ export async function fillAcroFormIdentity(
   if (
     toStamp.length === 0 &&
     addressToStamp.length === 0 &&
+    nameSystemImageFields.length === 0 &&
     !shouldFillDesc &&
     extraToStamp.length === 0 &&
     dateToStamp.length === 0
@@ -1005,8 +1129,19 @@ export async function fillAcroFormIdentity(
   }
 
   for (const item of toStamp) {
-    await stampTextField(pdfDoc, item.fieldName, item.text);
+    await stampTextField(pdfDoc, item.fieldName, item.text, {
+      style: item.style ?? 'default',
+    });
     filledFields.push(item.fieldName);
+  }
+
+  if (useNameSystemImage) {
+    for (const fieldName of nameSystemImageFields) {
+      const stamped = await stampImageOnField(pdfDoc, fieldName, nameSystemDataUrl);
+      if (stamped) {
+        filledFields.push(fieldName);
+      }
+    }
   }
 
   for (const item of addressToStamp) {
