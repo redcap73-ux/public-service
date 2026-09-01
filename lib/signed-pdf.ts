@@ -41,12 +41,35 @@ function fieldStartsWithPrefix(fieldName: string, prefix: string) {
   return /[^a-z]/.test(name.charAt(wanted.length));
 }
 
-/** signature로 시작하는 필드 + 기존 별칭(sign/서명 등) 전부 */
+/** signature_system / signature_system_1 / SignatureSystem2 등 */
+function fieldStartsWithSystemPrefix(fieldName: string, prefix: string) {
+  if (fieldStartsWithPrefix(fieldName, prefix)) {
+    return true;
+  }
+  const normalizedName = normalizeFieldKey(fieldName);
+  const normalizedPrefix = normalizeFieldKey(prefix);
+  if (!normalizedPrefix) {
+    return false;
+  }
+  if (normalizedName === normalizedPrefix) {
+    return true;
+  }
+  if (!normalizedName.startsWith(normalizedPrefix)) {
+    return false;
+  }
+  return /[0-9]/.test(normalizedName.charAt(normalizedPrefix.length));
+}
+
+/** signature_system* + signature* + 기존 별칭(sign/서명 등) */
 function findSignatureFieldNames(fieldNames: string[]) {
   const aliases = new Set(SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey));
   const matched = new Set<string>();
 
   for (const fieldName of fieldNames) {
+    if (fieldStartsWithSystemPrefix(fieldName, 'signature_system')) {
+      matched.add(fieldName);
+      continue;
+    }
     if (fieldStartsWithPrefix(fieldName, 'signature')) {
       matched.add(fieldName);
       continue;

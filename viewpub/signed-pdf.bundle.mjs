@@ -19710,8 +19710,25 @@ function resolveExtraFieldName(fieldNames, rawName) {
   return null;
 }
 function isNameSystemField(fieldName) {
-  const normalized = normalizeFieldKey(fieldName);
-  return normalized === "namesystem" || normalized.startsWith("namesystem");
+  return fieldStartsWithSystemPrefix(fieldName, "name_system");
+}
+function fieldStartsWithSystemPrefix(fieldName, prefix) {
+  if (fieldStartsWithPrefix(fieldName, prefix)) {
+    return true;
+  }
+  const normalizedName = normalizeFieldKey(fieldName);
+  const normalizedPrefix = normalizeFieldKey(prefix);
+  if (!normalizedPrefix) {
+    return false;
+  }
+  if (normalizedName === normalizedPrefix) {
+    return true;
+  }
+  if (!normalizedName.startsWith(normalizedPrefix)) {
+    return false;
+  }
+  const next = normalizedName.charAt(normalizedPrefix.length);
+  return /[0-9]/.test(next);
 }
 function fieldStartsWithPrefix(fieldName, prefix) {
   const name = fieldName.trim().toLowerCase();
@@ -20202,10 +20219,8 @@ function fitImageInFieldRect(imageWidth, imageHeight, rect, padding = 1) {
 }
 async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
   const form = pdfDoc.getForm();
-  let field;
-  try {
-    field = form.getTextField(fieldName);
-  } catch {
+  const field = form.getFields().find((item) => item.getName() === fieldName);
+  if (!field) {
     return false;
   }
   let pngBytes;
@@ -20216,6 +20231,9 @@ async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
   }
   const embeddedImage = await pdfDoc.embedPng(pngBytes);
   const widgets = field.acroField.getWidgets();
+  if (widgets.length === 0) {
+    return false;
+  }
   for (const widget of widgets) {
     const page = getPageForWidget(pdfDoc, widget);
     if (!page) {
@@ -20658,10 +20676,31 @@ function fieldStartsWithPrefix2(fieldName, prefix) {
   }
   return /[^a-z]/.test(name.charAt(wanted.length));
 }
+function fieldStartsWithSystemPrefix2(fieldName, prefix) {
+  if (fieldStartsWithPrefix2(fieldName, prefix)) {
+    return true;
+  }
+  const normalizedName = normalizeFieldKey2(fieldName);
+  const normalizedPrefix = normalizeFieldKey2(prefix);
+  if (!normalizedPrefix) {
+    return false;
+  }
+  if (normalizedName === normalizedPrefix) {
+    return true;
+  }
+  if (!normalizedName.startsWith(normalizedPrefix)) {
+    return false;
+  }
+  return /[0-9]/.test(normalizedName.charAt(normalizedPrefix.length));
+}
 function findSignatureFieldNames(fieldNames) {
   const aliases = new Set(SIGNATURE_FIELD_ALIASES.map(normalizeFieldKey2));
   const matched = /* @__PURE__ */ new Set();
   for (const fieldName of fieldNames) {
+    if (fieldStartsWithSystemPrefix2(fieldName, "signature_system")) {
+      matched.add(fieldName);
+      continue;
+    }
     if (fieldStartsWithPrefix2(fieldName, "signature")) {
       matched.add(fieldName);
       continue;

@@ -140,8 +140,33 @@ function resolveExtraFieldName(fieldNames: string[], rawName: string) {
 }
 
 function isNameSystemField(fieldName: string) {
-  const normalized = normalizeFieldKey(fieldName);
-  return normalized === 'namesystem' || normalized.startsWith('namesystem');
+  return fieldStartsWithSystemPrefix(fieldName, 'name_system');
+}
+
+/**
+ * name_system / signature_system 및 name_system_1, NameSystem2 등 접두어 변형 매칭.
+ * 일반 name / signature 접두어와 구분하기 위해 system 접두어를 기준으로 판별합니다.
+ */
+function fieldStartsWithSystemPrefix(fieldName: string, prefix: string) {
+  if (fieldStartsWithPrefix(fieldName, prefix)) {
+    return true;
+  }
+
+  const normalizedName = normalizeFieldKey(fieldName);
+  const normalizedPrefix = normalizeFieldKey(prefix);
+  if (!normalizedPrefix) {
+    return false;
+  }
+  if (normalizedName === normalizedPrefix) {
+    return true;
+  }
+  if (!normalizedName.startsWith(normalizedPrefix)) {
+    return false;
+  }
+
+  // name_system1 / NameSystem2 처럼 구분 없이 숫자가 이어지는 경우
+  const next = normalizedName.charAt(normalizedPrefix.length);
+  return /[0-9]/.test(next);
 }
 
 function fieldStartsWithPrefix(fieldName: string, prefix: string) {
@@ -814,7 +839,7 @@ function fitImageInFieldRect(
 }
 
 /**
- * Stamp an image (e.g. handwritten name) onto a text AcroForm field.
+ * Stamp an image (e.g. handwritten name) onto an AcroForm field widget.
  * Trims empty canvas margins first so the ink scales up to the field size.
  */
 async function stampImageOnField(
@@ -823,10 +848,8 @@ async function stampImageOnField(
   imageDataUrl: string
 ) {
   const form = pdfDoc.getForm();
-  let field;
-  try {
-    field = form.getTextField(fieldName);
-  } catch {
+  const field = form.getFields().find((item) => item.getName() === fieldName);
+  if (!field) {
     return false;
   }
 
@@ -838,6 +861,9 @@ async function stampImageOnField(
   }
   const embeddedImage = await pdfDoc.embedPng(pngBytes);
   const widgets = field.acroField.getWidgets();
+  if (widgets.length === 0) {
+    return false;
+  }
 
   for (const widget of widgets) {
     const page = getPageForWidget(pdfDoc, widget);

@@ -19710,8 +19710,25 @@ function resolveExtraFieldName(fieldNames, rawName) {
   return null;
 }
 function isNameSystemField(fieldName) {
-  const normalized = normalizeFieldKey(fieldName);
-  return normalized === "namesystem" || normalized.startsWith("namesystem");
+  return fieldStartsWithSystemPrefix(fieldName, "name_system");
+}
+function fieldStartsWithSystemPrefix(fieldName, prefix) {
+  if (fieldStartsWithPrefix(fieldName, prefix)) {
+    return true;
+  }
+  const normalizedName = normalizeFieldKey(fieldName);
+  const normalizedPrefix = normalizeFieldKey(prefix);
+  if (!normalizedPrefix) {
+    return false;
+  }
+  if (normalizedName === normalizedPrefix) {
+    return true;
+  }
+  if (!normalizedName.startsWith(normalizedPrefix)) {
+    return false;
+  }
+  const next = normalizedName.charAt(normalizedPrefix.length);
+  return /[0-9]/.test(next);
 }
 function fieldStartsWithPrefix(fieldName, prefix) {
   const name = fieldName.trim().toLowerCase();
@@ -20228,10 +20245,8 @@ function fitImageInFieldRect(imageWidth, imageHeight, rect, padding = 1) {
 }
 async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
   const form = pdfDoc.getForm();
-  let field;
-  try {
-    field = form.getTextField(fieldName);
-  } catch {
+  const field = form.getFields().find((item) => item.getName() === fieldName);
+  if (!field) {
     return false;
   }
   let pngBytes;
@@ -20242,6 +20257,9 @@ async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
   }
   const embeddedImage = await pdfDoc.embedPng(pngBytes);
   const widgets = field.acroField.getWidgets();
+  if (widgets.length === 0) {
+    return false;
+  }
   for (const widget of widgets) {
     const page = getPageForWidget(pdfDoc, widget);
     if (!page) {
