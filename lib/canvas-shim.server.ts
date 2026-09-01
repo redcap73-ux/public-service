@@ -1,7 +1,7 @@
 import 'server-only';
 
 import path from 'path';
-import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas';
+import { createCanvas, GlobalFonts, loadImage, Image as NapiImage } from '@napi-rs/canvas';
 
 const KOREAN_FONT_FAMILY = 'NotoSansKREmbed';
 let shimInstalled = false;
@@ -54,6 +54,53 @@ export function ensureServerCanvasShim() {
       },
       ready: Promise.resolve(),
     },
+  };
+
+  // acroform-fill trimInkFromDataUrl 가 new Image() 를 쓸 수 있게 합니다.
+  g.Image = class {
+    width = 0;
+    height = 0;
+    onload: ((this: this) => void) | null = null;
+    onerror: ((this: this, err?: unknown) => void) | null = null;
+    private _native: InstanceType<typeof NapiImage> | null = null;
+
+    set src(value: string) {
+      void loadImage(value)
+        .then((img) => {
+          this._native = img;
+          this.width = img.width;
+          this.height = img.height;
+          this.onload?.call(this);
+        })
+        .catch((err) => {
+          this.onerror?.call(this, err);
+        });
+    }
+
+    // canvas.drawImage 가 native Image 를 받도록 언랩
+    valueOf() {
+      return this._native;
+    }
+    get native() {
+      return this._native;
+    }
+  };
+
+  // drawImage가 wrapper를 받더라도 native로 그리도록 패치
+  const proto = Object.getPrototypeOf(createCanvas(1, 1).getContext('2d'));
+  const originalDrawImage = proto.drawImage;
+  proto.drawImage = function patchedDrawImage(
+    image: unknown,
+    ...rest: unknown[]
+  ) {
+    const unwrapped =
+      image &&
+      typeof image === 'object' &&
+      'native' in image &&
+      (image as { native?: unknown }).native
+        ? (image as { native: unknown }).native
+        : image;
+    return originalDrawImage.call(this, unwrapped, ...rest);
   };
 
   shimInstalled = true;

@@ -20105,6 +20105,127 @@ function getPageForWidget(pdfDoc, widget) {
   }
   return pages[0] ?? null;
 }
+function loadHtmlImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("\uC11C\uBA85 \uC774\uBBF8\uC9C0\uB97C \uC77D\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4."));
+    image.src = dataUrl;
+  });
+}
+async function trimInkFromDataUrl(dataUrl) {
+  const image = await loadHtmlImage(dataUrl);
+  const source = document.createElement("canvas");
+  source.width = Math.max(1, image.width);
+  source.height = Math.max(1, image.height);
+  const sourceCtx = source.getContext("2d");
+  if (!sourceCtx) {
+    throw new Error("\uC11C\uBA85 \uC774\uBBF8\uC9C0\uB97C \uCC98\uB9AC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
+  }
+  sourceCtx.clearRect(0, 0, source.width, source.height);
+  sourceCtx.drawImage(image, 0, 0);
+  const { data, width, height } = sourceCtx.getImageData(
+    0,
+    0,
+    source.width,
+    source.height
+  );
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  const whiteThreshold = 245;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      const a = data[index + 3];
+      const isInk = a > 10 && (r < whiteThreshold || g < whiteThreshold || b < whiteThreshold);
+      if (isInk) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  if (maxX < minX || maxY < minY) {
+    return dataUrlToUint8Array(dataUrl);
+  }
+  const pad = 4;
+  const cropX = Math.max(0, minX - pad);
+  const cropY = Math.max(0, minY - pad);
+  const cropWidth = Math.min(width - cropX, maxX - minX + 1 + pad * 2);
+  const cropHeight = Math.min(height - cropY, maxY - minY + 1 + pad * 2);
+  const trimmed = document.createElement("canvas");
+  trimmed.width = Math.max(1, cropWidth);
+  trimmed.height = Math.max(1, cropHeight);
+  const trimmedCtx = trimmed.getContext("2d");
+  if (!trimmedCtx) {
+    return dataUrlToUint8Array(dataUrl);
+  }
+  trimmedCtx.clearRect(0, 0, trimmed.width, trimmed.height);
+  trimmedCtx.drawImage(
+    source,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    cropWidth,
+    cropHeight
+  );
+  const trimmedData = trimmedCtx.getImageData(0, 0, trimmed.width, trimmed.height);
+  const pixels = trimmedData.data;
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index];
+    const g = pixels[index + 1];
+    const b = pixels[index + 2];
+    if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
+      pixels[index + 3] = 0;
+    } else if (pixels[index + 3] > 0) {
+      pixels[index] = 0;
+      pixels[index + 1] = 0;
+      pixels[index + 2] = 0;
+      pixels[index + 3] = 255;
+    }
+  }
+  trimmedCtx.putImageData(trimmedData, 0, 0);
+  const bold = document.createElement("canvas");
+  bold.width = trimmed.width;
+  bold.height = trimmed.height;
+  const boldCtx = bold.getContext("2d");
+  if (!boldCtx) {
+    return dataUrlToUint8Array(trimmed.toDataURL("image/png"));
+  }
+  boldCtx.clearRect(0, 0, bold.width, bold.height);
+  for (const [ox, oy] of [
+    [0, 0],
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+  ]) {
+    boldCtx.drawImage(trimmed, ox, oy);
+  }
+  return dataUrlToUint8Array(bold.toDataURL("image/png"));
+}
+function fitImageInFieldRect(imageWidth, imageHeight, rect, padding = 1) {
+  const maxWidth = Math.max(rect.width - padding * 2, 4);
+  const maxHeight = Math.max(rect.height - padding * 2, 4);
+  const scale2 = Math.min(maxWidth / Math.max(imageWidth, 1), maxHeight / Math.max(imageHeight, 1));
+  const drawWidth = imageWidth * scale2;
+  const drawHeight = imageHeight * scale2;
+  return {
+    x: rect.x + (rect.width - drawWidth) / 2,
+    y: rect.y + (rect.height - drawHeight) / 2,
+    width: drawWidth,
+    height: drawHeight
+  };
+}
 async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
   const form = pdfDoc.getForm();
   let field;
@@ -20113,7 +20234,12 @@ async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
   } catch {
     return false;
   }
-  const pngBytes = dataUrlToUint8Array(imageDataUrl);
+  let pngBytes;
+  try {
+    pngBytes = await trimInkFromDataUrl(imageDataUrl);
+  } catch {
+    pngBytes = dataUrlToUint8Array(imageDataUrl);
+  }
   const embeddedImage = await pdfDoc.embedPng(pngBytes);
   const widgets = field.acroField.getWidgets();
   for (const widget of widgets) {
@@ -20122,21 +20248,13 @@ async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
       continue;
     }
     const rect = widget.getRectangle();
-    const padding = 2;
-    const maxWidth = Math.max(rect.width - padding * 2, 10);
-    const maxHeight = Math.max(rect.height - padding * 2, 10);
-    const scale2 = Math.min(
-      maxWidth / embeddedImage.width,
-      maxHeight / embeddedImage.height
+    const draw = fitImageInFieldRect(
+      embeddedImage.width,
+      embeddedImage.height,
+      rect,
+      1
     );
-    const drawWidth = embeddedImage.width * scale2;
-    const drawHeight = embeddedImage.height * scale2;
-    page.drawImage(embeddedImage, {
-      x: rect.x + (rect.width - drawWidth) / 2,
-      y: rect.y + (rect.height - drawHeight) / 2,
-      width: drawWidth,
-      height: drawHeight
-    });
+    page.drawImage(embeddedImage, draw);
   }
   try {
     form.removeField(field);

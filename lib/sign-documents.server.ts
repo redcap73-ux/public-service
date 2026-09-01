@@ -212,12 +212,13 @@ async function stampSignatureOnAcroFormField(
       if (!page) continue;
 
       const rect = widget.getRectangle();
-      const padding = 2;
-      const maxWidth = Math.max(rect.width - padding * 2, 10);
-      const maxHeight = Math.max(rect.height - padding * 2, 10);
+      // 여백을 최소화하고 잉크(필기)를 필드 크기에 맞게 최대 확대
+      const padding = 1;
+      const maxWidth = Math.max(rect.width - padding * 2, 4);
+      const maxHeight = Math.max(rect.height - padding * 2, 4);
       const scale = Math.min(
-        maxWidth / embeddedImage.width,
-        maxHeight / embeddedImage.height
+        maxWidth / Math.max(embeddedImage.width, 1),
+        maxHeight / Math.max(embeddedImage.height, 1)
       );
       const drawWidth = embeddedImage.width * scale;
       const drawHeight = embeddedImage.height * scale;
