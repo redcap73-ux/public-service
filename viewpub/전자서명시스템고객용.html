@@ -102,13 +102,16 @@
     .scroll-down-cue .scroll-down-label{line-height:1.2}
     @keyframes scrollArrowBounce{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(7px);opacity:.72}}
     .scroll-tip.needs-attention .scroll-tip-arrow{display:inline-block;margin-right:4px;animation:scrollArrowBounce 1s ease-in-out infinite}
-    .doc-memo-banner{display:none;margin-top:10px;padding:12px 14px;border:1px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#9a3412;font-size:13px;font-weight:800;line-height:1.55;text-align:center;white-space:pre-wrap;word-break:break-word;box-shadow:0 0 0 3px rgba(245,158,11,.16);animation:docMemoBlink 1.15s ease-in-out infinite}
+    .doc-memo-banner{display:none;margin-top:10px;padding:0;border:1px solid #f59e0b;border-radius:12px;background:#fff7ed;overflow:hidden;box-shadow:0 0 0 3px rgba(245,158,11,.16);animation:docMemoBlink 1.15s ease-in-out infinite}
     .doc-memo-banner.is-visible{display:block}
-    .doc-memo-banner .doc-memo-lead{display:block;margin-bottom:6px;font-size:14px;font-weight:900;color:#c2410c;letter-spacing:-.2px}
-    .doc-memo-banner .doc-memo-body{display:block;font-size:13px;font-weight:800;color:#9a3412}
-    .doc-row-memo{grid-column:1/-1;margin-top:2px;text-align:left;font-size:12px;padding:10px 12px}
-    .doc-row-memo .doc-memo-lead{font-size:13px}
-    .doc-row-memo .doc-memo-body{font-size:12px}
+    .doc-memo-banner .doc-memo-lead{display:block;padding:10px 14px;background:#f59e0b;color:#fff;font-size:13px;font-weight:900;line-height:1.45;letter-spacing:-.2px;text-align:center}
+    .doc-memo-banner .doc-memo-lead-title{display:block}
+    .doc-memo-banner .doc-memo-lead-sub{display:block;margin-top:2px;font-size:12px;font-weight:800;opacity:.95}
+    .doc-memo-banner .doc-memo-body{display:block;padding:12px 14px;font-size:13px;font-weight:800;line-height:1.55;color:#9a3412;text-align:center;white-space:pre-wrap;word-break:break-word;background:#fffbeb}
+    .doc-row-memo{grid-column:1/-1;margin-top:2px}
+    .doc-row-memo .doc-memo-lead{font-size:12px;text-align:left;padding:9px 12px}
+    .doc-row-memo .doc-memo-lead-sub{font-size:11px}
+    .doc-row-memo .doc-memo-body{font-size:12px;text-align:left;padding:10px 12px}
     @keyframes docMemoBlink{0%,100%{opacity:1;box-shadow:0 0 0 3px rgba(245,158,11,.16)}50%{opacity:.45;box-shadow:0 0 0 7px rgba(245,158,11,.32)}}
     .consent-box{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.consent-box.locked{background:#f8fafc;cursor:pointer}.doc-form-panel{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:12px;background:#fff}.doc-form-panel.locked{background:#f8fafc;cursor:pointer}.form-item-box{border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff;margin-top:10px}.form-item-box:first-child{margin-top:0}.form-item-box.needs-attention{border-color:#f59e0b !important;background:#fffbeb !important;box-shadow:0 0 0 3px rgba(245,158,11,.18);animation:checkPulse 1.1s ease-in-out 0s 3;position:relative;z-index:1}.form-item-box.needs-attention::after{content:'여기';position:absolute;top:-10px;right:8px;padding:2px 7px;border-radius:999px;background:#f59e0b;color:#fff;font-size:9px;font-weight:800;white-space:nowrap}.form-item-title{margin-bottom:8px}.form-item-title strong{font-size:12px;color:#1e293b;line-height:1.5}.consent-title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}.consent-title strong{font-size:12px}.choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choice-stack{display:flex;flex-direction:column;gap:8px}.checkbox-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}.choice{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800}.choice input{accent-color:var(--blue)}.choice:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.agree:has(input:checked){border-color:#7aa5fa;background:#eff6ff;color:#1d4ed8}.choice.reject:has(input:checked){border-color:#fca5a5;background:#fff1f2;color:#be123c}.form-text-input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-size:12px;color:#1f2937;background:#fff;box-sizing:border-box}.form-text-input.form-text-area{height:auto;min-height:42px;padding:10px 11px;resize:vertical;line-height:1.45;font-family:inherit}.form-text-input:disabled{background:#f8fafc;color:#94a3b8}
     .doc-nav{display:flex;gap:8px;margin-top:12px}.doc-nav button{flex:1}.field-readonly .form-text-input,.field-readonly select{background:#f8fafc;color:#334155}.field-source{display:inline-block;margin-left:6px;font-size:8px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 6px;vertical-align:middle}.address-search-btn{display:block;width:100%;height:42px;margin:0 0 8px;padding:0 12px;font-size:11px;white-space:nowrap}.address-row{display:grid;grid-template-columns:108px minmax(0,1fr);gap:8px;align-items:end}.address-embed-wrap{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;width:100%;max-width:100%;min-width:0;box-sizing:border-box}.address-embed{height:460px;width:100%;min-width:0;box-sizing:border-box}.address-embed iframe{width:100% !important;min-width:0 !important;max-width:100% !important;height:100% !important;border:0;display:block}
@@ -1592,7 +1595,27 @@
   }
 
   function buildProgressDraft(){
-    try{readIdentityProfileForm();}catch(e){}
+    // 이미 인적사항 확인된 뒤에는 request.signer를 우선한다.
+    // (재접속 시 폼이 비어 있거나, 본인인증 팝업으로 pagehide 될 때
+    //  빈 input 값이 주소를 지워 localStorage를 덮어쓰는 것을 방지)
+    if(!state.identityProfile.confirmed){
+      try{readIdentityProfileForm();}catch(e){}
+    }else{
+      try{
+        const postcode=$('identityPostcode')?.value?.trim()||'';
+        const addressBase=$('identityAddressBase')?.value?.trim()||'';
+        const addressDetail=$('identityAddressDetail')?.value?.trim()||'';
+        if(postcode)request.signer.postcode=postcode;
+        if(addressBase)request.signer.addressBase=addressBase;
+        if(addressDetail)request.signer.addressDetail=addressDetail;
+        if(postcode || addressBase || addressDetail){
+          request.signer.address=buildFullAddress(
+            request.signer.addressBase,
+            request.signer.addressDetail
+          );
+        }
+      }catch(e){}
+    }
     return {
       schemaVersion:PROGRESS_DRAFT_SCHEMA,
       savedAt:new Date().toISOString(),
@@ -1633,10 +1656,61 @@
     };
   }
 
+  function mergeProgressDraft(nextDraft,previousDraft){
+    if(!previousDraft?.signer)return nextDraft;
+    const prev=previousDraft.signer;
+    const cur=nextDraft.signer||{};
+    nextDraft.signer={
+      ...cur,
+      postcode:cur.postcode||prev.postcode||'',
+      addressBase:cur.addressBase||prev.addressBase||'',
+      addressDetail:cur.addressDetail||prev.addressDetail||'',
+      address:cur.address||prev.address||'',
+      identityConfirmedAt:cur.identityConfirmedAt||prev.identityConfirmedAt||null,
+      name:cur.name||prev.name||'',
+      phone:cur.phone||prev.phone||'',
+      birth:cur.birth||prev.birth||'',
+      gender:cur.gender||prev.gender||'',
+    };
+    if(!nextDraft.identityProfile?.confirmed && previousDraft.identityProfile?.confirmed){
+      nextDraft.identityProfile={
+        ...(nextDraft.identityProfile||{}),
+        confirmed:true,
+        confirmedAt:previousDraft.identityProfile.confirmedAt||nextDraft.identityProfile?.confirmedAt||null,
+        fieldSources:{
+          ...(previousDraft.identityProfile.fieldSources||{}),
+          ...(nextDraft.identityProfile?.fieldSources||{}),
+        },
+      };
+      nextDraft.resumeStep=Math.max(2,Number(nextDraft.resumeStep)||2);
+    }
+    // 문서 진행은 더 많이 채워진 쪽을 id 기준으로 병합
+    if(Array.isArray(previousDraft.docs) && Array.isArray(nextDraft.docs)){
+      const prevById=new Map(previousDraft.docs.map((d)=>[String(d.id),d]));
+      nextDraft.docs=nextDraft.docs.map((doc)=>{
+        const prevDoc=prevById.get(String(doc.id));
+        if(!prevDoc)return doc;
+        const preferPrevReviewed=prevDoc.reviewedAt && !doc.reviewedAt;
+        return {
+          ...prevDoc,
+          ...doc,
+          viewed:Boolean(doc.viewed||prevDoc.viewed),
+          scrolled:Boolean(doc.scrolled||prevDoc.scrolled),
+          consent:doc.consent??prevDoc.consent??null,
+          reviewedAt:preferPrevReviewed?prevDoc.reviewedAt:doc.reviewedAt||prevDoc.reviewedAt||null,
+          answers:(doc.answers && Object.keys(doc.answers).length)?doc.answers:(prevDoc.answers||{}),
+          draftConsent:doc.draftConsent??prevDoc.draftConsent??null,
+        };
+      });
+    }
+    return nextDraft;
+  }
+
   function saveProgressDraft(){
     if(state.submitted)return;
     if(!request.token && !request.requestNo)return;
-    const draft=buildProgressDraft();
+    const previous=readProgressDraft();
+    let draft=mergeProgressDraft(buildProgressDraft(),previous);
     if(!hasMeaningfulProgressDraft(draft))return;
     try{
       const raw=JSON.stringify(draft);
@@ -1671,13 +1745,14 @@
 
     if(draft.signer){
       // 방금 본인인증된 성명/연락처/생년월일/성별은 유지하고, 주소·확인시각은 복원
-      if(draft.signer.postcode)request.signer.postcode=String(draft.signer.postcode).trim();
-      if(draft.signer.addressBase)request.signer.addressBase=String(draft.signer.addressBase).trim();
-      if(draft.signer.addressDetail)request.signer.addressDetail=String(draft.signer.addressDetail).trim();
-      if(draft.signer.address)request.signer.address=String(draft.signer.address).trim();
-      else{
-        request.signer.address=buildFullAddress(request.signer.addressBase,request.signer.addressDetail);
-      }
+      const take=(next,fallback)=>String(next||'').trim()||String(fallback||'').trim()||'';
+      request.signer.postcode=take(draft.signer.postcode,request.signer.postcode);
+      request.signer.addressBase=take(draft.signer.addressBase,request.signer.addressBase);
+      request.signer.addressDetail=take(draft.signer.addressDetail,request.signer.addressDetail);
+      request.signer.address=take(
+        draft.signer.address,
+        buildFullAddress(request.signer.addressBase,request.signer.addressDetail)
+      );
       if(draft.signer.identityConfirmedAt){
         request.signer.identityConfirmedAt=draft.signer.identityConfirmedAt;
       }
@@ -2412,7 +2487,7 @@
         : ` <span class="badge ${doc.required?'orange':'gray'}">${doc.required?'필수':'선택'}</span>`;
       const downloadMemo=downloadType===2?String(doc.memo||'').trim():'';
       const memoHtml=downloadMemo
-        ? `<div class="doc-memo-banner is-visible doc-row-memo" role="status"><span class="doc-memo-lead">담당자가 보내는 메세지입니다. 꼭 읽고 확인하세요</span><span class="doc-memo-body">${escapeHtml(downloadMemo)}</span></div>`
+        ? `<div class="doc-memo-banner is-visible doc-row-memo" role="status">${buildDocMemoInnerHtml(downloadMemo)}</div>`
         : '';
       return `<div class="doc-row ${i===state.currentDocIndex?'current':''} ${isDocumentComplete(doc,st)?'done':''}${downloadMemo?' has-memo':''}" data-doc-index="${i}">
         <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)}${badgeHtml}</div></div>
@@ -3151,6 +3226,10 @@
     maybeGuideDocumentCompleteAfterSave();
   }
 
+  function buildDocMemoInnerHtml(memo){
+    return `<div class="doc-memo-lead"><span class="doc-memo-lead-title">담당자가 보내는 메세지입니다.</span><span class="doc-memo-lead-sub">꼭 읽고 확인하세요</span></div><div class="doc-memo-body">${escapeHtml(memo)}</div>`;
+  }
+
   function updateDocMemoBanner(doc){
     const banner=$('docMemoBanner');
     if(!banner)return;
@@ -3161,7 +3240,7 @@
       banner.setAttribute('aria-hidden','true');
       return;
     }
-    banner.innerHTML=`<span class="doc-memo-lead">담당자가 보내는 메세지입니다. 꼭 읽고 확인하세요</span><span class="doc-memo-body">${escapeHtml(memo)}</span>`;
+    banner.innerHTML=buildDocMemoInnerHtml(memo);
     banner.classList.add('is-visible');
     banner.setAttribute('aria-hidden','false');
   }
@@ -4218,6 +4297,8 @@
   window.addEventListener('beforeunload',e=>{if(state.currentStep>1 && state.currentStep<4 && !state.submitted){e.preventDefault();e.returnValue='';}});
   window.addEventListener('pagehide',()=>{
     if(state.submitted)return;
+    // 재접속 직후(본인인증 전)에는 폼이 비어 있어 기존 draft의 주소를 지울 수 있으므로 저장 생략
+    if(!state.verified)return;
     try{persistCurrentDocDraft();}catch(err){}
     saveProgressDraft();
   });
