@@ -533,8 +533,8 @@
     const answers={};
     if(!Array.isArray(doc?.questions))return answers;
     for(const q of doc.questions){
-      if(q.input_type==='checkbox' && Array.isArray(q.options) && q.options.length){
-        answers[q.id]=q.options.map((opt)=>String(opt.value??'').trim()).filter(Boolean);
+      if(q.input_type==='checkbox'){
+        answers[q.id]=[];
       }
     }
     return answers;
@@ -549,10 +549,8 @@
     for(const q of doc.questions){
       const raw=src[q.id]??src[String(q.id)];
       if(q.input_type==='checkbox'){
-        // 키가 없으면 기본(전체 선택), 키가 있으면(빈 배열 포함) 저장된 값 유지
-        out[q.id]=raw===undefined
-          ? (q.options||[]).map((opt)=>String(opt.value??'').trim()).filter(Boolean)
-          : selectedAnswerValues(raw);
+        // 키가 없으면 미선택([]), 키가 있으면(빈 배열 포함) 저장된 값 유지
+        out[q.id]=raw===undefined ? [] : selectedAnswerValues(raw);
       }else if(raw===undefined || raw===null){
         out[q.id]='';
       }else if(Array.isArray(raw)){
@@ -587,7 +585,7 @@
     if(nextReviewed)return nextAnswers;
     if(prevReviewed)return prevAnswers;
 
-    // 미저장 상태: 체크박스 기본값(전체 선택)으로 이전 답변을 덮지 않음
+    // 미저장 상태: 체크박스 기본값(미선택)으로 이전 답변을 덮지 않음
     if(reqDoc){
       const defaults=buildDefaultAnswers(reqDoc);
       const nextIsDefault=answersEqual(nextAnswers,defaults);
@@ -2938,9 +2936,7 @@
         }).join('')}</div>`;
       }else if(q.input_type==='checkbox'){
         const raw=st.answers?.[q.id];
-        const selected=raw===undefined
-          ? (q.options||[]).map((opt)=>String(opt.value??'').trim()).filter(Boolean)
-          : selectedAnswerValues(raw);
+        const selected=raw===undefined ? [] : selectedAnswerValues(raw);
         inputHtml=`<div class="checkbox-row">${q.options.map(opt=>{
           const value=escapeHtml(opt.value);
           const checked=selected.includes(String(opt.value??'').trim())?' checked':'';
