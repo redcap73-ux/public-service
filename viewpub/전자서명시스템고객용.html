@@ -534,10 +534,70 @@
     if(!Array.isArray(doc?.questions))return answers;
     for(const q of doc.questions){
       if(q.input_type==='checkbox' && Array.isArray(q.options) && q.options.length){
-        answers[q.id]=q.options.map((opt)=>opt.value);
+        answers[q.id]=q.options.map((opt)=>String(opt.value??'').trim()).filter(Boolean);
       }
     }
     return answers;
+  }
+
+  function normalizeDocAnswers(doc,answers){
+    const src=answers&&typeof answers==='object'&&!Array.isArray(answers)?answers:{};
+    const out={};
+    if(!Array.isArray(doc?.questions)){
+      return {...src};
+    }
+    for(const q of doc.questions){
+      const raw=src[q.id]??src[String(q.id)];
+      if(q.input_type==='checkbox'){
+        // 키가 없으면 기본(전체 선택), 키가 있으면(빈 배열 포함) 저장된 값 유지
+        out[q.id]=raw===undefined
+          ? (q.options||[]).map((opt)=>String(opt.value??'').trim()).filter(Boolean)
+          : selectedAnswerValues(raw);
+      }else if(raw===undefined || raw===null){
+        out[q.id]='';
+      }else if(Array.isArray(raw)){
+        out[q.id]=String(raw[0]??'').trim();
+      }else{
+        out[q.id]=String(raw).trim();
+      }
+    }
+    return out;
+  }
+
+  function cloneAnswers(answers){
+    if(!answers||typeof answers!=='object')return {};
+    try{return JSON.parse(JSON.stringify(answers));}catch(e){return {...answers};}
+  }
+
+  function mergeDocAnswers(nextDoc,prevDoc){
+    const reqDoc=(request.documents||[]).find((d)=>String(d.id)===String(nextDoc?.id??prevDoc?.id));
+    const nextRaw=nextDoc?.answers&&typeof nextDoc.answers==='object'?nextDoc.answers:{};
+    const prevRaw=prevDoc?.answers&&typeof prevDoc.answers==='object'?prevDoc.answers:{};
+    const nextAnswers=reqDoc?normalizeDocAnswers(reqDoc,nextRaw):cloneAnswers(nextRaw);
+    const prevAnswers=reqDoc?normalizeDocAnswers(reqDoc,prevRaw):cloneAnswers(prevRaw);
+    const nextReviewed=Boolean(nextDoc?.reviewedAt);
+    const prevReviewed=Boolean(prevDoc?.reviewedAt);
+
+    if(nextReviewed && prevReviewed){
+      const nextTs=new Date(nextDoc.reviewedAt).getTime();
+      const prevTs=new Date(prevDoc.reviewedAt).getTime();
+      if(Number.isFinite(nextTs) && Number.isFinite(prevTs) && nextTs<prevTs)return prevAnswers;
+      return nextAnswers;
+    }
+    if(nextReviewed)return nextAnswers;
+    if(prevReviewed)return prevAnswers;
+
+    // 미저장 상태: 체크박스 기본값(전체 선택)으로 이전 답변을 덮지 않음
+    if(reqDoc){
+      const defaults=buildDefaultAnswers(reqDoc);
+      const nextIsDefault=answersEqual(nextAnswers,defaults);
+      const prevIsDefault=answersEqual(prevAnswers,defaults);
+      if(nextIsDefault && !prevIsDefault)return prevAnswers;
+      if(!nextIsDefault)return nextAnswers;
+      if(!prevIsDefault)return prevAnswers;
+    }
+    if(Object.keys(nextAnswers).length)return nextAnswers;
+    return prevAnswers;
   }
 
   function resetDocState(){
@@ -1648,7 +1708,7 @@
         scrolled:Boolean(st.scrolled),
         consent:st.consent??null,
         reviewedAt:st.reviewedAt?new Date(st.reviewedAt).toISOString():null,
-        answers:st.answers&&typeof st.answers==='object'?st.answers:{},
+        answers:cloneAnswers(st.answers),
         needsResave:Boolean(st.needsResave),
         savedReviewedAt:st.savedReviewedAt?new Date(st.savedReviewedAt).toISOString():null,
         draftConsent:st.draftConsent??null,
@@ -1657,8 +1717,8 @@
   }
 
   function mergeProgressDraft(nextDraft,previousDraft){
-    if(!previousDraft?.signer)return nextDraft;
-    const prev=previousDraft.signer;
+    if(!previousDraft)return nextDraft;
+    const prev=previousDraft.signer||{};
     const cur=nextDraft.signer||{};
     nextDraft.signer={
       ...cur,
@@ -1698,7 +1758,7 @@
           scrolled:Boolean(doc.scrolled||prevDoc.scrolled),
           consent:doc.consent??prevDoc.consent??null,
           reviewedAt:preferPrevReviewed?prevDoc.reviewedAt:doc.reviewedAt||prevDoc.reviewedAt||null,
-          answers:(doc.answers && Object.keys(doc.answers).length)?doc.answers:(prevDoc.answers||{}),
+          answers:mergeDocAnswers(doc,prevDoc),
           draftConsent:doc.draftConsent??prevDoc.draftConsent??null,
         };
       });
@@ -1790,13 +1850,16 @@
           draftConsent:null,
         };
         if(!saved)return base;
+        const reqDoc=request.documents.find((d)=>String(d.id)===String(doc.id))||doc;
         return {
           ...base,
           viewed:Boolean(saved.viewed),
           scrolled:Boolean(saved.scrolled),
           consent:saved.consent??null,
           reviewedAt:saved.reviewedAt?new Date(saved.reviewedAt):null,
-          answers:saved.answers&&typeof saved.answers==='object'?{...saved.answers}:base.answers,
+          answers:saved.answers&&typeof saved.answers==='object'
+            ? normalizeDocAnswers(reqDoc,saved.answers)
+            : base.answers,
           needsResave:Boolean(saved.needsResave),
           savedReviewedAt:saved.savedReviewedAt?new Date(saved.savedReviewedAt):null,
           draftConsent:saved.draftConsent??null,
@@ -2870,16 +2933,17 @@
         const containerClass=q.options.length<=3?'choice-row':'choice-stack';
         inputHtml=`<div class="${containerClass}">${q.options.map(opt=>{
           const value=escapeHtml(opt.value);
-          const checked=st.answers?.[q.id]===opt.value?' checked':'';
+          const checked=String(st.answers?.[q.id]??'')===String(opt.value??'')?' checked':'';
           return `<label class="choice"><input type="radio" name="${inputName}" value="${value}" data-qid="${qId}"${checked}${locked?' disabled':''} /> ${escapeHtml(opt.label)}</label>`;
         }).join('')}</div>`;
       }else if(q.input_type==='checkbox'){
-        const selected=Array.isArray(st.answers?.[q.id])
-          ? st.answers[q.id]
-          : (q.options||[]).map((opt)=>opt.value);
+        const raw=st.answers?.[q.id];
+        const selected=raw===undefined
+          ? (q.options||[]).map((opt)=>String(opt.value??'').trim()).filter(Boolean)
+          : selectedAnswerValues(raw);
         inputHtml=`<div class="checkbox-row">${q.options.map(opt=>{
           const value=escapeHtml(opt.value);
-          const checked=selected.includes(opt.value)?' checked':'';
+          const checked=selected.includes(String(opt.value??'').trim())?' checked':'';
           return `<label class="choice checkbox"><input type="checkbox" name="${inputName}" value="${value}" data-qid="${qId}"${checked}${locked?' disabled':''} /> ${escapeHtml(opt.label)}</label>`;
         }).join('')}</div>`;
       }else{
@@ -2986,13 +3050,15 @@
     if(!hasTemplateItems(doc))return answers;
     doc.questions.forEach(q=>{
       if(q.input_type==='checkbox'){
-        answers[q.id]=[...document.querySelectorAll(`#docFormItems input[data-qid="${q.id}"]:checked`)].map(el=>el.value);
+        answers[q.id]=[...document.querySelectorAll(`#docFormItems input[data-qid="${q.id}"]:checked`)]
+          .map(el=>String(el.value??'').trim())
+          .filter(Boolean);
       }else if(q.input_type==='text'){
         const el=document.querySelector(`#docFormItems input[data-qid="${q.id}"], #docFormItems textarea[data-qid="${q.id}"]`);
         answers[q.id]=el?el.value.trim():'';
       }else{
         const el=document.querySelector(`#docFormItems input[data-qid="${q.id}"]:checked`);
-        answers[q.id]=el?el.value:'';
+        answers[q.id]=el?String(el.value??'').trim():'';
       }
     });
     return answers;
@@ -3005,7 +3071,7 @@
     if(!doc||!st||!isConsentDocument(doc))return;
     if(hasTemplateItems(doc)){
       if($('docFormPanel')?.classList.contains('hidden'))return;
-      st.answers=collectDocFormAnswers(i);
+      st.answers=normalizeDocAnswers(doc,collectDocFormAnswers(i));
       saveProgressDraft();
       return;
     }
@@ -3196,8 +3262,8 @@
       focusRequiredDocAnswers(validation,doc,answers);
       return;
     }
-    st.answers=answers;
-    st.consent=deriveConsentFromAnswers(doc,answers);
+    st.answers=normalizeDocAnswers(doc,answers);
+    st.consent=deriveConsentFromAnswers(doc,st.answers);
     st.reviewedAt=new Date();
     st.needsResave=false;
     st.savedReviewedAt=null;
@@ -3206,8 +3272,8 @@
     resetFinalDocumentConfirmation({
       toast:'문서 응답이 변경되어 최종문서확인을 다시 진행해 주세요.',
     });
-    if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,answers)).length || collectDatePrefixes(doc).length){
-      void fillDocumentPreview(doc,verifiedUserInfo,answers).then((filled)=>{
+    if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,st.answers)).length || collectDatePrefixes(doc).length){
+      void fillDocumentPreview(doc,verifiedUserInfo,st.answers).then((filled)=>{
         if(filled && request.documents[state.currentDocIndex]===doc){
           renderDocumentContent(doc,state.currentDocIndex);
         }
@@ -3218,11 +3284,12 @@
     saveProgressDraft();
     const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
     if(nextConsent>=0){
+      toast('응답을 저장했습니다. 이 브라우저에 임시 저장되었습니다.');
       selectDocument(nextConsent,true);
       return;
     }
     selectDocument(state.currentDocIndex,false);
-    toast('응답을 저장했습니다.');
+    toast('응답을 저장했습니다. 이 브라우저에 임시 저장되었습니다.');
     maybeGuideDocumentCompleteAfterSave();
   }
 
@@ -3385,7 +3452,7 @@
       return;
     }
     selectDocument(state.currentDocIndex,false);
-    toast('동의를 저장했습니다.');
+    toast('동의를 저장했습니다. 이 브라우저에 임시 저장되었습니다.');
     maybeGuideDocumentCompleteAfterSave();
   }
 
