@@ -1008,9 +1008,11 @@
       phone:String(request.signer.phone||'').replace(/\D/g,''),
     };
     const verifiedName=normalizePersonName(userInfo?.name);
-    const verifiedPhone=String(userInfo?.phoneNumber||'').replace(/\D/g,'');
+    const verifiedPhone=normalizeVerifiedPhone(
+      userInfo?.phoneNumber||userInfo?.phone||userInfo?.mobile||''
+    );
     const expectedName=normalizePersonName(expected.name);
-    const expectedPhone=String(expected.phone||'').replace(/\D/g,'');
+    const expectedPhone=normalizeVerifiedPhone(expected.phone);
 
     const nameMismatch=Boolean(expectedName) && Boolean(verifiedName) && expectedName!==verifiedName;
     const phoneMismatch=Boolean(expectedPhone) && Boolean(verifiedPhone) && expectedPhone!==verifiedPhone;
@@ -1025,22 +1027,59 @@
     return '본인인증 연락처가 요청된 서명자 연락처와 일치하지 않습니다. 본인 명의로 다시 인증해 주세요.';
   }
 
+  function normalizeVerifiedPhone(value){
+    let digits=String(value||'').replace(/\D/g,'');
+    // PortOne 등에서 +82 / 82 로 오는 경우 국내번호으로 맞춤
+    if(digits.startsWith('82') && digits.length>=11){
+      digits=`0${digits.slice(2)}`;
+    }
+    if(digits.startsWith('820') && digits.length>=12){
+      digits=digits.slice(2);
+    }
+    return digits;
+  }
+
+  function pickVerifiedPhone(userInfo){
+    const candidates=[
+      userInfo?.phoneNumber,
+      userInfo?.phone,
+      userInfo?.mobile,
+      userInfo?.mobileNumber,
+      userInfo?.tel,
+    ];
+    for(const candidate of candidates){
+      const digits=normalizeVerifiedPhone(candidate);
+      if(digits.length>=10)return digits;
+    }
+    return '';
+  }
+
   function applyPortOneProfilePriority(userInfo){
     state.portOneProfile={
       name:userInfo.name||'',
-      phone:String(userInfo.phoneNumber||'').replace(/\D/g,''),
-      birth:String(userInfo.birthDate||'').replace(/\D/g,''),
+      phone:pickVerifiedPhone(userInfo),
+      birth:String(userInfo.birthDate||userInfo.birth||'').replace(/\D/g,''),
       gender:normalizeGenderValue(userInfo.gender),
     };
     if(state.portOneProfile.name){
       request.signer.name=state.portOneProfile.name;
       request.signer.maskedName=maskName(state.portOneProfile.name);
     }
-    if(state.portOneProfile.phone)request.signer.phone=state.portOneProfile.phone;
+    if(state.portOneProfile.phone){
+      request.signer.phone=state.portOneProfile.phone;
+    }else if(!request.signer.phone){
+      // 본인인증 응답에 전화번호가 없으면 요청(signer_phone) 값을 유지/사용
+      const fallback=normalizeVerifiedPhone(
+        request.expectedSigner?.phone||request.signer.phone||''
+      );
+      if(fallback)request.signer.phone=fallback;
+    }
     if(state.portOneProfile.birth)request.signer.birth=state.portOneProfile.birth;
     if(state.portOneProfile.gender)request.signer.gender=state.portOneProfile.gender;
     state.identityProfile.fieldSources.name=state.portOneProfile.name?'portone':state.identityProfile.fieldSources.name;
-    state.identityProfile.fieldSources.phone=state.portOneProfile.phone?'portone':state.identityProfile.fieldSources.phone;
+    state.identityProfile.fieldSources.phone=state.portOneProfile.phone
+      ?'portone'
+      :(request.signer.phone?(state.identityProfile.fieldSources.phone||'api'):state.identityProfile.fieldSources.phone);
     state.identityProfile.fieldSources.birth=state.portOneProfile.birth?'portone':state.identityProfile.fieldSources.birth;
     state.identityProfile.fieldSources.gender=state.portOneProfile.gender?'portone':state.identityProfile.fieldSources.gender;
   }
@@ -2220,9 +2259,14 @@
       $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     }
 
-    verifiedUserInfo=buildIdentityFormValues(userInfo);
+    verifiedUserInfo=buildIdentityFormValues({
+      ...userInfo,
+      // 화면/PDF 반영용으로 정규화된 전화번호를 우선 사용
+      phoneNumber:request.signer.phone||userInfo.phoneNumber||'',
+    });
 
-    if(state.currentStep===2)hydrateIdentityProfileCard();
+    // step 전환 전이라도 인적사항 입력란에 즉시 반영
+    hydrateIdentityProfileCard();
   }
 
   async function startPortOneIdentityVerification(options={}){

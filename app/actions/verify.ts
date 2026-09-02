@@ -84,7 +84,14 @@ function normalizePersonName(value?: string | null) {
 }
 
 function normalizePhone(value?: string | null) {
-  return String(value ?? '').replace(/\D/g, '');
+  let digits = String(value ?? '').replace(/\D/g, '');
+  if (digits.startsWith('82') && digits.length >= 11) {
+    digits = `0${digits.slice(2)}`;
+  }
+  if (digits.startsWith('820') && digits.length >= 12) {
+    digits = digits.slice(2);
+  }
+  return digits;
 }
 
 function getVerifiedIdentityMismatchMessage(options: {
@@ -169,7 +176,16 @@ export async function verifyCustomerIdentity(
     }
 
     const verificationId = data.id || identityVerificationId;
-    const { ci, name, phoneNumber, birthDate, gender } = data.verifiedCustomer ?? {};
+    const customer = data.verifiedCustomer ?? {};
+    const ci = customer.ci;
+    const name = customer.name;
+    const phoneNumber = normalizePhone(
+      customer.phoneNumber ||
+        (customer as { phone?: string }).phone ||
+        (customer as { mobile?: string }).mobile
+    );
+    const birthDate = customer.birthDate;
+    const gender = customer.gender;
 
     let signPayload: SignApiResponse;
     try {
