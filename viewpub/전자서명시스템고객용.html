@@ -1383,6 +1383,7 @@
 
     hydrateIdentityProfileCard();
     updateStickyNextLabel();
+    saveProgressDraft();
     toast(
       backendSaved
         ? '인적사항 확인이 저장되었습니다. 문서 확인을 진행해 주세요.'
@@ -1526,6 +1527,190 @@
       if(requestNo)localStorage.setItem(`tng-esign-${requestNo}`,JSON.stringify(record));
       if(token)localStorage.setItem(`tng-esign-token-${token}`,JSON.stringify(record));
     }catch(e){}
+  }
+
+  const PROGRESS_DRAFT_SCHEMA=1;
+
+  function getProgressDraftStorageKeys(){
+    const keys=[];
+    if(request.token)keys.push(`tng-esign-progress-token-${request.token}`);
+    if(request.requestNo)keys.push(`tng-esign-progress-${request.requestNo}`);
+    return keys;
+  }
+
+  function hasMeaningfulProgressDraft(draft){
+    if(!draft)return false;
+    if(draft.identityProfile?.confirmed)return true;
+    if(draft.signer?.postcode || draft.signer?.addressDetail || draft.signer?.addressBase)return true;
+    return Array.isArray(draft.docs) && draft.docs.some((d)=>
+      d.reviewedAt || d.consent || d.viewed || d.scrolled || d.draftConsent ||
+      (d.answers && typeof d.answers==='object' && Object.keys(d.answers).length>0)
+    );
+  }
+
+  function buildProgressDraft(){
+    try{readIdentityProfileForm();}catch(e){}
+    return {
+      schemaVersion:PROGRESS_DRAFT_SCHEMA,
+      savedAt:new Date().toISOString(),
+      token:request.token||'',
+      requestNo:request.requestNo||'',
+      resumeStep:state.identityProfile.confirmed?Math.max(2,Number(state.currentStep)||2):2,
+      currentDocIndex:state.currentDocIndex,
+      signer:{
+        name:request.signer.name||'',
+        phone:request.signer.phone||'',
+        birth:request.signer.birth||'',
+        gender:request.signer.gender||'',
+        postcode:request.signer.postcode||'',
+        addressBase:request.signer.addressBase||'',
+        addressDetail:request.signer.addressDetail||'',
+        address:request.signer.address||'',
+        identityConfirmedAt:request.signer.identityConfirmedAt||null,
+      },
+      identityProfile:{
+        confirmed:Boolean(state.identityProfile.confirmed),
+        confirmedAt:state.identityProfile.confirmedAt
+          ? new Date(state.identityProfile.confirmedAt).toISOString()
+          : null,
+        fieldSources:{...(state.identityProfile.fieldSources||{})},
+      },
+      documentIds:request.documents.map((d)=>String(d.id)),
+      docs:state.docs.map((st)=>({
+        id:st.id,
+        viewed:Boolean(st.viewed),
+        scrolled:Boolean(st.scrolled),
+        consent:st.consent??null,
+        reviewedAt:st.reviewedAt?new Date(st.reviewedAt).toISOString():null,
+        answers:st.answers&&typeof st.answers==='object'?st.answers:{},
+        needsResave:Boolean(st.needsResave),
+        savedReviewedAt:st.savedReviewedAt?new Date(st.savedReviewedAt).toISOString():null,
+        draftConsent:st.draftConsent??null,
+      })),
+    };
+  }
+
+  function saveProgressDraft(){
+    if(state.submitted)return;
+    if(!request.token && !request.requestNo)return;
+    const draft=buildProgressDraft();
+    if(!hasMeaningfulProgressDraft(draft))return;
+    try{
+      const raw=JSON.stringify(draft);
+      getProgressDraftStorageKeys().forEach((key)=>localStorage.setItem(key,raw));
+    }catch(e){}
+  }
+
+  function readProgressDraft(){
+    for(const key of getProgressDraftStorageKeys()){
+      try{
+        const raw=localStorage.getItem(key);
+        if(!raw)continue;
+        const parsed=JSON.parse(raw);
+        if(!parsed || Number(parsed.schemaVersion)!==PROGRESS_DRAFT_SCHEMA)continue;
+        if(parsed.token && request.token && parsed.token!==request.token)continue;
+        if(parsed.requestNo && request.requestNo && String(parsed.requestNo)!==String(request.requestNo))continue;
+        if(!hasMeaningfulProgressDraft(parsed))continue;
+        return parsed;
+      }catch(e){}
+    }
+    return null;
+  }
+
+  function clearProgressDraft(){
+    getProgressDraftStorageKeys().forEach((key)=>{
+      try{localStorage.removeItem(key);}catch(e){}
+    });
+  }
+
+  function applyProgressDraft(draft){
+    if(!draft || !hasMeaningfulProgressDraft(draft))return false;
+
+    if(draft.signer){
+      // 방금 본인인증된 성명/연락처/생년월일/성별은 유지하고, 주소·확인시각은 복원
+      if(draft.signer.postcode)request.signer.postcode=String(draft.signer.postcode).trim();
+      if(draft.signer.addressBase)request.signer.addressBase=String(draft.signer.addressBase).trim();
+      if(draft.signer.addressDetail)request.signer.addressDetail=String(draft.signer.addressDetail).trim();
+      if(draft.signer.address)request.signer.address=String(draft.signer.address).trim();
+      else{
+        request.signer.address=buildFullAddress(request.signer.addressBase,request.signer.addressDetail);
+      }
+      if(draft.signer.identityConfirmedAt){
+        request.signer.identityConfirmedAt=draft.signer.identityConfirmedAt;
+      }
+      if(!request.signer.name && draft.signer.name)request.signer.name=draft.signer.name;
+      if(!request.signer.phone && draft.signer.phone)request.signer.phone=String(draft.signer.phone).replace(/\D/g,'');
+      if(!request.signer.birth && draft.signer.birth)request.signer.birth=String(draft.signer.birth).replace(/\D/g,'');
+      if(!request.signer.gender && draft.signer.gender)request.signer.gender=normalizeGenderValue(draft.signer.gender);
+      request.signer.maskedName=maskName(request.signer.name);
+    }
+
+    if(draft.identityProfile){
+      state.identityProfile.confirmed=Boolean(draft.identityProfile.confirmed);
+      state.identityProfile.confirmedAt=draft.identityProfile.confirmedAt
+        ? new Date(draft.identityProfile.confirmedAt)
+        : null;
+      state.identityProfile.fieldSources={
+        ...(state.identityProfile.fieldSources||{}),
+        ...(draft.identityProfile.fieldSources||{}),
+      };
+    }
+
+    if(Array.isArray(draft.docs) && draft.docs.length){
+      const byId=new Map(draft.docs.map((item)=>[String(item.id),item]));
+      state.docs=request.documents.map((doc,index)=>{
+        const saved=byId.get(String(doc.id))||draft.docs[index];
+        const base={
+          id:doc.id,
+          viewed:false,
+          scrolled:false,
+          consent:null,
+          reviewedAt:null,
+          answers:buildDefaultAnswers(doc),
+          needsResave:false,
+          savedReviewedAt:null,
+          draftConsent:null,
+        };
+        if(!saved)return base;
+        return {
+          ...base,
+          viewed:Boolean(saved.viewed),
+          scrolled:Boolean(saved.scrolled),
+          consent:saved.consent??null,
+          reviewedAt:saved.reviewedAt?new Date(saved.reviewedAt):null,
+          answers:saved.answers&&typeof saved.answers==='object'?{...saved.answers}:base.answers,
+          needsResave:Boolean(saved.needsResave),
+          savedReviewedAt:saved.savedReviewedAt?new Date(saved.savedReviewedAt):null,
+          draftConsent:saved.draftConsent??null,
+        };
+      });
+    }
+
+    if(typeof draft.currentDocIndex==='number' && request.documents.length){
+      state.currentDocIndex=Math.max(0,Math.min(draft.currentDocIndex,request.documents.length-1));
+    }
+    return true;
+  }
+
+  function notifyProgressDraftAvailable(){
+    if(!readProgressDraft())return;
+    toast('이전에 진행한 내용이 있습니다. 본인인증 후 이어서 진행됩니다.');
+  }
+
+  function restoreProgressAfterVerification(){
+    const draft=readProgressDraft();
+    if(!draft)return {restored:false,resumeStep:2};
+    if(!applyProgressDraft(draft))return {restored:false,resumeStep:2};
+    hydrateIdentityProfileCard();
+    updateIdentityProfileGate();
+    renderDocList();
+    updateDocProgress();
+    updateStickyNextLabel();
+    return {
+      restored:true,
+      resumeStep:state.identityProfile.confirmed?Math.max(2,Number(draft.resumeStep)||2):2,
+      identityConfirmed:Boolean(state.identityProfile.confirmed),
+    };
   }
 
   function resolveUnavailableKind({status,errorBody,fallbackMessage,token,requestCandidate}){
@@ -2114,22 +2299,36 @@
       }
 
       applyVerifiedIdentity(verifiedRaw);
+      const restored=restoreProgressAfterVerification();
       const userInfo=verifiedUserInfo||buildIdentityFormValues(verifiedRaw);
       let filledCount=0;
       try{
-        toast('본인인증 완료. 미리보기에 정보를 반영하는 중...');
+        toast(
+          restored.restored
+            ? '본인인증 완료. 이전 진행 내용을 반영하는 중...'
+            : '본인인증 완료. 미리보기에 정보를 반영하는 중...'
+        );
         filledCount=await buildFilledPreviewUrls(userInfo);
       }catch(fillError){
         console.error(fillError);
         toast('본인인증은 완료되었으나 PDF 미리보기 반영에 실패했습니다.');
       }
-      toast(
-        `본인인증이 완료되었습니다. (${userInfo.name||'이름 없음'})` +
-        (filledCount>0
-          ? ` AcroForm 문서 ${filledCount}개 미리보기에 반영했습니다.`
-          : ' AcroForm 필드가 있는 문서가 없어 미리보기 반영을 건너뛰었습니다.')
-      );
-      setTimeout(()=>setStep(advanceToStep ?? 2),500);
+      if(restored.restored){
+        saveProgressDraft();
+        toast(
+          restored.identityConfirmed
+            ? '본인인증이 완료되었고, 이전 인적사항·문서 확인 내용을 복원했습니다.'
+            : '본인인증이 완료되었고, 이전에 입력한 내용을 복원했습니다.'
+        );
+      }else{
+        toast(
+          `본인인증이 완료되었습니다. (${userInfo.name||'이름 없음'})` +
+          (filledCount>0
+            ? ` AcroForm 문서 ${filledCount}개 미리보기에 반영했습니다.`
+            : ' AcroForm 필드가 있는 문서가 없어 미리보기 반영을 건너뛰었습니다.')
+        );
+      }
+      setTimeout(()=>setStep(advanceToStep ?? restored.resumeStep ?? 2),500);
     }catch(error){
       console.error(error);
       toast(error instanceof Error?error.message:'본인인증 중 오류가 발생했습니다.');
@@ -2232,6 +2431,7 @@
       toast(`${doc.name} 파일을 열었습니다. 확인 후 이 화면으로 돌아와 주세요.`);
       renderDocList();
       updateStickyNextLabel();
+      saveProgressDraft();
       if(state.currentStep===2 && state.identityProfile.confirmed && areAllConsentDocumentsComplete()){
         if(!areAllDownloadDocumentsComplete()){
           requestAnimationFrame(()=>{
@@ -2461,6 +2661,7 @@
       toast('문서 확인이 완료되었습니다. 동의 여부를 선택해 주세요.');
     }
     renderDocList();
+    saveProgressDraft();
   }
 
   function checkViewerScrollComplete(){
@@ -2682,10 +2883,12 @@
     if(hasTemplateItems(doc)){
       if($('docFormPanel')?.classList.contains('hidden'))return;
       st.answers=collectDocFormAnswers(i);
+      saveProgressDraft();
       return;
     }
     const selected=radios.find(r=>r.checked);
     if(selected)st.draftConsent=selected.value;
+    saveProgressDraft();
   }
 
   function validateDocAnswers(doc,answers){
@@ -2889,6 +3092,7 @@
     }
     renderDocList();
     if(st.consent==='reject' && doc.required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
+    saveProgressDraft();
     const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
     if(nextConsent>=0){
       selectDocument(nextConsent,true);
@@ -3047,6 +3251,7 @@
     });
     renderDocList();
     if(selected.value==='reject' && request.documents[state.currentDocIndex].required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
+    saveProgressDraft();
     const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
     if(nextConsent>=0){
       selectDocument(nextConsent,true);
@@ -3736,6 +3941,7 @@
           evidenceObjectKey:result.evidenceObjectKey,
           backendSynced:result.backendSynced,
         });
+        clearProgressDraft();
       }catch(e){}
 
       toast('전자서명이 완료되었습니다.');
@@ -3860,6 +4066,7 @@
   }
   function resetFlow(){
     setErrorChromeVisible(true);
+    clearProgressDraft();
     state.currentStep=1;state.verified=false;state.currentDocIndex=0;state.identityProfile={confirmed:false,confirmedAt:null,fieldSources:{}};state.portOneProfile=null;resetDocState();state.strokes=[];state.hasSignature=false;state.nameStrokes=[];state.hasNameSignature=false;state.submitted=false;state.completedAt=null;state.finalHash=null;verifiedUserInfo=null;completedSignedPdfBytes=null;signedMergedCache=null;revokeFilledPdfUrls();$('requestOwnerCheck').checked=false;[$('finalOwnerCheck'),$('finalContentCheck'),$('finalEvidenceCheck'),$('finalDocumentCheck')].forEach(x=>x.checked=false);$('identityProfileConfirmCheck').checked=false;clearSignature();clearNameSignature();closeModal('demoModal');closeModal('signedPreviewModal');setStep(1);renderDocList();selectDocument(0,false);toast('진행 상태를 초기화했습니다.');
   }
 
@@ -3887,6 +4094,9 @@
     hydrateRequest();
     setupCanvas();
     setStep(1);
+    requestAnimationFrame(()=>{
+      setTimeout(notifyProgressDraftAvailable,400);
+    });
   }
 
   $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);
@@ -3958,6 +4168,11 @@
   document.querySelectorAll('.demo-error').forEach(b=>b.addEventListener('click',()=>showError(b.dataset.error)));$('resetDemoBtn').addEventListener('click',resetFlow);$('retryLinkBtn').addEventListener('click',resetFlow);
   window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(resizeCanvas,120)});
   window.addEventListener('beforeunload',e=>{if(state.currentStep>1 && state.currentStep<4 && !state.submitted){e.preventDefault();e.returnValue='';}});
+  window.addEventListener('pagehide',()=>{
+    if(state.submitted)return;
+    try{persistCurrentDocDraft();}catch(err){}
+    saveProgressDraft();
+  });
 
   init();
 })();
