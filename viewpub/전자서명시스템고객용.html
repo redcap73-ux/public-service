@@ -1982,7 +1982,7 @@
     request.prodNm=String(req.prod_nm||'').trim();
     request.aadjuster=String(req.aadjuster||'').trim();
     request.company=normalizeCompanyName(req.company);
-    request.babirthday=String(req.babirthday||'').trim();
+    request.babirthday=String(req.babirthday??req.ba_birthday??'').trim();
     request.adjustJuso=String(req.adjust_juso||'').trim();
     request.adjustJumin=String(req.adjudst_jumin||req.adjust_jumin||'').trim();
     request.signer={

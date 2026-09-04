@@ -90,12 +90,19 @@ function normalizeFieldKey(name: string) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, '');
 }
 
+/** AcroForm 전체 경로에서 말단 필드명만 추출 (예: a.b.babirthday_1[0] → babirthday_1) */
+function getFieldLeafName(fieldName: string) {
+  const leaf = fieldName.split('.').pop() ?? fieldName;
+  return leaf.replace(/\[\d+\]/g, '').trim();
+}
+
 function findFieldName(fieldNames: string[], aliases: string[]) {
   const normalizedAliases = aliases.map(normalizeFieldKey);
 
   return (
     fieldNames.find((fieldName) =>
-      normalizedAliases.includes(normalizeFieldKey(fieldName))
+      normalizedAliases.includes(normalizeFieldKey(fieldName)) ||
+      normalizedAliases.includes(normalizeFieldKey(getFieldLeafName(fieldName)))
     ) ?? null
   );
 }
@@ -141,6 +148,44 @@ function resolveExtraFieldName(fieldNames: string[], rawName: string) {
   return null;
 }
 
+/** template pdf_field_name(예: babirthday) → babirthday / babirthday_1 등 접두어 필드 전부 */
+function resolveExtraFieldTargets(fieldNames: string[], rawName: string) {
+  const base = String(rawName ?? '').trim();
+  if (!base) return [];
+
+  const targets = new Set<string>();
+  const exact = resolveExtraFieldName(fieldNames, base);
+  if (exact) {
+    targets.add(exact);
+  }
+
+  for (const fieldName of fieldNames) {
+    if (fieldStartsWithPrefix(fieldName, base)) {
+      targets.add(fieldName);
+    }
+  }
+
+  // aaa1 처럼 밑줄 없이 숫자가 붙은 필드도 허용
+  const normalizedBase = normalizeFieldKey(base);
+  if (normalizedBase) {
+    for (const fieldName of fieldNames) {
+      const leaf = normalizeFieldKey(getFieldLeafName(fieldName));
+      if (leaf === normalizedBase) {
+        targets.add(fieldName);
+        continue;
+      }
+      if (
+        leaf.startsWith(normalizedBase) &&
+        /[0-9]/.test(leaf.charAt(normalizedBase.length))
+      ) {
+        targets.add(fieldName);
+      }
+    }
+  }
+
+  return [...targets];
+}
+
 function isNameSystemField(fieldName: string) {
   return fieldStartsWithSystemPrefix(fieldName, 'name_system');
 }
@@ -172,18 +217,44 @@ function fieldStartsWithSystemPrefix(fieldName: string, prefix: string) {
 }
 
 function fieldStartsWithPrefix(fieldName: string, prefix: string) {
-  const name = fieldName.trim().toLowerCase();
   const wanted = prefix.trim().toLowerCase();
   if (!wanted) {
     return false;
   }
-  if (name === wanted) {
-    return true;
+
+  const candidates = [fieldName.trim(), getFieldLeafName(fieldName)];
+  for (const candidate of candidates) {
+    const name = candidate.toLowerCase();
+    if (!name) continue;
+    if (name === wanted) {
+      return true;
+    }
+    if (!name.startsWith(wanted) || name.length === wanted.length) {
+      continue;
+    }
+    // birthday_1 / birthday1 처럼 접두어 다음에 구분 문자·숫자가 오면 매칭
+    if (/[^a-z]/.test(name.charAt(wanted.length))) {
+      return true;
+    }
   }
-  if (!name.startsWith(wanted) || name.length === wanted.length) {
-    return false;
+
+  // babirthday1 처럼 구분 없이 숫자가 붙은 경우 (정규화 후 판별)
+  const normalizedWanted = normalizeFieldKey(wanted);
+  for (const candidate of candidates) {
+    const normalizedName = normalizeFieldKey(candidate);
+    if (!normalizedName) continue;
+    if (normalizedName === normalizedWanted) {
+      return true;
+    }
+    if (!normalizedName.startsWith(normalizedWanted)) {
+      continue;
+    }
+    if (/[0-9]/.test(normalizedName.charAt(normalizedWanted.length))) {
+      return true;
+    }
   }
-  return /[^a-z]/.test(name.charAt(wanted.length));
+
+  return false;
 }
 
 function fieldStartsWithDatePrefix(fieldName: string, prefix: DateFieldPrefix) {
@@ -1274,12 +1345,16 @@ export async function fillAcroFormIdentity(
       continue;
     }
     const text = String(rawValue ?? '').trim();
-    const fieldName = resolveExtraFieldName(fieldNames, rawName);
-    if (!text || !fieldName || reservedNames.has(fieldName)) {
+    if (!text) {
       continue;
     }
-    extraToStamp.push({ fieldName, text });
-    reservedNames.add(fieldName);
+    for (const fieldName of resolveExtraFieldTargets(fieldNames, rawName)) {
+      if (reservedNames.has(fieldName)) {
+        continue;
+      }
+      extraToStamp.push({ fieldName, text });
+      reservedNames.add(fieldName);
+    }
   }
 
   const dateParts = getKstDateParts();

@@ -19669,10 +19669,14 @@ var KOREAN_FONT_URL = "/fonts/NotoSansKR-Regular.otf";
 function normalizeFieldKey(name) {
   return name.trim().toLowerCase().replace(/[\s_-]+/g, "");
 }
+function getFieldLeafName(fieldName) {
+  const leaf = fieldName.split(".").pop() ?? fieldName;
+  return leaf.replace(/\[\d+\]/g, "").trim();
+}
 function findFieldName(fieldNames, aliases) {
   const normalizedAliases = aliases.map(normalizeFieldKey);
   return fieldNames.find(
-    (fieldName) => normalizedAliases.includes(normalizeFieldKey(fieldName))
+    (fieldName) => normalizedAliases.includes(normalizeFieldKey(fieldName)) || normalizedAliases.includes(normalizeFieldKey(getFieldLeafName(fieldName)))
   ) ?? null;
 }
 function findExactFieldName(fieldNames, target) {
@@ -19709,6 +19713,34 @@ function resolveExtraFieldName(fieldNames, rawName) {
   }
   return null;
 }
+function resolveExtraFieldTargets(fieldNames, rawName) {
+  const base = String(rawName ?? "").trim();
+  if (!base) return [];
+  const targets = /* @__PURE__ */ new Set();
+  const exact = resolveExtraFieldName(fieldNames, base);
+  if (exact) {
+    targets.add(exact);
+  }
+  for (const fieldName of fieldNames) {
+    if (fieldStartsWithPrefix(fieldName, base)) {
+      targets.add(fieldName);
+    }
+  }
+  const normalizedBase = normalizeFieldKey(base);
+  if (normalizedBase) {
+    for (const fieldName of fieldNames) {
+      const leaf = normalizeFieldKey(getFieldLeafName(fieldName));
+      if (leaf === normalizedBase) {
+        targets.add(fieldName);
+        continue;
+      }
+      if (leaf.startsWith(normalizedBase) && /[0-9]/.test(leaf.charAt(normalizedBase.length))) {
+        targets.add(fieldName);
+      }
+    }
+  }
+  return [...targets];
+}
 function isNameSystemField(fieldName) {
   return fieldStartsWithSystemPrefix(fieldName, "name_system");
 }
@@ -19731,18 +19763,39 @@ function fieldStartsWithSystemPrefix(fieldName, prefix) {
   return /[0-9]/.test(next);
 }
 function fieldStartsWithPrefix(fieldName, prefix) {
-  const name = fieldName.trim().toLowerCase();
   const wanted = prefix.trim().toLowerCase();
   if (!wanted) {
     return false;
   }
-  if (name === wanted) {
-    return true;
+  const candidates = [fieldName.trim(), getFieldLeafName(fieldName)];
+  for (const candidate of candidates) {
+    const name = candidate.toLowerCase();
+    if (!name) continue;
+    if (name === wanted) {
+      return true;
+    }
+    if (!name.startsWith(wanted) || name.length === wanted.length) {
+      continue;
+    }
+    if (/[^a-z]/.test(name.charAt(wanted.length))) {
+      return true;
+    }
   }
-  if (!name.startsWith(wanted) || name.length === wanted.length) {
-    return false;
+  const normalizedWanted = normalizeFieldKey(wanted);
+  for (const candidate of candidates) {
+    const normalizedName = normalizeFieldKey(candidate);
+    if (!normalizedName) continue;
+    if (normalizedName === normalizedWanted) {
+      return true;
+    }
+    if (!normalizedName.startsWith(normalizedWanted)) {
+      continue;
+    }
+    if (/[0-9]/.test(normalizedName.charAt(normalizedWanted.length))) {
+      return true;
+    }
   }
-  return /[^a-z]/.test(name.charAt(wanted.length));
+  return false;
 }
 function fieldStartsWithDatePrefix(fieldName, prefix) {
   return fieldStartsWithPrefix(fieldName, prefix);
@@ -20553,12 +20606,16 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
       continue;
     }
     const text = String(rawValue ?? "").trim();
-    const fieldName = resolveExtraFieldName(fieldNames, rawName);
-    if (!text || !fieldName || reservedNames.has(fieldName)) {
+    if (!text) {
       continue;
     }
-    extraToStamp.push({ fieldName, text });
-    reservedNames.add(fieldName);
+    for (const fieldName of resolveExtraFieldTargets(fieldNames, rawName)) {
+      if (reservedNames.has(fieldName)) {
+        continue;
+      }
+      extraToStamp.push({ fieldName, text });
+      reservedNames.add(fieldName);
+    }
   }
   const dateParts = getKstDateParts();
   const dateToStamp = [];
