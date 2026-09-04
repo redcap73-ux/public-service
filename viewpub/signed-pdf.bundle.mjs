@@ -19835,6 +19835,9 @@ function formatClaimNoForDisplay(value) {
   if (!trimmed) return "";
   return trimmed.length > 3 ? trimmed.slice(3) : trimmed;
 }
+function normalizeCompanyName(value) {
+  return String(value ?? "").replace(/티엔지/g, "\uD2F0\uC564\uC9C0").trim();
+}
 function formatIdentityAddress(values2) {
   const postcode = values2.postcode?.trim() ?? "";
   const base = values2.addressBase?.trim() ?? "";
@@ -20419,7 +20422,8 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   const claimNo = formatClaimNoForDisplay(values2.claimNo || "");
   const polNo = values2.polNo?.trim();
   const prodNm = values2.prodNm?.trim();
-  const company = values2.company?.trim();
+  const company = normalizeCompanyName(values2.company);
+  const babirthday = values2.babirthday?.trim();
   const adjustJuso = values2.adjustJuso?.trim();
   const adjustJumin = values2.adjustJumin?.trim();
   const toStamp = [];
@@ -20494,6 +20498,7 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
   pushPrefixFieldStamps(fieldNames, "pnumber", polNo, toStamp);
   pushPrefixFieldStamps(fieldNames, "ppro", prodNm, toStamp);
   pushPrefixFieldStamps(fieldNames, "company", company, toStamp);
+  pushPrefixFieldStamps(fieldNames, "babirthday", babirthday, toStamp);
   pushPrefixFieldStamps(fieldNames, "adjust_juso", adjustJuso, toStamp);
   pushPrefixFieldStamps(fieldNames, "juminnum_ad", adjustJuso, toStamp);
   pushPrefixFieldStamps(fieldNames, "adjust_jumin", adjustJumin, toStamp);

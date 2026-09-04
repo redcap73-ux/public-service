@@ -179,7 +179,7 @@
     <div class="header-inner">
       <div class="brand">
         <div class="brand-mark">T&G</div>
-        <div class="brand-text"><strong>티엔지손해사정 전자서명시스템</strong></div>
+        <div class="brand-text"><strong>티앤지손해사정 전자서명시스템</strong></div>
       </div>
       <div class="secure-badge" hidden>🔒 <span>보안 접속</span><span>· TLS 암호화</span></div>
     </div>
@@ -452,6 +452,7 @@
     prodNm: '',
     aadjuster: '',
     company: '',
+    babirthday: '',
     adjustJuso: '',
     adjustJumin: '',
     issuedAt: '2026-07-21 10:30:00',
@@ -808,6 +809,10 @@
     return '손해사정 조사 및 관련 개인정보 처리 동의';
   }
 
+  function normalizeCompanyName(value){
+    return String(value??'').replace(/티엔지/g,'티앤지').trim();
+  }
+
   function formatLinkValidity(issuedAt,expiresAt){
     const expiresText=formatExpiry(expiresAt);
     if(!issuedAt)return `${expiresText}까지`;
@@ -979,7 +984,8 @@
       polNo:request.polNo||base.polNo||'',
       prodNm:request.prodNm||base.prodNm||'',
       aadjuster:request.aadjuster||base.aadjuster||'',
-      company:request.company||base.company||'',
+      company:normalizeCompanyName(request.company||base.company||''),
+      babirthday:request.babirthday||base.babirthday||'',
       adjustJuso:request.adjustJuso||base.adjustJuso||'',
       adjustJumin:request.adjustJumin||base.adjustJumin||'',
       extraFields:extraFields||{},
@@ -1975,7 +1981,8 @@
     request.polNo=String(req.pol_no||'').trim();
     request.prodNm=String(req.prod_nm||'').trim();
     request.aadjuster=String(req.aadjuster||'').trim();
-    request.company=String(req.company||'').trim();
+    request.company=normalizeCompanyName(req.company);
+    request.babirthday=String(req.babirthday||'').trim();
     request.adjustJuso=String(req.adjust_juso||'').trim();
     request.adjustJumin=String(req.adjudst_jumin||req.adjust_jumin||'').trim();
     request.signer={
@@ -2344,6 +2351,7 @@
       prodNm:userInfo.prodNm,
       aadjuster:userInfo.aadjuster,
       company:userInfo.company,
+      babirthday:userInfo.babirthday,
       adjustJuso:userInfo.adjustJuso,
       adjustJumin:userInfo.adjustJumin,
     };

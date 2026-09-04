@@ -36,6 +36,8 @@ export type IdentityFormValues = {
   aadjuster?: string;
   /** 요청 JSON company — PDF company* 필드에 매핑 */
   company?: string;
+  /** 요청 JSON babirthday — PDF babirthday* 필드에 매핑 */
+  babirthday?: string;
   /** 요청 JSON adjust_juso — PDF adjust_juso* / juminnum_ad* 필드에 매핑 */
   adjustJuso?: string;
   /** 요청 JSON adjudst_jumin(또는 adjust_jumin) — PDF adjust_jumin* / juso_ad* 필드에 매핑 */
@@ -298,6 +300,13 @@ function formatClaimNoForDisplay(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return '';
   return trimmed.length > 3 ? trimmed.slice(3) : trimmed;
+}
+
+/** 회사명 표기 정규화: 티엔지 → 티앤지 */
+export function normalizeCompanyName(value: string | undefined | null) {
+  return String(value ?? '')
+    .replace(/티엔지/g, '티앤지')
+    .trim();
 }
 
 /** 우편번호 + 기본주소 + 상세주소를 PDF용 한 줄로 조합 */
@@ -1143,7 +1152,8 @@ export async function fillAcroFormIdentity(
   const claimNo = formatClaimNoForDisplay(values.claimNo || '');
   const polNo = values.polNo?.trim();
   const prodNm = values.prodNm?.trim();
-  const company = values.company?.trim();
+  const company = normalizeCompanyName(values.company);
+  const babirthday = values.babirthday?.trim();
   const adjustJuso = values.adjustJuso?.trim();
   const adjustJumin = values.adjustJumin?.trim();
 
@@ -1229,6 +1239,7 @@ export async function fillAcroFormIdentity(
   pushPrefixFieldStamps(fieldNames, 'pnumber', polNo, toStamp);
   pushPrefixFieldStamps(fieldNames, 'ppro', prodNm, toStamp);
   pushPrefixFieldStamps(fieldNames, 'company', company, toStamp);
+  pushPrefixFieldStamps(fieldNames, 'babirthday', babirthday, toStamp);
   pushPrefixFieldStamps(fieldNames, 'adjust_juso', adjustJuso, toStamp);
   pushPrefixFieldStamps(fieldNames, 'juminnum_ad', adjustJuso, toStamp);
   pushPrefixFieldStamps(fieldNames, 'adjust_jumin', adjustJumin, toStamp);
