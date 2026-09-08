@@ -1491,16 +1491,36 @@
       console.warn('[identity-profile] backend sync failed:',error);
     }
 
+    // 주소 등 인적사항을 PDF 미리보기에 반영한 뒤에야 문서 확인 영역을 연다
+    const addressPatch={
+      postcode:request.signer.postcode,
+      addressBase:request.signer.addressBase,
+      addressDetail:request.signer.addressDetail,
+      address:request.signer.address,
+    };
+    verifiedUserInfo=verifiedUserInfo
+      ? {...verifiedUserInfo,...addressPatch}
+      : buildIdentityFormValues({
+          name:request.signer.name,
+          phoneNumber:request.signer.phone,
+          birthDate:request.signer.birth,
+          ...addressPatch,
+        });
+
+    toast('인적사항 확인을 저장했습니다. 문서 미리보기에 반영하는 중...');
+    let previewOk=true;
+    try{
+      await buildFilledPreviewUrls(verifiedUserInfo);
+    }catch(fillError){
+      previewOk=false;
+      console.error('[identity-profile] preview refill failed:',fillError);
+    }
+
     hydrateIdentityProfileCard();
     updateStickyNextLabel();
     saveProgressDraft();
-    toast(
-      backendSaved
-        ? '인적사항 확인이 저장되었습니다. 문서 확인을 진행해 주세요.'
-        : '인적사항 확인을 저장했습니다. (서버 동기화는 제출 증적에 포함됩니다.)'
-    );
-
     if(state.currentStep===2){
+      selectDocument(state.currentDocIndex,false);
       requestAnimationFrame(()=>{
         requestAnimationFrame(()=>{
           setTimeout(scrollDocFlowToTop,60);
@@ -1508,18 +1528,15 @@
       });
     }
 
-    if(verifiedUserInfo){
-      verifiedUserInfo={
-        ...verifiedUserInfo,
-        postcode:request.signer.postcode,
-        addressBase:request.signer.addressBase,
-        addressDetail:request.signer.addressDetail,
-        address:request.signer.address,
-      };
-      void buildFilledPreviewUrls(verifiedUserInfo).then(()=>{
-        if(state.currentStep===2)selectDocument(state.currentDocIndex,false);
-      });
+    if(!previewOk){
+      toast('인적사항은 저장되었지만 PDF 미리보기 반영에 실패했습니다. 새로고침 후 다시 확인해 주세요.');
+      return;
     }
+    toast(
+      backendSaved
+        ? '인적사항 확인이 저장되었습니다. 문서 확인을 진행해 주세요.'
+        : '인적사항 확인을 저장했습니다. (서버 동기화는 제출 증적에 포함됩니다.)'
+    );
   }
 
   function mapApiDocument(doc,insurer){
@@ -2375,7 +2392,8 @@
   }
 
   async function buildFilledPreviewUrls(userInfo){
-    revokeFilledPdfUrls();
+    // 문서별 fillDocumentPreview가 기존 blob을 교체하므로 일괄 revoke는 하지 않는다
+    // (반영 전에 raw/빈 미리보기가 잠깐 보이는 것을 막음)
     let filledCount=0;
 
     for(let i=0;i<request.documents.length;i+=1){
@@ -2493,6 +2511,21 @@
 
       applyVerifiedIdentity(verifiedRaw);
       const restored=restoreProgressAfterVerification();
+      // 복원된 주소를 미리보기 채움값에 포함 (인적사항 저장 후 재진입 시)
+      if(verifiedUserInfo && (request.signer.postcode || request.signer.addressBase || request.signer.address)){
+        verifiedUserInfo={
+          ...verifiedUserInfo,
+          postcode:request.signer.postcode||verifiedUserInfo.postcode||'',
+          addressBase:request.signer.addressBase||verifiedUserInfo.addressBase||'',
+          addressDetail:request.signer.addressDetail||verifiedUserInfo.addressDetail||'',
+          address:request.signer.address||verifiedUserInfo.address||'',
+        };
+      }
+      // 이미 인적사항 확인된 복원이면, PDF 반영 전까지 문서 영역을 다시 잠근다
+      if(restored.identityConfirmed){
+        $('docFlowSection')?.classList.add('hidden','doc-flow-locked');
+        $('screen2')?.classList.add('identity-pending');
+      }
       const userInfo=verifiedUserInfo||buildIdentityFormValues(verifiedRaw);
       let filledCount=0;
       try{
@@ -2505,6 +2538,9 @@
       }catch(fillError){
         console.error(fillError);
         toast('본인인증은 완료되었으나 PDF 미리보기 반영에 실패했습니다.');
+      }
+      if(restored.identityConfirmed){
+        updateIdentityProfileGate();
       }
       if(restored.restored){
         saveProgressDraft();
