@@ -447,6 +447,8 @@ function purgeOrphanWidgetAnnots(pdfDoc: PDFDocument) {
     for (let index = 0; index < annots.size(); index += 1) {
       const ref = annots.get(index);
       if (!(ref instanceof PDFRef)) {
+        // 깨진/비참조 Annot 항목은 인쇄 오류를 유발할 수 있어 제거 시도
+        // removeAnnot 는 PDFRef 만 받으므로 배열 재구성은 아래에서 처리
         continue;
       }
 
@@ -479,6 +481,32 @@ function purgeOrphanWidgetAnnots(pdfDoc: PDFDocument) {
         pdfDoc.context.delete(ref);
       } catch {
         // ignore
+      }
+    }
+
+    // Annots 배열에 PDFRef 가 아닌 항목이 남으면 재구성
+    const remaining = page.node.Annots();
+    if (remaining) {
+      const kept: PDFRef[] = [];
+      let needsRebuild = false;
+      for (let index = 0; index < remaining.size(); index += 1) {
+        const ref = remaining.get(index);
+        if (ref instanceof PDFRef) {
+          kept.push(ref);
+        } else {
+          needsRebuild = true;
+        }
+      }
+      if (needsRebuild) {
+        if (kept.length === 0) {
+          page.node.delete(PDFName.of('Annots'));
+        } else {
+          const next = pdfDoc.context.obj([]) as PDFArray;
+          for (const ref of kept) {
+            next.push(ref);
+          }
+          page.node.set(PDFName.of('Annots'), next);
+        }
       }
     }
   }
@@ -1214,11 +1242,8 @@ async function stampImageOnField(
     page.drawImage(embeddedImage, draw);
   }
 
-  try {
-    form.removeField(field);
-  } catch {
-    // ignore
-  }
+  // 필드 제거는 하지 않음 — pdf-lib removeField 가 Annot을 깨뜨려 인쇄 오류를 냄.
+  // 최종 removeAllAcroFormFields / stripAllFields 에서 안전하게 제거.
   return true;
 }
 
@@ -1272,11 +1297,7 @@ async function stampTextField(
     });
   }
 
-  try {
-    form.removeField(field);
-  } catch {
-    // ignore
-  }
+  // 필드 제거는 최종 strip 단계에서만 수행 (pdf-lib removeField Annot 손상 방지)
   return true;
 }
 
@@ -1331,7 +1352,7 @@ async function stampMappedTextField(
     });
   }
 
-  form.removeField(field);
+  // 필드 제거는 최종 strip 단계에서만 수행
   return true;
 }
 
@@ -1408,12 +1429,7 @@ async function stampMappedExtraField(
     });
   }
 
-  try {
-    form.removeField(field);
-  } catch {
-    // Keep the stamped image even if the widget cannot be removed.
-  }
-
+  // 필드 제거는 최종 strip 단계에서만 수행
   return true;
 }
 
@@ -1451,7 +1467,7 @@ async function stampAuditDescField(
     });
   }
 
-  form.removeField(field);
+  // 필드 제거는 최종 strip 단계에서만 수행
 }
 
 /**

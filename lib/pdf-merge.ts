@@ -25,5 +25,5 @@ export async function mergePdfByteList(pdfBytesList: Uint8Array[]) {
     }
   }
 
-  return merged.save();
+  return merged.save({ updateFieldAppearances: false });
 }

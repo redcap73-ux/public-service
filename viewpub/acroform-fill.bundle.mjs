@@ -19975,6 +19975,30 @@ function purgeOrphanWidgetAnnots(pdfDoc) {
       } catch {
       }
     }
+    const remaining = page.node.Annots();
+    if (remaining) {
+      const kept = [];
+      let needsRebuild = false;
+      for (let index = 0; index < remaining.size(); index += 1) {
+        const ref = remaining.get(index);
+        if (ref instanceof PDFRef_default) {
+          kept.push(ref);
+        } else {
+          needsRebuild = true;
+        }
+      }
+      if (needsRebuild) {
+        if (kept.length === 0) {
+          page.node.delete(PDFName_default.of("Annots"));
+        } else {
+          const next = pdfDoc.context.obj([]);
+          for (const ref of kept) {
+            next.push(ref);
+          }
+          page.node.set(PDFName_default.of("Annots"), next);
+        }
+      }
+    }
   }
 }
 function clearEmptyAcroFormCatalog(pdfDoc) {
@@ -20527,10 +20551,6 @@ async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
     );
     page.drawImage(embeddedImage, draw);
   }
-  try {
-    form.removeField(field);
-  } catch {
-  }
   return true;
 }
 async function stampTextField(pdfDoc, fieldName, text, options) {
@@ -20564,10 +20584,6 @@ async function stampTextField(pdfDoc, fieldName, text, options) {
       height: rect.height
     });
   }
-  try {
-    form.removeField(field);
-  } catch {
-  }
   return true;
 }
 async function stampMappedTextField(pdfDoc, fieldName, text) {
@@ -20600,7 +20616,6 @@ async function stampMappedTextField(pdfDoc, fieldName, text) {
       height: rect.height
     });
   }
-  form.removeField(field);
   return true;
 }
 function checkMarkDrawRect(rect) {
@@ -20655,10 +20670,6 @@ async function stampMappedExtraField(pdfDoc, fieldName, text) {
       height: drawRect.height
     });
   }
-  try {
-    form.removeField(field);
-  } catch {
-  }
   return true;
 }
 async function stampAuditDescField(pdfDoc, fieldName, values2) {
@@ -20683,7 +20694,6 @@ async function stampAuditDescField(pdfDoc, fieldName, values2) {
       height: rect.height
     });
   }
-  form.removeField(field);
 }
 async function fillAcroFormIdentity(pdfBytes, values2, options) {
   const pdfDoc = await PDFDocument_default.load(pdfBytes);

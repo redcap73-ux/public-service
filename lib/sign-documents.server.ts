@@ -218,7 +218,6 @@ async function stampSignatureOnAcroFormField(
     return null;
   }
 
-  const form = pdfDoc.getForm();
   const embeddedImage = await pdfDoc.embedPng(signaturePng);
   const pages = pdfDoc.getPages();
   let stampedCount = 0;
@@ -252,12 +251,6 @@ async function stampSignatureOnAcroFormField(
         height: drawHeight,
       });
       stampedCount += 1;
-    }
-
-    try {
-      form.removeField(field);
-    } catch {
-      // ignore
     }
   }
 
@@ -298,7 +291,8 @@ async function embedSignatureOnLastPage(
     height: drawHeight,
   });
 
-  return pdfDoc.save();
+  removeAllAcroFormFields(pdfDoc);
+  return savePdfAfterFieldStrip(pdfDoc);
 }
 
 export async function generateSignedPdfBytesOnServer(options: {

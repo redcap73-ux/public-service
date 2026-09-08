@@ -480,7 +480,6 @@ async function stampSignatureOnAcroFormField(
     return null;
   }
 
-  const form = pdfDoc.getForm();
   const trimmedSignature = await trimSignatureToImage(signatureDataUrl);
   const signaturePng = dataUrlToBytes(
     (() => {
@@ -537,12 +536,6 @@ async function stampSignatureOnAcroFormField(
         height: drawHeight,
       });
       stampedCount += 1;
-    }
-
-    try {
-      form.removeField(field);
-    } catch {
-      // Signature fields sometimes cannot be removed; stamped image is still visible.
     }
   }
 
