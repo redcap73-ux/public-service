@@ -828,15 +828,15 @@ async function renderSingleLinePng(text: string, width: number, height: number) 
   ctx.clearRect(0, 0, width, height);
 
   const maxWidth = Math.max(width - 4, 10);
-  const minFontSize = 6;
+  const minFontSize = 4;
   let fontSize = Math.min(11, Math.max(8, height - 4));
   ctx.fillStyle = '#111111';
   ctx.textBaseline = 'middle';
 
   // 기본 크기로 들어가면 유지하고, 넘칠 때만 축소
   ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
-  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
-    fontSize -= 0.5;
+  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize + 0.01) {
+    fontSize = Math.max(minFontSize, fontSize - 0.5);
     ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
   }
 
@@ -943,15 +943,25 @@ async function renderWrappedTextPng(text: string, width: number, height: number)
   const paddingY = 3;
   const contentWidth = Math.max(width - paddingX * 2, 10);
   const contentHeight = Math.max(height - paddingY * 2, 10);
-  const fontSize = Math.min(11, Math.max(7, Math.min(contentHeight, 14)));
+  const minFontSize = 4;
+  let fontSize = Math.min(11, Math.max(7, Math.min(contentHeight, 14)));
 
   ctx.fillStyle = '#111111';
   ctx.textBaseline = 'top';
   ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
 
-  const lineHeight = fontSize + 3;
-  const maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
+  let lineHeight = fontSize + 3;
+  let maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
   let lines = wrapCanvasLines(ctx, text, contentWidth);
+
+  // 줄 수가 칸을 넘치면 폰트를 줄여 다시 줄바꿈 (들어갈 때만 유지)
+  while (lines.length > maxLines && fontSize > minFontSize + 0.01) {
+    fontSize = Math.max(minFontSize, fontSize - 0.5);
+    ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+    lineHeight = fontSize + 2.5;
+    maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
+    lines = wrapCanvasLines(ctx, text, contentWidth);
+  }
 
   if (lines.length > maxLines) {
     lines = lines.slice(0, maxLines);

@@ -19819,7 +19819,6 @@ function isSignatureStampField(fieldName) {
   return aliases.has(normalizeFieldKey(fieldName));
 }
 function removeAllAcroFormFields(pdfDoc) {
-  const form = pdfDoc.getForm();
   for (const field of [...safeListFormFields(pdfDoc)]) {
     removeAcroFormFieldSafely(pdfDoc, field);
   }
@@ -20228,13 +20227,13 @@ async function renderSingleLinePng(text, width, height) {
   ctx.scale(scale2, scale2);
   ctx.clearRect(0, 0, width, height);
   const maxWidth = Math.max(width - 4, 10);
-  const minFontSize = 6;
+  const minFontSize = 4;
   let fontSize = Math.min(11, Math.max(8, height - 4));
   ctx.fillStyle = "#111111";
   ctx.textBaseline = "middle";
   ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
-  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
-    fontSize -= 0.5;
+  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize + 0.01) {
+    fontSize = Math.max(minFontSize, fontSize - 0.5);
     ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
   }
   ctx.fillText(fitCanvasText(ctx, text, maxWidth), 2, height / 2);
@@ -20316,13 +20315,21 @@ async function renderWrappedTextPng(text, width, height) {
   const paddingY = 3;
   const contentWidth = Math.max(width - paddingX * 2, 10);
   const contentHeight = Math.max(height - paddingY * 2, 10);
-  const fontSize = Math.min(11, Math.max(7, Math.min(contentHeight, 14)));
+  const minFontSize = 4;
+  let fontSize = Math.min(11, Math.max(7, Math.min(contentHeight, 14)));
   ctx.fillStyle = "#111111";
   ctx.textBaseline = "top";
   ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
-  const lineHeight = fontSize + 3;
-  const maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
+  let lineHeight = fontSize + 3;
+  let maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
   let lines = wrapCanvasLines(ctx, text, contentWidth);
+  while (lines.length > maxLines && fontSize > minFontSize + 0.01) {
+    fontSize = Math.max(minFontSize, fontSize - 0.5);
+    ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+    lineHeight = fontSize + 2.5;
+    maxLines = Math.max(1, Math.floor(contentHeight / lineHeight));
+    lines = wrapCanvasLines(ctx, text, contentWidth);
+  }
   if (lines.length > maxLines) {
     lines = lines.slice(0, maxLines);
     lines[maxLines - 1] = fitCanvasText(ctx, lines[maxLines - 1], contentWidth);
