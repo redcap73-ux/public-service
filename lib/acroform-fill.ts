@@ -1,4 +1,4 @@
-import { PDFDocument, PDFName, PDFRef, type PDFPage } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFRef, PDFDict, type PDFPage } from 'pdf-lib';
 
 export type IdentityFormValues = {
   name?: string;
@@ -286,12 +286,10 @@ export function isSignatureStampField(fieldName: string) {
 export function removeAllAcroFormFields(pdfDoc: PDFDocument) {
   const form = pdfDoc.getForm();
   for (const field of [...form.getFields()]) {
-    try {
-      form.removeField(field);
-    } catch {
-      // 일부 뷰어/필드 타입은 제거가 실패할 수 있음 — 이미지만 유지
-    }
+    removeAcroFormFieldSafely(pdfDoc, field);
   }
+  purgeOrphanWidgetAnnots(pdfDoc);
+  clearEmptyAcroFormCatalog(pdfDoc);
 }
 
 /** 서명 스탬프 전 단계: signature* 만 남기고 나머지 필드 제거 */
@@ -301,11 +299,124 @@ export function removeNonSignatureAcroFormFields(pdfDoc: PDFDocument) {
     if (isSignatureStampField(field.getName())) {
       continue;
     }
+    removeAcroFormFieldSafely(pdfDoc, field);
+  }
+  // 이미 지운 필드의 잔여 Widget Annots만 정리 (서명 필드는 유지)
+  purgeOrphanWidgetAnnots(pdfDoc);
+}
+
+/**
+ * pdf-lib removeField 는 Widget Annots 를 잘못 남겨 Adobe 인쇄 오류를 유발할 수 있음.
+ * 위젯 dict ref 를 Annots 에서 먼저 제거한 뒤 필드를 삭제합니다.
+ */
+function removeAcroFormFieldSafely(
+  pdfDoc: PDFDocument,
+  field: { ref: PDFRef; acroField: { getWidgets: () => Array<{ dict: PDFDict }> } }
+) {
+  const form = pdfDoc.getForm();
+  const widgets = field.acroField.getWidgets();
+
+  for (const widget of widgets) {
+    const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
+    if (!(widgetRef instanceof PDFRef)) {
+      continue;
+    }
+    // P 누락/오류에 대비해 모든 페이지에서 제거 시도
+    for (const page of pdfDoc.getPages()) {
+      try {
+        page.node.removeAnnot(widgetRef);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  try {
+    form.removeField(field as Parameters<typeof form.removeField>[0]);
+  } catch {
     try {
-      form.removeField(field);
+      pdfDoc.context.delete(field.ref);
     } catch {
       // ignore
     }
+  }
+}
+
+/** 현재 AcroForm 필드에 속하지 않는 Widget Annots / 깨진 참조 제거 */
+function purgeOrphanWidgetAnnots(pdfDoc: PDFDocument) {
+  const liveWidgetObjectNumbers = new Set<number>();
+  try {
+    for (const field of pdfDoc.getForm().getFields()) {
+      for (const widget of field.acroField.getWidgets()) {
+        const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
+        if (widgetRef instanceof PDFRef) {
+          liveWidgetObjectNumbers.add(widgetRef.objectNumber);
+        }
+      }
+    }
+  } catch {
+    // form 이 이미 비었을 수 있음
+  }
+
+  for (const page of pdfDoc.getPages()) {
+    const annots = page.node.Annots();
+    if (!annots) {
+      continue;
+    }
+
+    const toRemove: PDFRef[] = [];
+    for (let index = 0; index < annots.size(); index += 1) {
+      const ref = annots.get(index);
+      if (!(ref instanceof PDFRef)) {
+        continue;
+      }
+
+      let dict: unknown;
+      try {
+        dict = pdfDoc.context.lookup(ref);
+      } catch {
+        toRemove.push(ref);
+        continue;
+      }
+
+      if (!(dict instanceof PDFDict)) {
+        toRemove.push(ref);
+        continue;
+      }
+
+      const subtype = dict.get(PDFName.of('Subtype'));
+      if (subtype === PDFName.of('Widget') && !liveWidgetObjectNumbers.has(ref.objectNumber)) {
+        toRemove.push(ref);
+      }
+    }
+
+    for (const ref of toRemove) {
+      try {
+        page.node.removeAnnot(ref);
+      } catch {
+        // ignore
+      }
+      try {
+        pdfDoc.context.delete(ref);
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+function clearEmptyAcroFormCatalog(pdfDoc: PDFDocument) {
+  try {
+    if (pdfDoc.getForm().getFields().length > 0) {
+      return;
+    }
+  } catch {
+    // continue and try catalog delete
+  }
+  try {
+    pdfDoc.catalog.delete(PDFName.of('AcroForm'));
+  } catch {
+    // ignore
   }
 }
 
