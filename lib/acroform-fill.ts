@@ -1224,6 +1224,7 @@ async function stampImageOnField(
 
 /**
  * Stamp text as a PNG image so Korean glyphs stay intact in all PDF viewers.
+ * TextField가 아니어도(예: name_system = PDFSignature) 위젯 rect에 이미지를 찍는다.
  */
 async function stampTextField(
   pdfDoc: PDFDocument,
@@ -1232,11 +1233,23 @@ async function stampTextField(
   options?: { style?: 'default' | 'signature' }
 ) {
   const form = pdfDoc.getForm();
-  const field = form.getTextField(fieldName);
-  field.setText(text);
+  const field = form.getFields().find((item) => item.getName() === fieldName);
+  if (!field) {
+    return false;
+  }
+
+  try {
+    const textField = form.getTextField(fieldName);
+    textField.setText(text);
+  } catch {
+    // PDFSignature 등 비텍스트 필드는 setText 없이 이미지만 스탬프
+  }
 
   const widgets = field.acroField.getWidgets();
   const style = options?.style ?? 'default';
+  if (widgets.length === 0) {
+    return false;
+  }
 
   for (const widget of widgets) {
     const page = getPageForWidget(pdfDoc, widget);
@@ -1259,7 +1272,12 @@ async function stampTextField(
     });
   }
 
-  form.removeField(field);
+  try {
+    form.removeField(field);
+  } catch {
+    // ignore
+  }
+  return true;
 }
 
 async function stampMappedTextField(
@@ -1641,10 +1659,14 @@ export async function fillAcroFormIdentity(
   }
 
   for (const item of toStamp) {
-    await stampTextField(pdfDoc, item.fieldName, item.text, {
-      style: item.style ?? 'default',
-    });
-    filledFields.push(item.fieldName);
+    try {
+      await stampTextField(pdfDoc, item.fieldName, item.text, {
+        style: item.style ?? 'default',
+      });
+      filledFields.push(item.fieldName);
+    } catch (error) {
+      console.warn(`[acroform-fill] stamp failed: ${item.fieldName}`, error);
+    }
   }
 
   if (useNameSystemImage) {
