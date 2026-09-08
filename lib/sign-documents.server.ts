@@ -2,7 +2,11 @@ import 'server-only';
 
 import { createHash } from 'crypto';
 import { PDFDocument, PDFName, PDFRef } from 'pdf-lib';
-import type { IdentityFormValues } from '@/lib/acroform-fill';
+import {
+  removeAllAcroFormFields,
+  stripAllAcroFormFieldsFromPdfBytes,
+  type IdentityFormValues,
+} from '@/lib/acroform-fill';
 import {
   createCanvas,
   ensureServerCanvasShim,
@@ -256,6 +260,10 @@ async function stampSignatureOnAcroFormField(
   }
 
   if (!stampedCount) return null;
+
+  // 서명 이미지 유지, 남은 AcroForm 필드 전부 제거
+  removeAllAcroFormFields(pdfDoc);
+
   return pdfDoc.save();
 }
 
@@ -326,8 +334,13 @@ export async function generateSignedPdfBytesOnServer(options: {
 
   const signaturePng = await prepareSignaturePng(signatureDataUrl);
   const stamped = await stampSignatureOnAcroFormField(pdfBytes, signaturePng);
-  const signedBytes =
-    stamped ?? (await embedSignatureOnLastPage(pdfBytes, signaturePng));
+  let signedBytes: Uint8Array;
+  if (stamped) {
+    signedBytes = stamped;
+  } else {
+    const embedded = await embedSignatureOnLastPage(pdfBytes, signaturePng);
+    signedBytes = await stripAllAcroFormFieldsFromPdfBytes(toArrayBuffer(embedded));
+  }
 
   return {
     bytes: signedBytes,

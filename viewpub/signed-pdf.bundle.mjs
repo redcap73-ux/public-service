@@ -19800,6 +19800,50 @@ function fieldStartsWithPrefix(fieldName, prefix) {
 function fieldStartsWithDatePrefix(fieldName, prefix) {
   return fieldStartsWithPrefix(fieldName, prefix);
 }
+var SIGNATURE_STAMP_FIELD_ALIASES = [
+  "signature",
+  "sign",
+  "\uC11C\uBA85",
+  "singature",
+  "signimage",
+  "sign_image"
+];
+function isSignatureStampField(fieldName) {
+  if (fieldStartsWithSystemPrefix(fieldName, "signature_system")) {
+    return true;
+  }
+  if (fieldStartsWithPrefix(fieldName, "signature")) {
+    return true;
+  }
+  const aliases = new Set(SIGNATURE_STAMP_FIELD_ALIASES.map(normalizeFieldKey));
+  return aliases.has(normalizeFieldKey(fieldName));
+}
+function removeAllAcroFormFields(pdfDoc) {
+  const form = pdfDoc.getForm();
+  for (const field of [...form.getFields()]) {
+    try {
+      form.removeField(field);
+    } catch {
+    }
+  }
+}
+function removeNonSignatureAcroFormFields(pdfDoc) {
+  const form = pdfDoc.getForm();
+  for (const field of [...form.getFields()]) {
+    if (isSignatureStampField(field.getName())) {
+      continue;
+    }
+    try {
+      form.removeField(field);
+    } catch {
+    }
+  }
+}
+async function stripAllAcroFormFieldsFromPdfBytes(pdfBytes) {
+  const pdfDoc = await PDFDocument_default.load(pdfBytes);
+  removeAllAcroFormFields(pdfDoc);
+  return pdfDoc.save();
+}
 function matchDatePrefix(name) {
   const normalized = name.trim().toLowerCase();
   return DATE_FIELD_PREFIXES.find((prefix) => fieldStartsWithDatePrefix(normalized, prefix)) ?? null;
@@ -20043,11 +20087,17 @@ async function renderSingleLinePng(text, width, height) {
   }
   ctx.scale(scale2, scale2);
   ctx.clearRect(0, 0, width, height);
-  const fontSize = Math.min(11, Math.max(8, height - 4));
+  const maxWidth = Math.max(width - 4, 10);
+  const minFontSize = 6;
+  let fontSize = Math.min(11, Math.max(8, height - 4));
   ctx.fillStyle = "#111111";
   ctx.textBaseline = "middle";
   ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
-  ctx.fillText(fitCanvasText(ctx, text, Math.max(width - 4, 10)), 2, height / 2);
+  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
+    fontSize -= 0.5;
+    ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+  }
+  ctx.fillText(fitCanvasText(ctx, text, maxWidth), 2, height / 2);
   return dataUrlToUint8Array(canvas.toDataURL("image/png"));
 }
 async function renderSignatureStylePng(text, width, height) {
@@ -20448,7 +20498,7 @@ async function stampAuditDescField(pdfDoc, fieldName, values2) {
   }
   form.removeField(field);
 }
-async function fillAcroFormIdentity(pdfBytes, values2) {
+async function fillAcroFormIdentity(pdfBytes, values2, options) {
   const pdfDoc = await PDFDocument_default.load(pdfBytes);
   const form = pdfDoc.getForm();
   const fields = form.getFields();
@@ -20643,6 +20693,11 @@ async function fillAcroFormIdentity(pdfBytes, values2) {
     if (stamped) {
       filledFields.push(item.fieldName);
     }
+  }
+  if (options?.stripAllFields) {
+    removeAllAcroFormFields(pdfDoc);
+  } else {
+    removeNonSignatureAcroFormFields(pdfDoc);
   }
   return {
     bytes: await pdfDoc.save(),
@@ -21121,6 +21176,7 @@ async function stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl) {
   if (stampedCount === 0) {
     return null;
   }
+  removeAllAcroFormFields(pdfDoc);
   return pdfDoc.save();
 }
 async function sha256HexFromBytes(bytes) {
@@ -21158,7 +21214,13 @@ async function generateSignedPdfBytes(options) {
     }
   }
   const stamped = await stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl);
-  const signedBytes = stamped ?? await embedSignatureOnLastPage(pdfBytes, signatureDataUrl);
+  let signedBytes;
+  if (stamped) {
+    signedBytes = stamped;
+  } else {
+    const embedded = await embedSignatureOnLastPage(pdfBytes, signatureDataUrl);
+    signedBytes = await stripAllAcroFormFieldsFromPdfBytes(toArrayBuffer(embedded));
+  }
   const signedHash = await sha256HexFromBytes(signedBytes);
   return {
     bytes: signedBytes,

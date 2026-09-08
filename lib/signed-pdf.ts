@@ -1,7 +1,9 @@
 import { PDFDocument, PDFName, PDFRef } from 'pdf-lib';
 import {
   fillAcroFormIdentity,
+  removeAllAcroFormFields,
   renderCheckMarkPng,
+  stripAllAcroFormFieldsFromPdfBytes,
   type IdentityFormValues,
 } from '@/lib/acroform-fill';
 import {
@@ -546,6 +548,9 @@ async function stampSignatureOnAcroFormField(
     return null;
   }
 
+  // 서명 이미지 유지, 남은 AcroForm 필드 전부 제거
+  removeAllAcroFormFields(pdfDoc);
+
   return pdfDoc.save();
 }
 
@@ -608,8 +613,13 @@ export async function generateSignedPdfBytes(options: {
   }
 
   const stamped = await stampSignatureOnAcroFormField(pdfBytes, signatureDataUrl);
-  const signedBytes =
-    stamped ?? (await embedSignatureOnLastPage(pdfBytes, signatureDataUrl));
+  let signedBytes: Uint8Array;
+  if (stamped) {
+    signedBytes = stamped;
+  } else {
+    const embedded = await embedSignatureOnLastPage(pdfBytes, signatureDataUrl);
+    signedBytes = await stripAllAcroFormFieldsFromPdfBytes(toArrayBuffer(embedded));
+  }
   const signedHash = await sha256HexFromBytes(signedBytes);
 
   return {

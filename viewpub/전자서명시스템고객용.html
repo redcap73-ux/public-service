@@ -2365,7 +2365,8 @@
     const pdfBytes=await response.arrayBuffer();
     const filled=await fillAcroFormIdentity(
       pdfBytes,
-      buildFillValues(userInfo,buildTemplatePdfFields(doc,answers),collectDatePrefixes(doc))
+      buildFillValues(userInfo,buildTemplatePdfFields(doc,answers),collectDatePrefixes(doc)),
+      {stripAllFields:true}
     );
     if(!filled)return false;
     if(filledPdfUrls[doc.file_path])URL.revokeObjectURL(filledPdfUrls[doc.file_path]);

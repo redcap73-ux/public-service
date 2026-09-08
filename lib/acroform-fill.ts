@@ -261,6 +261,60 @@ function fieldStartsWithDatePrefix(fieldName: string, prefix: DateFieldPrefix) {
   return fieldStartsWithPrefix(fieldName, prefix);
 }
 
+const SIGNATURE_STAMP_FIELD_ALIASES = [
+  'signature',
+  'sign',
+  '서명',
+  'singature',
+  'signimage',
+  'sign_image',
+];
+
+/** 자필서명 스탬프용으로 남겨둘 AcroForm 필드인지 */
+export function isSignatureStampField(fieldName: string) {
+  if (fieldStartsWithSystemPrefix(fieldName, 'signature_system')) {
+    return true;
+  }
+  if (fieldStartsWithPrefix(fieldName, 'signature')) {
+    return true;
+  }
+  const aliases = new Set(SIGNATURE_STAMP_FIELD_ALIASES.map(normalizeFieldKey));
+  return aliases.has(normalizeFieldKey(fieldName));
+}
+
+/** 스탬프된 내용은 남기고, 상호작용용 AcroForm 필드만 전부 제거 */
+export function removeAllAcroFormFields(pdfDoc: PDFDocument) {
+  const form = pdfDoc.getForm();
+  for (const field of [...form.getFields()]) {
+    try {
+      form.removeField(field);
+    } catch {
+      // 일부 뷰어/필드 타입은 제거가 실패할 수 있음 — 이미지만 유지
+    }
+  }
+}
+
+/** 서명 스탬프 전 단계: signature* 만 남기고 나머지 필드 제거 */
+export function removeNonSignatureAcroFormFields(pdfDoc: PDFDocument) {
+  const form = pdfDoc.getForm();
+  for (const field of [...form.getFields()]) {
+    if (isSignatureStampField(field.getName())) {
+      continue;
+    }
+    try {
+      form.removeField(field);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export async function stripAllAcroFormFieldsFromPdfBytes(pdfBytes: ArrayBuffer) {
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  removeAllAcroFormFields(pdfDoc);
+  return pdfDoc.save();
+}
+
 function matchDatePrefix(name: string): DateFieldPrefix | null {
   const normalized = name.trim().toLowerCase();
   return DATE_FIELD_PREFIXES.find((prefix) => fieldStartsWithDatePrefix(normalized, prefix)) ?? null;
@@ -595,11 +649,21 @@ async function renderSingleLinePng(text: string, width: number, height: number) 
   ctx.scale(scale, scale);
   ctx.clearRect(0, 0, width, height);
 
-  const fontSize = Math.min(11, Math.max(8, height - 4));
+  const maxWidth = Math.max(width - 4, 10);
+  const minFontSize = 6;
+  let fontSize = Math.min(11, Math.max(8, height - 4));
   ctx.fillStyle = '#111111';
   ctx.textBaseline = 'middle';
+
+  // 기본 크기로 들어가면 유지하고, 넘칠 때만 축소
   ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
-  ctx.fillText(fitCanvasText(ctx, text, Math.max(width - 4, 10)), 2, height / 2);
+  while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
+    fontSize -= 0.5;
+    ctx.font = `${fontSize}px "${KOREAN_FONT_FAMILY}", sans-serif`;
+  }
+
+  // 최소 크기까지 줄여도 넘치면 말줄임
+  ctx.fillText(fitCanvasText(ctx, text, maxWidth), 2, height / 2);
 
   return dataUrlToUint8Array(canvas.toDataURL('image/png'));
 }
@@ -1187,10 +1251,14 @@ async function stampAuditDescField(
 /**
  * Fill matching AcroForm text fields with identity verification values.
  * Returns null when the PDF has no AcroForm fields.
+ *
+ * @param options.stripAllFields  true면 signature 필드까지 포함해 전부 제거(미리보기용).
+ *   false/생략이면 이후 자필서명 스탬프를 위해 signature* 만 남김.
  */
 export async function fillAcroFormIdentity(
   pdfBytes: ArrayBuffer,
-  values: IdentityFormValues
+  values: IdentityFormValues,
+  options?: { stripAllFields?: boolean }
 ): Promise<{ bytes: Uint8Array; filledFields: string[] } | null> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -1426,6 +1494,13 @@ export async function fillAcroFormIdentity(
     }
   }
 
+  // 스탬프된 이미지/텍스트는 유지하고, 상호작용 필드만 제거
+  if (options?.stripAllFields) {
+    removeAllAcroFormFields(pdfDoc);
+  } else {
+    removeNonSignatureAcroFormFields(pdfDoc);
+  }
+
   return {
     bytes: await pdfDoc.save(),
     filledFields,
@@ -1459,7 +1534,7 @@ export async function fillAndDownloadIdentityDocuments(options: {
     }
 
     const pdfBytes = await response.arrayBuffer();
-    const filled = await fillAcroFormIdentity(pdfBytes, values);
+    const filled = await fillAcroFormIdentity(pdfBytes, values, { stripAllFields: true });
 
     if (!filled) {
       skippedCount += 1;

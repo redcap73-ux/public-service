@@ -181,7 +181,9 @@ function SignContent() {
       }
 
       const pdfBytes = await response.arrayBuffer();
-      const filled = await fillAcroFormIdentity(pdfBytes, userInfo);
+      const filled = await fillAcroFormIdentity(pdfBytes, userInfo, {
+        stripAllFields: true,
+      });
 
       if (!filled) {
         continue;
