@@ -19820,36 +19820,86 @@ function isSignatureStampField(fieldName) {
 }
 function removeAllAcroFormFields(pdfDoc) {
   const form = pdfDoc.getForm();
-  for (const field of [...form.getFields()]) {
+  for (const field of [...safeListFormFields(pdfDoc)]) {
     removeAcroFormFieldSafely(pdfDoc, field);
   }
   purgeOrphanWidgetAnnots(pdfDoc);
+  sanitizeAcroFormFieldRefs(pdfDoc);
   clearEmptyAcroFormCatalog(pdfDoc);
 }
 function removeNonSignatureAcroFormFields(pdfDoc) {
-  const form = pdfDoc.getForm();
-  for (const field of [...form.getFields()]) {
+  for (const field of [...safeListFormFields(pdfDoc)]) {
     if (isSignatureStampField(field.getName())) {
       continue;
     }
     removeAcroFormFieldSafely(pdfDoc, field);
   }
   purgeOrphanWidgetAnnots(pdfDoc);
+  sanitizeAcroFormFieldRefs(pdfDoc);
+}
+function safeListFormFields(pdfDoc) {
+  sanitizeAcroFormFieldRefs(pdfDoc);
+  try {
+    return pdfDoc.getForm().getFields();
+  } catch {
+    sanitizeAcroFormFieldRefs(pdfDoc);
+    try {
+      return pdfDoc.getForm().getFields();
+    } catch {
+      return [];
+    }
+  }
+}
+function sanitizeAcroFormFieldRefs(pdfDoc) {
+  const acroFormDict = pdfDoc.catalog.lookupMaybe(PDFName_default.of("AcroForm"), PDFDict_default);
+  if (!acroFormDict) {
+    return;
+  }
+  const rebuildRefArray = (array) => {
+    const kept = [];
+    for (let index = 0; index < array.size(); index += 1) {
+      const ref = array.get(index);
+      if (!(ref instanceof PDFRef_default)) {
+        continue;
+      }
+      const dict = pdfDoc.context.lookupMaybe(ref, PDFDict_default);
+      if (!dict) {
+        continue;
+      }
+      const kids = dict.lookupMaybe(PDFName_default.of("Kids"), PDFArray_default);
+      if (kids) {
+        const nextKids = rebuildRefArray(kids);
+        if (nextKids.size() > 0) {
+          dict.set(PDFName_default.of("Kids"), nextKids);
+        } else {
+          dict.delete(PDFName_default.of("Kids"));
+        }
+      }
+      kept.push(ref);
+    }
+    const next = pdfDoc.context.obj([]);
+    for (const ref of kept) {
+      next.push(ref);
+    }
+    return next;
+  };
+  const fields = acroFormDict.lookupMaybe(PDFName_default.of("Fields"), PDFArray_default);
+  if (!fields) {
+    return;
+  }
+  acroFormDict.set(PDFName_default.of("Fields"), rebuildRefArray(fields));
 }
 function removeAcroFormFieldSafely(pdfDoc, field) {
   const form = pdfDoc.getForm();
-  const widgets = field.acroField.getWidgets();
-  for (const widget of widgets) {
-    const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
-    if (!(widgetRef instanceof PDFRef_default)) {
-      continue;
-    }
-    for (const page of pdfDoc.getPages()) {
-      try {
-        page.node.removeAnnot(widgetRef);
-      } catch {
+  const widgetRefs = [];
+  try {
+    for (const widget of field.acroField.getWidgets()) {
+      const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
+      if (widgetRef instanceof PDFRef_default) {
+        widgetRefs.push(widgetRef);
       }
     }
+  } catch {
   }
   try {
     form.removeField(field);
@@ -19859,11 +19909,27 @@ function removeAcroFormFieldSafely(pdfDoc, field) {
     } catch {
     }
   }
+  for (const widgetRef of widgetRefs) {
+    for (const page of pdfDoc.getPages()) {
+      try {
+        page.node.removeAnnot(widgetRef);
+      } catch {
+      }
+    }
+  }
+}
+async function savePdfAfterFieldStrip(pdfDoc) {
+  return pdfDoc.save({ updateFieldAppearances: false });
+}
+async function stripAllAcroFormFieldsFromPdfBytes(pdfBytes) {
+  const pdfDoc = await PDFDocument_default.load(pdfBytes);
+  removeAllAcroFormFields(pdfDoc);
+  return savePdfAfterFieldStrip(pdfDoc);
 }
 function purgeOrphanWidgetAnnots(pdfDoc) {
   const liveWidgetObjectNumbers = /* @__PURE__ */ new Set();
   try {
-    for (const field of pdfDoc.getForm().getFields()) {
+    for (const field of safeListFormFields(pdfDoc)) {
       for (const widget of field.acroField.getWidgets()) {
         const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
         if (widgetRef instanceof PDFRef_default) {
@@ -19914,20 +19980,9 @@ function purgeOrphanWidgetAnnots(pdfDoc) {
 }
 function clearEmptyAcroFormCatalog(pdfDoc) {
   try {
-    if (pdfDoc.getForm().getFields().length > 0) {
-      return;
-    }
-  } catch {
-  }
-  try {
     pdfDoc.catalog.delete(PDFName_default.of("AcroForm"));
   } catch {
   }
-}
-async function stripAllAcroFormFieldsFromPdfBytes(pdfBytes) {
-  const pdfDoc = await PDFDocument_default.load(pdfBytes);
-  removeAllAcroFormFields(pdfDoc);
-  return pdfDoc.save();
 }
 function matchDatePrefix(name) {
   const normalized = name.trim().toLowerCase();
@@ -20808,10 +20863,10 @@ async function fillAcroFormIdentity(pdfBytes, values2, options) {
   if (options?.stripAllFields) {
     removeAllAcroFormFields(pdfDoc);
   } else {
-    removeNonSignatureAcroFormFields(pdfDoc);
+    sanitizeAcroFormFieldRefs(pdfDoc);
   }
   return {
-    bytes: await pdfDoc.save(),
+    bytes: await savePdfAfterFieldStrip(pdfDoc),
     filledFields
   };
 }
@@ -20864,6 +20919,9 @@ export {
   removeAllAcroFormFields,
   removeNonSignatureAcroFormFields,
   renderCheckMarkPng,
+  safeListFormFields,
+  sanitizeAcroFormFieldRefs,
+  savePdfAfterFieldStrip,
   stripAllAcroFormFieldsFromPdfBytes
 };
 /*! Bundled license information:

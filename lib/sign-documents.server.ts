@@ -4,6 +4,8 @@ import { createHash } from 'crypto';
 import { PDFDocument, PDFName, PDFRef } from 'pdf-lib';
 import {
   removeAllAcroFormFields,
+  safeListFormFields,
+  savePdfAfterFieldStrip,
   stripAllAcroFormFieldsFromPdfBytes,
   type IdentityFormValues,
 } from '@/lib/acroform-fill';
@@ -199,8 +201,7 @@ async function stampSignatureOnAcroFormField(
   signaturePng: Buffer
 ): Promise<Uint8Array | null> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
-  const form = pdfDoc.getForm();
-  const fields = form.getFields();
+  const fields = safeListFormFields(pdfDoc);
   if (!fields.length) return null;
 
   const signatureFieldNames = findSignatureFieldNames(
@@ -217,6 +218,7 @@ async function stampSignatureOnAcroFormField(
     return null;
   }
 
+  const form = pdfDoc.getForm();
   const embeddedImage = await pdfDoc.embedPng(signaturePng);
   const pages = pdfDoc.getPages();
   let stampedCount = 0;
@@ -264,7 +266,7 @@ async function stampSignatureOnAcroFormField(
   // 서명 이미지 유지, 남은 AcroForm 필드 전부 제거
   removeAllAcroFormFields(pdfDoc);
 
-  return pdfDoc.save();
+  return savePdfAfterFieldStrip(pdfDoc);
 }
 
 /** AcroForm 서명 필드가 없을 때 마지막 페이지 하단에 서명 삽입 */

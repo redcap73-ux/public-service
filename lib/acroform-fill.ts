@@ -1,4 +1,4 @@
-import { PDFDocument, PDFName, PDFRef, PDFDict, type PDFPage } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFRef, PDFDict, PDFArray, type PDFPage } from 'pdf-lib';
 
 export type IdentityFormValues = {
   name?: string;
@@ -284,18 +284,17 @@ export function isSignatureStampField(fieldName: string) {
 
 /** 스탬프된 내용은 남기고, 상호작용용 AcroForm 필드만 전부 제거 */
 export function removeAllAcroFormFields(pdfDoc: PDFDocument) {
-  const form = pdfDoc.getForm();
-  for (const field of [...form.getFields()]) {
+  for (const field of [...safeListFormFields(pdfDoc)]) {
     removeAcroFormFieldSafely(pdfDoc, field);
   }
   purgeOrphanWidgetAnnots(pdfDoc);
+  sanitizeAcroFormFieldRefs(pdfDoc);
   clearEmptyAcroFormCatalog(pdfDoc);
 }
 
 /** 서명 스탬프 전 단계: signature* 만 남기고 나머지 필드 제거 */
 export function removeNonSignatureAcroFormFields(pdfDoc: PDFDocument) {
-  const form = pdfDoc.getForm();
-  for (const field of [...form.getFields()]) {
+  for (const field of [...safeListFormFields(pdfDoc)]) {
     if (isSignatureStampField(field.getName())) {
       continue;
     }
@@ -303,32 +302,90 @@ export function removeNonSignatureAcroFormFields(pdfDoc: PDFDocument) {
   }
   // 이미 지운 필드의 잔여 Widget Annots만 정리 (서명 필드는 유지)
   purgeOrphanWidgetAnnots(pdfDoc);
+  sanitizeAcroFormFieldRefs(pdfDoc);
+}
+
+/** getFields() 가 깨진 참조로 throw 하지 않도록 안전하게 나열 */
+export function safeListFormFields(pdfDoc: PDFDocument) {
+  sanitizeAcroFormFieldRefs(pdfDoc);
+  try {
+    return pdfDoc.getForm().getFields();
+  } catch {
+    sanitizeAcroFormFieldRefs(pdfDoc);
+    try {
+      return pdfDoc.getForm().getFields();
+    } catch {
+      return [];
+    }
+  }
+}
+
+/**
+ * AcroForm Fields/Kids 배열에서 삭제된 객체 참조를 제거합니다.
+ * (removeField 이후 getFields() 시 Expected PDFDict, got undefined 방지)
+ */
+export function sanitizeAcroFormFieldRefs(pdfDoc: PDFDocument) {
+  const acroFormDict = pdfDoc.catalog.lookupMaybe(PDFName.of('AcroForm'), PDFDict);
+  if (!acroFormDict) {
+    return;
+  }
+
+  const rebuildRefArray = (array: PDFArray) => {
+    const kept: PDFRef[] = [];
+    for (let index = 0; index < array.size(); index += 1) {
+      const ref = array.get(index);
+      if (!(ref instanceof PDFRef)) {
+        continue;
+      }
+      const dict = pdfDoc.context.lookupMaybe(ref, PDFDict);
+      if (!dict) {
+        continue;
+      }
+      const kids = dict.lookupMaybe(PDFName.of('Kids'), PDFArray);
+      if (kids) {
+        const nextKids = rebuildRefArray(kids);
+        if (nextKids.size() > 0) {
+          dict.set(PDFName.of('Kids'), nextKids);
+        } else {
+          dict.delete(PDFName.of('Kids'));
+        }
+      }
+      kept.push(ref);
+    }
+    const next = pdfDoc.context.obj([]) as PDFArray;
+    for (const ref of kept) {
+      next.push(ref);
+    }
+    return next;
+  };
+
+  const fields = acroFormDict.lookupMaybe(PDFName.of('Fields'), PDFArray);
+  if (!fields) {
+    return;
+  }
+  acroFormDict.set(PDFName.of('Fields'), rebuildRefArray(fields));
 }
 
 /**
  * pdf-lib removeField 는 Widget Annots 를 잘못 남겨 Adobe 인쇄 오류를 유발할 수 있음.
- * 위젯 dict ref 를 Annots 에서 먼저 제거한 뒤 필드를 삭제합니다.
+ * 필드 삭제 전에 위젯 ref 를 모아 두고, 삭제 후 Annots 에서 올바르게 제거합니다.
  */
 function removeAcroFormFieldSafely(
   pdfDoc: PDFDocument,
   field: { ref: PDFRef; acroField: { getWidgets: () => Array<{ dict: PDFDict }> } }
 ) {
   const form = pdfDoc.getForm();
-  const widgets = field.acroField.getWidgets();
+  const widgetRefs: PDFRef[] = [];
 
-  for (const widget of widgets) {
-    const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
-    if (!(widgetRef instanceof PDFRef)) {
-      continue;
-    }
-    // P 누락/오류에 대비해 모든 페이지에서 제거 시도
-    for (const page of pdfDoc.getPages()) {
-      try {
-        page.node.removeAnnot(widgetRef);
-      } catch {
-        // ignore
+  try {
+    for (const widget of field.acroField.getWidgets()) {
+      const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
+      if (widgetRef instanceof PDFRef) {
+        widgetRefs.push(widgetRef);
       }
     }
+  } catch {
+    // 위젯 조회 실패 시에도 필드 삭제는 시도
   }
 
   try {
@@ -340,13 +397,35 @@ function removeAcroFormFieldSafely(
       // ignore
     }
   }
+
+  // removeField 가 남긴/잘못된 Annots 항목을 실제 위젯 ref 로 정리
+  for (const widgetRef of widgetRefs) {
+    for (const page of pdfDoc.getPages()) {
+      try {
+        page.node.removeAnnot(widgetRef);
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+/** 필드 제거 후에는 appearance 갱신을 끄고 저장 (깨진 참조 assert 방지) */
+export async function savePdfAfterFieldStrip(pdfDoc: PDFDocument) {
+  return pdfDoc.save({ updateFieldAppearances: false });
+}
+
+export async function stripAllAcroFormFieldsFromPdfBytes(pdfBytes: ArrayBuffer) {
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  removeAllAcroFormFields(pdfDoc);
+  return savePdfAfterFieldStrip(pdfDoc);
 }
 
 /** 현재 AcroForm 필드에 속하지 않는 Widget Annots / 깨진 참조 제거 */
 function purgeOrphanWidgetAnnots(pdfDoc: PDFDocument) {
   const liveWidgetObjectNumbers = new Set<number>();
   try {
-    for (const field of pdfDoc.getForm().getFields()) {
+    for (const field of safeListFormFields(pdfDoc)) {
       for (const widget of field.acroField.getWidgets()) {
         const widgetRef = pdfDoc.context.getObjectRef(widget.dict);
         if (widgetRef instanceof PDFRef) {
@@ -406,24 +485,12 @@ function purgeOrphanWidgetAnnots(pdfDoc: PDFDocument) {
 }
 
 function clearEmptyAcroFormCatalog(pdfDoc: PDFDocument) {
-  try {
-    if (pdfDoc.getForm().getFields().length > 0) {
-      return;
-    }
-  } catch {
-    // continue and try catalog delete
-  }
+  // getForm() 은 AcroForm 을 다시 만들 수 있으므로, 카탈로그에서만 제거
   try {
     pdfDoc.catalog.delete(PDFName.of('AcroForm'));
   } catch {
     // ignore
   }
-}
-
-export async function stripAllAcroFormFieldsFromPdfBytes(pdfBytes: ArrayBuffer) {
-  const pdfDoc = await PDFDocument.load(pdfBytes);
-  removeAllAcroFormFields(pdfDoc);
-  return pdfDoc.save();
 }
 
 function matchDatePrefix(name: string): DateFieldPrefix | null {
@@ -1606,14 +1673,16 @@ export async function fillAcroFormIdentity(
   }
 
   // 스탬프된 이미지/텍스트는 유지하고, 상호작용 필드만 제거
+  // 서명 병합 경로(stripAllFields=false)에서는 signature* 를 남겨야 하므로
+  // 중간 필드 제거는 하지 않고, 서명 스탬프 후 일괄 제거한다.
   if (options?.stripAllFields) {
     removeAllAcroFormFields(pdfDoc);
   } else {
-    removeNonSignatureAcroFormFields(pdfDoc);
+    sanitizeAcroFormFieldRefs(pdfDoc);
   }
 
   return {
-    bytes: await pdfDoc.save(),
+    bytes: await savePdfAfterFieldStrip(pdfDoc),
     filledFields,
   };
 }

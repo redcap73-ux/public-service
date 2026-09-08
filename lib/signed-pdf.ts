@@ -3,6 +3,8 @@ import {
   fillAcroFormIdentity,
   removeAllAcroFormFields,
   renderCheckMarkPng,
+  safeListFormFields,
+  savePdfAfterFieldStrip,
   stripAllAcroFormFieldsFromPdfBytes,
   type IdentityFormValues,
 } from '@/lib/acroform-fill';
@@ -454,8 +456,7 @@ async function stampSignatureOnAcroFormField(
   signatureDataUrl: string
 ): Promise<Uint8Array | null> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
-  const form = pdfDoc.getForm();
-  const fields = form.getFields();
+  const fields = safeListFormFields(pdfDoc);
 
   if (fields.length === 0) {
     return null;
@@ -479,6 +480,7 @@ async function stampSignatureOnAcroFormField(
     return null;
   }
 
+  const form = pdfDoc.getForm();
   const trimmedSignature = await trimSignatureToImage(signatureDataUrl);
   const signaturePng = dataUrlToBytes(
     (() => {
@@ -551,7 +553,7 @@ async function stampSignatureOnAcroFormField(
   // 서명 이미지 유지, 남은 AcroForm 필드 전부 제거
   removeAllAcroFormFields(pdfDoc);
 
-  return pdfDoc.save();
+  return savePdfAfterFieldStrip(pdfDoc);
 }
 
 export type SignedDocumentInput = {
