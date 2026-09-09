@@ -884,25 +884,46 @@
     return Math.min(n,20);
   }
 
+  function isAllowDisagreeFlag(value){
+    return String(value??'').trim().toUpperCase()==='Y';
+  }
+
   function mapTemplateItems(items){
     if(!Array.isArray(items)||!items.length)return [];
-    return items.map((item,index)=>({
-      id:String(item.id),
-      order:index+1,
-      label:item.content||'',
-      category:normalizeTemplateCategory(item.category),
-      input_type:mapTemplateCategory(item.category),
-      required:true,
-      options:buildTemplateItemOptions(item),
-      selection_mode:normalizeTemplateCategory(item.category)==='CHECKBOX'?'multiple':'single',
-      block_submit_values:normalizeTemplateCategory(item.category)==='AGREE_DISAGREE'?['동의하지 않음']:[],
-      pdfFieldName:String(item.pdf_field_name||'').trim(),
-      lines:parseTemplateLines(item.lines),
-    }));
+    return items.map((item,index)=>{
+      const category=normalizeTemplateCategory(item.category);
+      const allowDisagree=isAllowDisagreeFlag(item.is_allow_disagree);
+      return {
+        id:String(item.id),
+        order:index+1,
+        label:item.content||'',
+        category,
+        input_type:mapTemplateCategory(item.category),
+        required:true,
+        options:buildTemplateItemOptions(item),
+        selection_mode:category==='CHECKBOX'?'multiple':'single',
+        // is_allow_disagree=Y 이면 「동의하지 않음」 저장·진행 허용
+        allowDisagree,
+        block_submit_values:category==='AGREE_DISAGREE' && !allowDisagree?['동의하지 않음']:[],
+        pdfFieldName:String(item.pdf_field_name||'').trim(),
+        lines:parseTemplateLines(item.lines),
+      };
+    });
   }
 
   function hasTemplateItems(doc){
     return Array.isArray(doc?.questions)&&doc.questions.length>0;
+  }
+
+  /** 미동의(reject)여도 다음 단계 진입을 막아야 하는지 */
+  function isRejectedConsentBlocking(doc,st){
+    if(st?.consent!=='reject')return false;
+    if(hasTemplateItems(doc)){
+      const agreeItem=doc.questions.find((q)=>q.input_type==='agree_disagree');
+      if(agreeItem?.allowDisagree)return false;
+      return true;
+    }
+    return Boolean(doc?.required);
   }
 
   function formatAnswerForPdf(value){
@@ -2150,8 +2171,8 @@
         return;
       }
       if(!areAllDownloadDocumentsComplete()){focusRequiredDownloads();return;}
-      const rejectedRequired=state.docs.findIndex((d,i)=>request.documents[i].required && d.consent==='reject');
-      if(rejectedRequired>=0){toast('필수 동의서에 미동의하여 전자서명을 진행할 수 없습니다.');selectDocument(rejectedRequired,true);return;}
+      const rejectedBlocking=state.docs.findIndex((d,i)=>isRejectedConsentBlocking(request.documents[i],d));
+      if(rejectedBlocking>=0){toast('필수 동의서에 미동의하여 전자서명을 진행할 수 없습니다.');selectDocument(rejectedBlocking,true);return;}
       setStep(3);return;
     }
     if(state.currentStep===3){validateAndOpenSubmit();}
@@ -3352,7 +3373,7 @@
       });
     }
     renderDocList();
-    if(st.consent==='reject' && doc.required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
+    if(st.consent==='reject' && isRejectedConsentBlocking(doc,st)){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
     saveProgressDraft();
     const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
     if(nextConsent>=0){
@@ -3528,7 +3549,7 @@
       });
     }
     renderDocList();
-    if(selected.value==='reject' && request.documents[state.currentDocIndex].required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
+    if(selected.value==='reject' && isRejectedConsentBlocking(request.documents[state.currentDocIndex],st)){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
     saveProgressDraft();
     const nextConsent=getNextConsentDocumentIndex(state.currentDocIndex);
     if(nextConsent>=0){
