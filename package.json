@@ -16,10 +16,10 @@
     "@napi-rs/canvas": "^1.0.8",
     "@pdf-lib/fontkit": "^1.1.1",
     "@portone/browser-sdk": "^0.1.9",
-    "next": "15.1.6",
+    "next": "15.5.25",
     "pdf-lib": "^1.17.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "react-signature-canvas": "^1.1.0-alpha.2",
     "server-only": "^0.0.1",
     "signature_pad": "^5.1.3"
@@ -31,7 +31,7 @@
     "@types/react-signature-canvas": "^1.0.7",
     "esbuild": "^0.28.1",
     "eslint": "^9",
-    "eslint-config-next": "15.1.6",
+    "eslint-config-next": "15.5.25",
     "typescript": "^5"
   }
 }
