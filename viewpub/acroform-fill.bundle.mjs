@@ -20838,6 +20838,14 @@ async function fillAcroFormIdentity(pdfBytes, values2, options) {
       reservedNames.add(fieldName);
     }
   }
+  if (values2.userConfirm) {
+    for (const fieldName of fieldNames) {
+      if (fieldStartsWithPrefix(fieldName, "user_confirm") && !reservedNames.has(fieldName)) {
+        extraToStamp.push({ fieldName, text: "\u2713" });
+        reservedNames.add(fieldName);
+      }
+    }
+  }
   const dateParts = getKstDateParts();
   const dateToStamp = [];
   for (const fieldName of fieldNames) {

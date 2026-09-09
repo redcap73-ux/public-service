@@ -957,7 +957,16 @@
     return fields;
   }
 
-  function buildFillValues(userInfo,extraFields,datePrefixes){
+  function shouldStampUserConfirm(doc,answers,consent){
+    if(consent==='agree')return true;
+    for(const q of doc?.questions||[]){
+      const vals=selectedAnswerValues(answers?.[q.id]);
+      if(vals.some((v)=>v==='동의함' || v.toLowerCase()==='agree'))return true;
+    }
+    return false;
+  }
+
+  function buildFillValues(userInfo,extraFields,datePrefixes,options){
     const base=buildIdentityFormValues(userInfo||{});
     const nameSystem=request.signer.name||base.name||'';
     const nameSystemDataUrl=state.hasNameSignature && nameCanvas
@@ -990,6 +999,7 @@
       adjustJumin:request.adjustJumin||base.adjustJumin||'',
       extraFields:extraFields||{},
       datePrefixes:datePrefixes||[],
+      userConfirm:Boolean(options?.userConfirm),
     };
   }
 
@@ -2285,7 +2295,14 @@
       identity:buildFillValues(
         verifiedUserInfo,
         buildTemplatePdfFields(doc,state.docs[index].answers||{}),
-        collectDatePrefixes(doc)
+        collectDatePrefixes(doc),
+        {
+          userConfirm:shouldStampUserConfirm(
+            doc,
+            state.docs[index].answers||{},
+            state.docs[index].consent
+          ),
+        }
       ),
     }));
 
@@ -2374,15 +2391,24 @@
     };
   }
 
-  async function fillDocumentPreview(doc,userInfo,answers){
+  async function fillDocumentPreview(doc,userInfo,answers,docIndex){
     if(!doc?.file_path)return false;
     const {fillAcroFormIdentity}=await ensureAcroformFill();
     const response=await fetch(buildFileApiUrl(doc.file_path),{cache:'no-store'});
     if(!response.ok)return false;
     const pdfBytes=await response.arrayBuffer();
+    const index=typeof docIndex==='number'
+      ? docIndex
+      : request.documents.indexOf(doc);
+    const consent=index>=0?state.docs[index]?.consent:null;
     const filled=await fillAcroFormIdentity(
       pdfBytes,
-      buildFillValues(userInfo,buildTemplatePdfFields(doc,answers),collectDatePrefixes(doc)),
+      buildFillValues(
+        userInfo,
+        buildTemplatePdfFields(doc,answers),
+        collectDatePrefixes(doc),
+        {userConfirm:shouldStampUserConfirm(doc,answers,consent)}
+      ),
       {stripAllFields:true}
     );
     if(!filled)return false;
@@ -2398,7 +2424,7 @@
 
     for(let i=0;i<request.documents.length;i+=1){
       const doc=request.documents[i];
-      const filled=await fillDocumentPreview(doc,userInfo,state.docs[i]?.answers||{});
+      const filled=await fillDocumentPreview(doc,userInfo,state.docs[i]?.answers||{},i);
       if(filled)filledCount+=1;
     }
 
@@ -3313,8 +3339,13 @@
     resetFinalDocumentConfirmation({
       toast:'문서 응답이 변경되어 최종문서확인을 다시 진행해 주세요.',
     });
-    if(verifiedUserInfo || Object.keys(buildTemplatePdfFields(doc,st.answers)).length || collectDatePrefixes(doc).length){
-      void fillDocumentPreview(doc,verifiedUserInfo,st.answers).then((filled)=>{
+    if(
+      verifiedUserInfo ||
+      Object.keys(buildTemplatePdfFields(doc,st.answers)).length ||
+      collectDatePrefixes(doc).length ||
+      shouldStampUserConfirm(doc,st.answers,st.consent)
+    ){
+      void fillDocumentPreview(doc,verifiedUserInfo,st.answers,state.currentDocIndex).then((filled)=>{
         if(filled && request.documents[state.currentDocIndex]===doc){
           renderDocumentContent(doc,state.currentDocIndex);
         }
@@ -3484,6 +3515,18 @@
     resetFinalDocumentConfirmation({
       toast:'문서 동의 내용이 변경되어 최종문서확인을 다시 진행해 주세요.',
     });
+    const doc=request.documents[state.currentDocIndex];
+    if(
+      verifiedUserInfo ||
+      selected.value==='agree' ||
+      shouldStampUserConfirm(doc,st.answers,st.consent)
+    ){
+      void fillDocumentPreview(doc,verifiedUserInfo,st.answers,state.currentDocIndex).then((filled)=>{
+        if(filled && request.documents[state.currentDocIndex]===doc){
+          renderDocumentContent(doc,state.currentDocIndex);
+        }
+      });
+    }
     renderDocList();
     if(selected.value==='reject' && request.documents[state.currentDocIndex].required){toast('필수 동의서 미동의 시 전자서명을 제출할 수 없습니다.');}
     saveProgressDraft();

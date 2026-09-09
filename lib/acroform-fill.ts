@@ -46,6 +46,8 @@ export type IdentityFormValues = {
   extraFields?: Record<string, string>;
   /** 선택형 답변 문구. PDF 본문 "동의함" 왼쪽 [ ]에 체크를 찍을 때 사용 */
   checkLabels?: string[];
+  /** 문서 동의함 선택 시 PDF user_confirm* 필드에 체크 표기 */
+  userConfirm?: boolean;
   /** template pdf_field_name 이 year4/year2/month/day/hour/min 인 경우, 같은 접두어 PDF 필드에 현재 시각을 넣습니다. */
   datePrefixes?: Array<'year4' | 'year2' | 'month' | 'day' | 'hour' | 'min'>;
 };
@@ -1644,6 +1646,19 @@ export async function fillAcroFormIdentity(
       }
       extraToStamp.push({ fieldName, text });
       reservedNames.add(fieldName);
+    }
+  }
+
+  // 동의함 선택 시 user_confirm* 필드에 체크 표기 (동의함 UI와 동일하게 ✓)
+  if (values.userConfirm) {
+    for (const fieldName of fieldNames) {
+      if (
+        fieldStartsWithPrefix(fieldName, 'user_confirm') &&
+        !reservedNames.has(fieldName)
+      ) {
+        extraToStamp.push({ fieldName, text: '✓' });
+        reservedNames.add(fieldName);
+      }
     }
   }
 
