@@ -207,7 +207,18 @@ export async function completeSignRequestFromServer(
         .filter(Boolean)
     ),
   ];
-  const finalHash = computeFinalHash(signedHashes);
+  // 동의 문서가 없고 미동의 허용 문서만 있는 경우: 확인용 PDF 해시로 finalHash 구성
+  const reviewHashes =
+    signedHashes.length > 0
+      ? signedHashes
+      : [
+          ...new Set(
+            evidence.documents
+              .map((doc) => doc.signedHash ?? '')
+              .filter(Boolean)
+          ),
+        ];
+  const finalHash = computeFinalHash(reviewHashes);
   const evidenceObjectKey = buildEvidenceObjectKey(evidence.requestNo, signTransactionId);
   const signedFilePath =
     evidence.signed_file_path ||

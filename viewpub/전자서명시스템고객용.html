@@ -2264,10 +2264,26 @@
     }
   }
 
-  function getAgreeDocsWithPdf(){
+  function isAllowDisagreeDoc(doc){
+    if(!hasTemplateItems(doc))return false;
+    const agreeItem=doc.questions.find((q)=>q.input_type==='agree_disagree');
+    return Boolean(agreeItem?.allowDisagree);
+  }
+
+  /** 최종문서확인/서명 PDF 대상: 동의 문서 + 미동의 허용(reject) 문서 */
+  function getFinalReviewDocsWithPdf(){
     return request.documents
       .map((doc,index)=>({doc,index,consent:state.docs[index].consent}))
-      .filter(item=>item.consent==='agree' && item.doc.file_path);
+      .filter((item)=>{
+        if(!item.doc.file_path)return false;
+        if(item.consent==='agree')return true;
+        if(item.consent==='reject' && isAllowDisagreeDoc(item.doc))return true;
+        return false;
+      });
+  }
+
+  function getAgreeDocsWithPdf(){
+    return getFinalReviewDocsWithPdf().filter((item)=>item.consent==='agree');
   }
 
   async function mergeSignedPdfPartsOnServer(signedParts,onProgress){
@@ -2304,13 +2320,14 @@
     const nameSystemDataUrl=state.hasNameSignature && nameCanvas
       ? nameCanvas.toDataURL('image/png')
       : '';
-    const agreeDocsWithPdf=getAgreeDocsWithPdf();
-    if(!agreeDocsWithPdf.length){
-      throw new Error('서명할 동의 문서가 없습니다.');
+    const reviewDocsWithPdf=getFinalReviewDocsWithPdf();
+    if(!reviewDocsWithPdf.length){
+      throw new Error('확인할 문서가 없습니다.');
     }
+    const agreeDocsWithPdf=reviewDocsWithPdf.filter((item)=>item.consent==='agree');
 
     onProgress?.('서버에서 서명 PDF 생성 중…');
-    const documents=agreeDocsWithPdf.map(({doc,index})=>({
+    const documents=reviewDocsWithPdf.map(({doc,index})=>({
       filePath:doc.file_path,
       index,
       identity:buildFillValues(
@@ -2349,9 +2366,10 @@
       nameSystemDataUrl,
       mergedBytes,
       agreeDocsWithPdf:agreeDocsWithPdf.map(({index})=>({index})),
+      reviewDocsWithPdf:reviewDocsWithPdf.map(({index})=>({index})),
       mergedHash:response.headers.get('X-Signed-Hash')||'',
     };
-    return {mergedBytes,agreeDocsWithPdf,signatureDataUrl};
+    return {mergedBytes,agreeDocsWithPdf,reviewDocsWithPdf,signatureDataUrl};
   }
 
   async function sha256HexFromBytes(bytes){
@@ -2370,13 +2388,14 @@
       signedMergedCache.signatureDataUrl===signatureDataUrl &&
       signedMergedCache.nameSystemDataUrl===nameSystemDataUrl &&
       signedMergedCache.mergedBytes &&
-      Array.isArray(signedMergedCache.agreeDocsWithPdf) &&
-      signedMergedCache.agreeDocsWithPdf.length
+      Array.isArray(signedMergedCache.reviewDocsWithPdf) &&
+      signedMergedCache.reviewDocsWithPdf.length
     ){
       onProgress?.('확인한 서명 PDF를 사용 중…');
       return {
         mergedBytes:signedMergedCache.mergedBytes,
-        agreeDocsWithPdf:signedMergedCache.agreeDocsWithPdf,
+        agreeDocsWithPdf:signedMergedCache.agreeDocsWithPdf||[],
+        reviewDocsWithPdf:signedMergedCache.reviewDocsWithPdf,
         signatureDataUrl,
         fromCache:true,
       };
@@ -4002,9 +4021,9 @@
       focusRequiredSignature('자필서명을 먼저 입력해 주세요.');
       return;
     }
-    const agreeDocsWithPdf=getAgreeDocsWithPdf();
-    if(!agreeDocsWithPdf.length){
-      toast('확인할 동의 문서가 없습니다.');
+    const reviewDocsWithPdf=getFinalReviewDocsWithPdf();
+    if(!reviewDocsWithPdf.length){
+      toast('확인할 문서가 없습니다.');
       return;
     }
     if(isBuildingSignedPreview)return;
@@ -4198,7 +4217,7 @@
       const completedAt=new Date();
       const evidence=await buildEvidencePayload(signatureImageSha256,completedAt);
       submitBtn.textContent='서명 PDF 준비 중…';
-      const {mergedBytes,agreeDocsWithPdf}=await getMergedSignedPdfBytesForSubmit((message)=>{
+      const {mergedBytes,agreeDocsWithPdf,reviewDocsWithPdf}=await getMergedSignedPdfBytesForSubmit((message)=>{
         submitBtn.textContent=message;
       });
       const mergedHash=await sha256HexFromBytes(mergedBytes);
@@ -4207,7 +4226,10 @@
       completedSignedPdfBytes=mergedBytes;
 
       evidence.signed_file_path=uploaded.objectKey;
-      for(const {index} of agreeDocsWithPdf){
+      const reviewIndexes=Array.isArray(reviewDocsWithPdf) && reviewDocsWithPdf.length
+        ? reviewDocsWithPdf
+        : agreeDocsWithPdf;
+      for(const {index} of reviewIndexes){
         evidence.documents[index].signedObjectKey=uploaded.objectKey;
         evidence.documents[index].signedHash=uploaded.signedHash;
       }
