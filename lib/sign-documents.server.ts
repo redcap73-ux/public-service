@@ -30,6 +30,8 @@ export type ServerSignDocumentInput = {
   filePath: string;
   identity?: IdentityFormValues | null;
   index?: number;
+  /** 동일 서명본을 최종 PDF에 반복 포함할 횟수 (기본 1) */
+  copies?: number;
 };
 
 function normalizeFieldKey(name: string) {
@@ -358,7 +360,7 @@ export async function buildSignedMergedPdfOnServer(options: {
   dataUrlToBytes(signatureDataUrl);
 
   const signedParts: Uint8Array[] = [];
-  const results: Array<{ index: number; filePath: string; signedHash: string }> =
+  const results: Array<{ index: number; filePath: string; signedHash: string; copies: number }> =
     [];
 
   for (const doc of documents) {
@@ -367,11 +369,18 @@ export async function buildSignedMergedPdfOnServer(options: {
       signatureDataUrl,
       identity: doc.identity ?? null,
     });
-    signedParts.push(bytes);
+    const rawCopies = Number(doc.copies ?? 1);
+    const copies = Number.isFinite(rawCopies)
+      ? Math.min(Math.max(Math.floor(rawCopies), 1), 50)
+      : 1;
+    for (let copy = 0; copy < copies; copy += 1) {
+      signedParts.push(bytes);
+    }
     results.push({
       index: typeof doc.index === 'number' ? doc.index : results.length,
       filePath: doc.filePath,
       signedHash,
+      copies,
     });
   }
 

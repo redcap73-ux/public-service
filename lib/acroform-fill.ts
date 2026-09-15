@@ -1,4 +1,7 @@
 import { PDFDocument, PDFName, PDFRef, PDFDict, PDFArray, type PDFPage } from 'pdf-lib';
+import { duplicatePdfBytes } from '@/lib/pdf-merge';
+
+export { duplicatePdfBytes } from '@/lib/pdf-merge';
 
 export type IdentityFormValues = {
   name?: string;

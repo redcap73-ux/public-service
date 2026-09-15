@@ -1570,11 +1570,18 @@
     );
   }
 
+  function parseDocumentPageCount(value){
+    const n=Number.parseInt(String(value??'1').trim(),10);
+    if(!Number.isFinite(n)||n<1)return 1;
+    return Math.min(n,50);
+  }
+
   function mapApiDocument(doc,insurer){
     const name=doc.document_name||doc.document_type||'동의서';
     const downloadType=getDocumentDownloadType(doc);
     const questions=mapTemplateItems(doc.template_items);
     const memo=String(doc.memo??doc.Memo??'').trim();
+    const pageCount=parseDocumentPageCount(doc.page_count??doc.pageCount);
     return {
       id:String(doc.id),
       code:doc.template_code||doc.document_type||'',
@@ -1586,6 +1593,7 @@
       download_type:downloadType,
       summary:name,
       memo,
+      pageCount,
       file_path:doc.file_path||'',
       document_hash:doc.document_hash||'',
       questions,
@@ -2330,6 +2338,8 @@
     const documents=reviewDocsWithPdf.map(({doc,index})=>({
       filePath:doc.file_path,
       index,
+      // 화면 질문/동의는 1회, 최종·증적 PDF에는 page_count 만큼 동일본 포함
+      copies:parseDocumentPageCount(doc.pageCount),
       identity:buildFillValues(
         verifiedUserInfo,
         buildTemplatePdfFields(doc,state.docs[index].answers||{}),
@@ -2433,7 +2443,7 @@
 
   async function fillDocumentPreview(doc,userInfo,answers,docIndex){
     if(!doc?.file_path)return false;
-    const {fillAcroFormIdentity}=await ensureAcroformFill();
+    const {fillAcroFormIdentity,duplicatePdfBytes}=await ensureAcroformFill();
     const response=await fetch(buildFileApiUrl(doc.file_path),{cache:'no-store'});
     if(!response.ok)return false;
     const pdfBytes=await response.arrayBuffer();
@@ -2441,19 +2451,35 @@
       ? docIndex
       : request.documents.indexOf(doc);
     const consent=index>=0?state.docs[index]?.consent:null;
-    const filled=await fillAcroFormIdentity(
-      pdfBytes,
-      buildFillValues(
-        userInfo,
-        buildTemplatePdfFields(doc,answers),
-        collectDatePrefixes(doc),
-        {userConfirm:shouldStampUserConfirm(doc,answers,consent)}
-      ),
-      {stripAllFields:true}
-    );
-    if(!filled)return false;
+    let previewBytes=new Uint8Array(pdfBytes);
+    try{
+      const filled=await fillAcroFormIdentity(
+        pdfBytes,
+        buildFillValues(
+          userInfo,
+          buildTemplatePdfFields(doc,answers),
+          collectDatePrefixes(doc),
+          {userConfirm:shouldStampUserConfirm(doc,answers,consent)}
+        ),
+        {stripAllFields:true}
+      );
+      if(filled?.bytes)previewBytes=filled.bytes;
+    }catch(error){
+      console.warn('[preview] fill failed, using source pdf:',error);
+    }
+
+    // page_count>1 이면 동의 화면 미리보기에도 동일 문서를 N부 이어 붙임 (질문은 1회)
+    const copies=parseDocumentPageCount(doc.pageCount);
+    if(copies>1 && typeof duplicatePdfBytes==='function'){
+      try{
+        previewBytes=await duplicatePdfBytes(previewBytes,copies);
+      }catch(error){
+        console.warn('[preview] page_count expand failed:',error);
+      }
+    }
+
     if(filledPdfUrls[doc.file_path])URL.revokeObjectURL(filledPdfUrls[doc.file_path]);
-    filledPdfUrls[doc.file_path]=URL.createObjectURL(new Blob([filled.bytes],{type:'application/pdf'}));
+    filledPdfUrls[doc.file_path]=URL.createObjectURL(new Blob([previewBytes],{type:'application/pdf'}));
     return true;
   }
 
@@ -2656,13 +2682,13 @@
         : `<button class="doc-action" type="button" data-open-doc="${i}">${escapeHtml(actionLabel)}</button>`;
       const badgeHtml=downloadType===2
         ? ''
-        : ` <span class="badge ${doc.required?'orange':'gray'}">${doc.required?'필수':'선택'}</span>`;
+        : ` <span class="badge ${doc.required?'orange':'gray'}">${doc.required?'필수':'선택'}</span>${doc.pageCount>1?` <span class="badge blue">${doc.pageCount}부</span>`:''}`;
       const downloadMemo=downloadType===2?String(doc.memo||'').trim():'';
       const memoHtml=downloadMemo
         ? `<div class="doc-memo-banner is-visible doc-row-memo" role="status">${buildDocMemoInnerHtml(downloadMemo)}</div>`
         : '';
       return `<div class="doc-row ${i===state.currentDocIndex?'current':''} ${isDocumentComplete(doc,st)?'done':''}${downloadMemo?' has-memo':''}" data-doc-index="${i}">
-        <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)}${badgeHtml}</div></div>
+        <div class="doc-no">${i+1}</div><div><div class="doc-name">${escapeHtml(doc.name)}${badgeHtml}</div>${doc.pageCount>1?`<div class="doc-sub" style="margin-top:4px;font-size:11px;color:#64748b">확인 질문은 1회 · 최종 PDF에 ${doc.pageCount}부 포함</div>`:''}</div>
         ${actionButton}${memoHtml}</div>`;
     }).join('');
     document.querySelectorAll('.doc-row').forEach(row=>{
@@ -2993,7 +3019,8 @@
     viewerContentReady=false;
     // 실제 PDF 미리보기는 download_type=1(동의/열람) 문서만 표시
     if(isConsentDocument(doc) && doc.file_path){
-      $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF ${filledPdfUrls[doc.file_path]?'본인정보 반영':'원본'}`;
+      const pageNote=doc.pageCount>1?` · ${doc.pageCount}부`:'';
+      $('viewerMeta').textContent=`${doc.insurer} · ${doc.code} · ${doc.version} · PDF ${filledPdfUrls[doc.file_path]?'본인정보 반영':'원본'}${pageNote}`;
       void renderPdfIntoPaper(doc.file_path,paperEl,generation);
       return;
     }

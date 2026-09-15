@@ -19639,6 +19639,26 @@ var PDFButton = (
 );
 var PDFButton_default = PDFButton;
 
+// lib/pdf-merge.ts
+async function mergePdfByteList(pdfBytesList) {
+  if (pdfBytesList.length === 0) {
+    throw new Error("\uBCD1\uD569\uD560 PDF\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  }
+  if (pdfBytesList.length === 1) {
+    return pdfBytesList[0];
+  }
+  const merged = await PDFDocument_default.create();
+  for (const bytes of pdfBytesList) {
+    const source = await PDFDocument_default.load(bytes);
+    const pageIndices = source.getPageIndices();
+    const copiedPages = await merged.copyPages(source, pageIndices);
+    for (const page of copiedPages) {
+      merged.addPage(page);
+    }
+  }
+  return merged.save({ updateFieldAppearances: false });
+}
+
 // lib/acroform-fill.ts
 var NAME_ALIASES = ["name", "\uC131\uBA85", "\uC774\uB984", "username", "customername", "user_name"];
 var PHONE_ALIASES = [
@@ -20900,26 +20920,6 @@ async function ensurePdfJs() {
   }
   pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
   return pdfjsLib;
-}
-
-// lib/pdf-merge.ts
-async function mergePdfByteList(pdfBytesList) {
-  if (pdfBytesList.length === 0) {
-    throw new Error("\uBCD1\uD569\uD560 PDF\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
-  }
-  if (pdfBytesList.length === 1) {
-    return pdfBytesList[0];
-  }
-  const merged = await PDFDocument_default.create();
-  for (const bytes of pdfBytesList) {
-    const source = await PDFDocument_default.load(bytes);
-    const pageIndices = source.getPageIndices();
-    const copiedPages = await merged.copyPages(source, pageIndices);
-    for (const page of copiedPages) {
-      merged.addPage(page);
-    }
-  }
-  return merged.save({ updateFieldAppearances: false });
 }
 
 // lib/signed-pdf.ts

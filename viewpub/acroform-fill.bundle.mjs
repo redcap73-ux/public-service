@@ -19639,6 +19639,33 @@ var PDFButton = (
 );
 var PDFButton_default = PDFButton;
 
+// lib/pdf-merge.ts
+async function mergePdfByteList(pdfBytesList) {
+  if (pdfBytesList.length === 0) {
+    throw new Error("\uBCD1\uD569\uD560 PDF\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+  }
+  if (pdfBytesList.length === 1) {
+    return pdfBytesList[0];
+  }
+  const merged = await PDFDocument_default.create();
+  for (const bytes of pdfBytesList) {
+    const source = await PDFDocument_default.load(bytes);
+    const pageIndices = source.getPageIndices();
+    const copiedPages = await merged.copyPages(source, pageIndices);
+    for (const page of copiedPages) {
+      merged.addPage(page);
+    }
+  }
+  return merged.save({ updateFieldAppearances: false });
+}
+async function duplicatePdfBytes(pdfBytes, copies) {
+  const count = Number.isFinite(copies) ? Math.min(Math.max(Math.floor(copies), 1), 50) : 1;
+  if (count <= 1) {
+    return pdfBytes;
+  }
+  return mergePdfByteList(Array.from({ length: count }, () => pdfBytes));
+}
+
 // lib/acroform-fill.ts
 var NAME_ALIASES = ["name", "\uC131\uBA85", "\uC774\uB984", "username", "customername", "user_name"];
 var PHONE_ALIASES = [
@@ -20954,6 +20981,7 @@ async function fillAndDownloadIdentityDocuments(options) {
 export {
   buildAuditTrailRows,
   buildAuditTrailText,
+  duplicatePdfBytes,
   fillAcroFormIdentity,
   fillAndDownloadIdentityDocuments,
   formatIdentityAddress,

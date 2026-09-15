@@ -24,6 +24,7 @@ type SignMergeBody = {
   documents?: Array<{
     filePath?: string;
     index?: number;
+    copies?: number;
     identity?: IdentityFormValues | null;
   }>;
 };
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
       documents: documents.map((doc) => ({
         filePath: String(doc.filePath).trim(),
         index: doc.index,
+        copies: doc.copies,
         identity: doc.identity ?? null,
       })),
     });

@@ -27,3 +27,12 @@ export async function mergePdfByteList(pdfBytesList: Uint8Array[]) {
 
   return merged.save({ updateFieldAppearances: false });
 }
+
+/** 동일 PDF를 copies 회 이어 붙여 하나의 PDF로 만듭니다. */
+export async function duplicatePdfBytes(pdfBytes: Uint8Array, copies: number) {
+  const count = Number.isFinite(copies) ? Math.min(Math.max(Math.floor(copies), 1), 50) : 1;
+  if (count <= 1) {
+    return pdfBytes;
+  }
+  return mergePdfByteList(Array.from({ length: count }, () => pdfBytes));
+}
