@@ -902,9 +902,14 @@
         required:true,
         options:buildTemplateItemOptions(item),
         selection_mode:category==='CHECKBOX'?'multiple':'single',
-        // is_allow_disagree=Y 이면 「동의하지 않음」 저장·진행 허용
+        // is_allow_disagree=Y 일 때만 부정 답변(동의하지 않음/아니오) 저장·진행 허용
         allowDisagree,
-        block_submit_values:category==='AGREE_DISAGREE' && !allowDisagree?['동의하지 않음']:[],
+        block_submit_values:(()=>{
+          if(allowDisagree)return [];
+          if(category==='AGREE_DISAGREE')return ['동의하지 않음'];
+          if(category==='YES_NO')return ['아니오'];
+          return [];
+        })(),
         pdfFieldName:String(item.pdf_field_name||'').trim(),
         lines:parseTemplateLines(item.lines),
       };
