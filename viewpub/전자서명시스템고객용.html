@@ -154,7 +154,6 @@
     .button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;color:#334155;padding:10px 14px;font-size:12px;font-weight:800}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.primary:hover{background:var(--blue-dark)}.button.secondary{background:#fff}.button.danger{background:#fff1f2;color:#be123c;border-color:#fecaca}.button.success{background:var(--green);color:#fff;border-color:var(--green)}
     .sticky-actions{position:fixed;left:0;right:0;bottom:0;z-index:35;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:11px 18px calc(11px + var(--safe-bottom));box-shadow:0 -8px 28px rgba(15,31,61,.09)}.sticky-inner{max-width:944px;margin:auto;display:flex;gap:9px}.sticky-inner .button{flex:1}.sticky-inner .button.back{max-width:160px}
     .complete-hero{text-align:center;padding:18px 14px 8px}.complete-icon{width:72px;height:72px;border-radius:50%;margin:0 auto 13px;background:#d1fae5;color:#047857;display:grid;place-items:center;font-size:34px;box-shadow:0 0 0 9px #ecfdf5}.complete-hero h2{margin:0;color:var(--navy);font-size:21px}.complete-hero p{font-size:10px;line-height:1.6;color:var(--muted)}
-    .session-close-guide{margin-top:4px}.session-close-guide .notice{text-align:center;font-size:14px;font-weight:800;line-height:1.75;padding:18px 16px}.session-close-guide .notice strong{display:block;margin-top:8px;font-size:17px;color:#0f766e}.session-close-hint{margin:14px 0 0;text-align:center;font-size:12px;line-height:1.7;color:#64748b}
     .certificate{border:1px solid var(--line);border-radius:14px;background:#fbfdff;padding:14px}.certificate-head{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:9px}.certificate-head strong{font-size:13px;color:var(--navy)}
     .site-footer{margin:0 0 14px}
     .site-footer-card{width:100%;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px 16px;text-align:center}
@@ -4509,48 +4508,12 @@
   $('signedPreviewViewer').addEventListener('click',onSignedPreviewClick);
   $('signedPreviewExpandBtn').addEventListener('click',(event)=>{event.stopPropagation();openSignedPreviewExpand();});
   $('signedPreviewExpandCloseBtn').addEventListener('click',(event)=>{event.stopPropagation();closeSignedPreviewExpand();});
-    function showCloseTabGuide(){
-    const card=$('printScreen');
-    if(!card){
-      toast('브라우저가 자동 종료를 막았습니다. 이 탭을 직접 닫아 주세요.');
-      return;
-    }
-    card.innerHTML=`
-      <div class="complete-hero">
-        <div class="complete-icon">✓</div>
-        <h2>이용이 완료되었습니다</h2>
-        <p>전자서명은 정상적으로 제출되었습니다.</p>
-      </div>
-      <div class="card-body session-close-guide">
-        <div class="notice success">
-          브라우저 보안 정책으로 이 화면을 자동으로 닫을 수 없습니다.
-          <strong>이 탭(창)의 ✕ 를 눌러 닫아 주세요</strong>
-        </div>
-        <div class="doc-nav">
-          <button class="button secondary" type="button" id="closeGuideDownloadBtn">서명 문서 다운로드</button>
-        </div>
-        <p class="session-close-hint">
-          모바일: 탭 목록에서 이 페이지를 닫아 주세요.<br/>
-          PC: 브라우저 탭의 X 버튼을 눌러 주세요.
-        </p>
-      </div>`;
-    $('closeGuideDownloadBtn')?.addEventListener('click',()=>void downloadCompletedSignedPdf());
-    try{window.scrollTo({top:0,behavior:'smooth'});}catch{window.scrollTo(0,0);}
-  }
-
-  function tryClosePage(){
-    const closeBtn=$('closeBtn');
-    if(closeBtn){
-      closeBtn.disabled=true;
-      closeBtn.textContent='종료 처리 중…';
-    }
-    // 스크립트로 연 창만 close()가 되고, 문자/알림톡 링크 탭은 보통 막힙니다.
-    try{window.close();}catch(e){}
+    function tryClosePage(){
+    window.close();
+    // 문자/알림톡 링크로 연 탭은 브라우저가 닫기를 막는 경우가 많습니다.
     window.setTimeout(()=>{
-      // 아직 페이지가 남아 있으면 안내 화면으로 전환
-      if(!document.body)return;
-      showCloseTabGuide();
-    },280);
+      toast('서명완료가 되었습니다. 브라우저를 종료하셔도 됩니다.');
+    },250);
   }
 
   $('confirmSubmitBtn').addEventListener('click',submitSignature);$('printBtn').addEventListener('click',downloadCompletedSignedPdf);$('closeBtn').addEventListener('click',tryClosePage);
