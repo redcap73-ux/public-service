@@ -1,17 +1,20 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" style="color-scheme:only light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#eef3f9" />
-  <meta name="color-scheme" content="light only" />
+  <meta name="theme-color" content="#eef3f9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#eef3f9" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="only light" />
+  <meta name="supported-color-schemes" content="light" />
   <title>T&G 전자서명시스템</title>
   <link rel="icon" href="/tngimg.jpg" type="image/jpeg" />
   <link rel="shortcut icon" href="/tngimg.jpg" type="image/jpeg" />
   <link rel="apple-touch-icon" href="/tngimg.jpg" />
   <style>
     :root{
-      color-scheme: light only;
+      color-scheme: only light;
+      supported-color-schemes: light;
       --navy:#0f1f3d;--navy2:#172b51;--blue:#2b6ef2;--blue-dark:#1e56c8;
       --blue-soft:#eaf2ff;--bg:#eef3f9;--card:#fff;--line:#dfe6f2;--text:#1e293b;
       --muted:#64748b;--green:#0f9f6e;--green-soft:#ecfdf5;--orange:#d97706;
@@ -23,6 +26,7 @@
       scroll-behavior:smooth;
       background:var(--bg);
       min-height:100%;
+      color-scheme: only light;
     }
     body{
       margin:0;
@@ -32,6 +36,35 @@
       font-family:Inter,"Pretendard","Noto Sans KR",Segoe UI,Arial,sans-serif;
       min-height:100vh;
       min-height:100dvh;
+      color-scheme: only light;
+    }
+    /* 휴대폰 다크모드에서도 브라우저가 UI를 어둡게 바꾸지 않도록 라이트 고정 */
+    button,input,select,textarea,option{
+      color-scheme: only light;
+    }
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,textarea{
+      background-color:#fff;
+      color:#1f2937;
+    }
+    @media (prefers-color-scheme: dark){
+      :root,html,body{
+        color-scheme: only light;
+        background-color:#eef3f9;
+        color:#1e293b;
+      }
+      body{
+        background:linear-gradient(180deg,#e9f0fb 0,#f6f8fc 45%,#eef3f9 100%);
+        background-color:#eef3f9;
+      }
+      button,input,select,textarea,option{
+        color-scheme: only light;
+      }
+      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+      select,textarea{
+        background-color:#fff;
+        color:#1f2937;
+      }
     }
     button,input,select{font:inherit}
     button{cursor:pointer}
