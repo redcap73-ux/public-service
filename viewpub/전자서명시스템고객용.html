@@ -97,6 +97,57 @@
     html.counter-force-dark .paper.pdf-paper{
       filter:invert(1) hue-rotate(180deg) !important;
     }
+
+    /* 수동 밝은화면 전환 UI */
+    .light-mode-bar{
+      display:none;
+      position:sticky;
+      top:0;
+      z-index:60;
+      margin:0;
+      padding:10px 14px;
+      background:#fff7ed;
+      border-bottom:1px solid #fed7aa;
+      color:#9a3412;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.45;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .light-mode-bar.show{display:flex}
+    .light-mode-bar span{flex:1;min-width:0}
+    .light-mode-bar button{
+      flex:0 0 auto;
+      border:1px solid #fdba74;
+      background:#fff;
+      color:#9a3412;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:11px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .light-mode-fab{
+      display:none;
+      position:fixed;
+      right:14px;
+      bottom:calc(88px + env(safe-area-inset-bottom,0px));
+      z-index:55;
+      border:1px solid #93c5fd;
+      background:#eff6ff;
+      color:#1d4ed8;
+      border-radius:999px;
+      padding:11px 14px;
+      font-size:11px;
+      font-weight:800;
+      box-shadow:0 10px 28px rgba(15,31,61,.18);
+    }
+    .light-mode-fab.show{display:inline-flex}
+    @media print{
+      .light-mode-bar,.light-mode-fab{display:none!important}
+    }
     *{box-sizing:border-box}
     button,input,select{font:inherit}
     button{cursor:pointer}
@@ -241,39 +292,70 @@
     (function(){
       try{
         var root=document.documentElement;
+        var KEY='esign_light_mode_v2';
         root.style.backgroundColor='#eef3f9';
         root.style.color='#1e293b';
-        var ua=navigator.userAgent||'';
-        var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var isIOS=/iPhone|iPad|iPod/i.test(ua);
-        var isInApp=/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
-        var isSamsung=/SamsungBrowser/i.test(ua);
-        var isAndroid=/Android/i.test(ua);
-        // iOS Safari: color-scheme만으로 라이트 유지 (역반전하면 오히려 어두워짐)
-        var isIOSSafari=isIOS && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\//i.test(ua) && !isInApp;
-        if(isIOSSafari){
-          root.style.colorScheme='only light';
-          root.classList.remove('counter-force-dark');
-          return;
+        function isDark(){
+          return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
         }
-        // Android/인앱/삼성: 강제다크는 역반전으로 상쇄 (color-scheme only는 쓰지 않음)
-        root.style.colorScheme='normal';
-        if(dark && (isAndroid || isInApp || isSamsung)){
-          root.classList.add('counter-force-dark');
-        }else{
+        function applyMode(mode){
           root.classList.remove('counter-force-dark');
-          root.style.colorScheme='only light';
+          if(mode==='undo'){
+            // 강제다크(반전) 상쇄
+            root.style.colorScheme='normal';
+            root.classList.add('counter-force-dark');
+          }else{
+            // 브라우저에 라이트만 지원한다고 알림
+            root.style.colorScheme='only light';
+          }
+          try{sessionStorage.setItem(KEY,mode);}catch(e){}
+          window.__ESIGN_LIGHT_MODE__=mode;
+          var bar=document.getElementById('lightModeBar');
+          var fab=document.getElementById('lightModeFab');
+          var label=document.getElementById('lightModeLabel');
+          if(label){
+            label.textContent=mode==='undo'
+              ? '보정 모드 적용 중(화면이 이상하면 다시 눌러 전환)'
+              : '라이트 고정 모드(여전히 어두우면 다시 눌러 전환)';
+          }
+          if(bar) bar.classList.toggle('show', isDark());
+          if(fab) fab.classList.toggle('show', isDark());
         }
+        function nextMode(cur){
+          return cur==='undo'?'lock':'undo';
+        }
+        function autoMode(){
+          var ua=navigator.userAgent||'';
+          var isIOS=/iPhone|iPad|iPod/i.test(ua);
+          var isInApp=/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
+          var isSamsung=/SamsungBrowser/i.test(ua);
+          var isAndroid=/Android/i.test(ua);
+          var isIOSSafari=isIOS&&/Safari/i.test(ua)&&!/CriOS|FxiOS|EdgiOS|OPiOS|OPT\//i.test(ua)&&!isInApp;
+          if(isIOSSafari) return 'lock';
+          if(isDark()&&(isAndroid||isInApp||isSamsung)) return 'undo';
+          return 'lock';
+        }
+        var saved=null;
+        try{saved=sessionStorage.getItem(KEY);}catch(e){}
+        var mode=(saved==='lock'||saved==='undo')?saved:autoMode();
+        applyMode(mode);
+        window.__ESIGN_TOGGLE_LIGHT_MODE__=function(){
+          var cur=window.__ESIGN_LIGHT_MODE__||'lock';
+          applyMode(nextMode(cur));
+        };
+        document.addEventListener('DOMContentLoaded',function(){
+          applyMode(window.__ESIGN_LIGHT_MODE__||autoMode());
+          var barBtn=document.getElementById('lightModeToggle');
+          var fab=document.getElementById('lightModeFab');
+          if(barBtn) barBtn.addEventListener('click',window.__ESIGN_TOGGLE_LIGHT_MODE__);
+          if(fab) fab.addEventListener('click',window.__ESIGN_TOGGLE_LIGHT_MODE__);
+        });
         if(window.matchMedia){
-          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(e){
-            if(isIOSSafari)return;
-            if(e.matches && (isAndroid || isInApp || isSamsung)){
-              root.style.colorScheme='normal';
-              root.classList.add('counter-force-dark');
-            }else{
-              root.classList.remove('counter-force-dark');
-              root.style.colorScheme='only light';
-            }
+          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){
+            var hasSaved=false;
+            try{hasSaved=!!sessionStorage.getItem(KEY);}catch(e){}
+            if(!hasSaved) applyMode(autoMode());
+            else applyMode(window.__ESIGN_LIGHT_MODE__||'lock');
           });
         }
       }catch(e){}
@@ -282,6 +364,10 @@
 </head>
 <body>
 <div class="app-shell">
+  <div class="light-mode-bar" id="lightModeBar" role="region" aria-label="화면 밝기 보정">
+    <span id="lightModeLabel">휴대폰 다크모드에서는 화면이 어둡게 보일 수 있습니다.</span>
+    <button type="button" id="lightModeToggle">밝은 화면으로 전환</button>
+  </div>
   <header class="site-header">
     <div class="header-inner">
       <div class="brand">
@@ -496,6 +582,7 @@
     </footer>
   </main>
 
+  <button type="button" class="light-mode-fab" id="lightModeFab" aria-label="밝은 화면으로 전환">밝은 화면</button>
   <div class="sticky-actions" id="stickyActions">
     <div class="sticky-inner"><button class="button secondary back" type="button" id="backBtn">이전</button><button class="button primary" type="button" id="nextBtn">본인인증 진행</button></div>
   </div>

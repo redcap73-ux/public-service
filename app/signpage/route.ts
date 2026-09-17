@@ -6,7 +6,6 @@ const FORCE_LIGHT_HEAD = [
   '<meta name="nightmode" content="disable" />',
   '<meta name="darkmode" content="disable" />',
   '<style>html,body{background:#eef3f9!important;color:#1e293b!important;forced-color-adjust:none;-webkit-forced-color-adjust:none}html.counter-force-dark{filter:invert(1) hue-rotate(180deg)!important}html.counter-force-dark img,html.counter-force-dark picture,html.counter-force-dark video,html.counter-force-dark canvas,html.counter-force-dark iframe{filter:invert(1) hue-rotate(180deg)!important}</style>',
-  `<script>(function(){try{var root=document.documentElement;root.style.backgroundColor='#eef3f9';root.style.color='#1e293b';var ua=navigator.userAgent||'';var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var isIOS=/iPhone|iPad|iPod/i.test(ua);var isInApp=/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\\//i.test(ua);var isSamsung=/SamsungBrowser/i.test(ua);var isAndroid=/Android/i.test(ua);var isIOSSafari=isIOS&&/Safari/i.test(ua)&&!/CriOS|FxiOS|EdgiOS|OPiOS|OPT\\//i.test(ua)&&!isInApp;if(isIOSSafari){root.style.colorScheme='only light';root.classList.remove('counter-force-dark');return;}root.style.colorScheme='normal';if(dark&&(isAndroid||isInApp||isSamsung)){root.classList.add('counter-force-dark');}else{root.classList.remove('counter-force-dark');root.style.colorScheme='only light';}}catch(e){}})();</script>`,
 ].join('');
 
 export async function GET() {
