@@ -2,6 +2,14 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { NextResponse } from 'next/server';
 
+const FORCE_LIGHT_HEAD = [
+  '<meta name="color-scheme" content="light" />',
+  '<meta name="nightmode" content="disable" />',
+  '<meta name="darkmode" content="disable" />',
+  '<style>html,body{color-scheme:light only!important;background:#eef3f9!important;color:#1e293b!important;forced-color-adjust:none;-webkit-forced-color-adjust:none}</style>',
+  `<script>(function(){try{document.documentElement.style.colorScheme='light only';document.documentElement.style.backgroundColor='#eef3f9';document.documentElement.style.color='#1e293b';var ua=navigator.userAgent||'';var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var needsCounter=/Android|KAKAOTALK|SamsungBrowser|NAVER|Instagram|FBAN|FBAV|Line\\//i.test(ua);if(dark&&needsCounter)document.documentElement.classList.add('counter-force-dark');}catch(e){}})();</script>`,
+].join('');
+
 export async function GET() {
   try {
     const filePath = path.join(
@@ -16,15 +24,19 @@ export async function GET() {
         channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY ?? '',
       },
     })};</script>`;
-    const renderedHtml = html.includes('</head>')
-      ? html.replace('</head>', `${configScript}</head>`)
-      : `${configScript}${html}`;
+    let renderedHtml = html.includes('<head>')
+      ? html.replace('<head>', `<head>${FORCE_LIGHT_HEAD}`)
+      : `${FORCE_LIGHT_HEAD}${html}`;
+    renderedHtml = renderedHtml.includes('</head>')
+      ? renderedHtml.replace('</head>', `${configScript}</head>`)
+      : `${configScript}${renderedHtml}`;
 
     return new NextResponse(renderedHtml, {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        Pragma: 'no-cache',
       },
     });
   } catch (error) {
