@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<html lang="ko" style="color-scheme:light only;background-color:#eef3f9;color:#1e293b">
+<html lang="ko" style="background-color:#eef3f9;color:#1e293b">
 <head>
   <meta charset="UTF-8" />
-  <meta name="color-scheme" content="light" />
-  <meta name="color-scheme" content="only light" />
-  <meta name="supported-color-schemes" content="light" />
-  <!-- 삼성 인터넷 등 강제 다크모드 비활성 -->
+  <!-- 삼성 인터넷 강제 다크 비활성 (iOS Safari는 JS에서 color-scheme 처리) -->
   <meta name="nightmode" content="disable" />
   <meta name="darkmode" content="disable" />
+  <meta name="supported-color-schemes" content="light" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#eef3f9" />
   <meta name="theme-color" content="#eef3f9" media="(prefers-color-scheme: light)" />
@@ -19,7 +17,7 @@
   <style>
     /* 최우선: 다크모드/강제다크에서도 라이트 고정 */
     :root{
-      color-scheme: light only !important;
+      /* color-scheme set by JS */
       supported-color-schemes: light;
       forced-color-adjust: none;
       -webkit-forced-color-adjust: none;
@@ -30,7 +28,7 @@
       --radius:18px;--safe-bottom:env(safe-area-inset-bottom,0px);
     }
     html{
-      color-scheme: light only !important;
+      /* color-scheme set by JS */
       forced-color-adjust: none;
       -webkit-forced-color-adjust: none;
       scroll-behavior:smooth;
@@ -40,7 +38,7 @@
       min-height:100%;
     }
     body{
-      color-scheme: light only !important;
+      /* color-scheme set by JS */
       forced-color-adjust: none;
       -webkit-forced-color-adjust: none;
       margin:0;
@@ -57,7 +55,7 @@
       -webkit-forced-color-adjust: none;
     }
     button,input,select,textarea,option{
-      color-scheme: light only !important;
+      /* color-scheme set by JS */
       forced-color-adjust: none;
       -webkit-forced-color-adjust: none;
     }
@@ -68,7 +66,7 @@
     }
     @media (prefers-color-scheme: dark){
       :root,html,body{
-        color-scheme: light only !important;
+        /* color-scheme set by JS */
         background-color:#eef3f9 !important;
         color:#1e293b !important;
       }
@@ -77,7 +75,7 @@
         background-image:linear-gradient(180deg,#e9f0fb 0,#f6f8fc 45%,#eef3f9 100%) !important;
       }
       button,input,select,textarea,option{
-        color-scheme: light only !important;
+        /* color-scheme set by JS */
       }
       input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
       select,textarea{
@@ -242,14 +240,41 @@
   <script>
     (function(){
       try{
-        document.documentElement.style.colorScheme='light only';
-        document.documentElement.style.backgroundColor='#eef3f9';
-        document.documentElement.style.color='#1e293b';
+        var root=document.documentElement;
+        root.style.backgroundColor='#eef3f9';
+        root.style.color='#1e293b';
         var ua=navigator.userAgent||'';
         var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var needsCounter=/Android|KAKAOTALK|SamsungBrowser|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
-        if(dark && needsCounter){
-          document.documentElement.classList.add('counter-force-dark');
+        var isIOS=/iPhone|iPad|iPod/i.test(ua);
+        var isInApp=/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
+        var isSamsung=/SamsungBrowser/i.test(ua);
+        var isAndroid=/Android/i.test(ua);
+        // iOS Safari: color-scheme만으로 라이트 유지 (역반전하면 오히려 어두워짐)
+        var isIOSSafari=isIOS && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\//i.test(ua) && !isInApp;
+        if(isIOSSafari){
+          root.style.colorScheme='only light';
+          root.classList.remove('counter-force-dark');
+          return;
+        }
+        // Android/인앱/삼성: 강제다크는 역반전으로 상쇄 (color-scheme only는 쓰지 않음)
+        root.style.colorScheme='normal';
+        if(dark && (isAndroid || isInApp || isSamsung)){
+          root.classList.add('counter-force-dark');
+        }else{
+          root.classList.remove('counter-force-dark');
+          root.style.colorScheme='only light';
+        }
+        if(window.matchMedia){
+          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(e){
+            if(isIOSSafari)return;
+            if(e.matches && (isAndroid || isInApp || isSamsung)){
+              root.style.colorScheme='normal';
+              root.classList.add('counter-force-dark');
+            }else{
+              root.classList.remove('counter-force-dark');
+              root.style.colorScheme='only light';
+            }
+          });
         }
       }catch(e){}
     })();
