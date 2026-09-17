@@ -892,10 +892,12 @@
     return String(label||'').replace(/\s+/g,'').replace(/[?,.，．!！]/g,'');
   }
 
-  /** 「동의 여부, 위 항목에 대한 제공에 동의 하십니까?」 유형의 후속 동의 질문 */
+  /** content에 「위 항목에 대한 제공에 동의 하십니까」가 포함된 후속 동의 질문 */
   function isProvideConsentFollowUpQuestion(q){
     if(q?.input_type!=='agree_disagree')return false;
-    return normalizeQuestionLabel(q.label).includes('위항목에대한제공에동의');
+    return normalizeQuestionLabel(q.label).includes(
+      normalizeQuestionLabel('위 항목에 대한 제공에 동의 하십니까')
+    );
   }
 
   /** 직전 CHECKBOX + is_allow_disagree=Y 문항 */
@@ -908,20 +910,40 @@
     return null;
   }
 
+  /** CHECKBOX(미선택 허용) + 제공동의 후속 질문 연계 쌍 */
+  function getLinkedProvideConsentPair(doc,question){
+    if(!isProvideConsentFollowUpQuestion(question))return null;
+    const prev=getPrecedingAllowDisagreeCheckbox(doc,question);
+    if(!prev)return null;
+    return {checkbox:prev,agree:question};
+  }
+
   /** 앞 CHECKBOX가 미선택이면 후속 「동의하지 않음」 허용 */
   function isLinkedCheckboxUnselected(doc,question,answers){
-    if(!isProvideConsentFollowUpQuestion(question))return false;
-    const prev=getPrecedingAllowDisagreeCheckbox(doc,question);
-    if(!prev)return false;
-    return selectedAnswerValues(answers?.[prev.id]).length===0;
+    const pair=getLinkedProvideConsentPair(doc,question);
+    if(!pair)return false;
+    return selectedAnswerValues(answers?.[pair.checkbox.id]).length===0;
   }
 
   function isDisagreeAllowedForQuestion(doc,q,answers){
+    // 연계 쌍: 체크박스 선택 여부로만 판단 (동의 질문 자체 is_allow_disagree와 무관)
+    const pair=getLinkedProvideConsentPair(doc,q);
+    if(pair){
+      return selectedAnswerValues(answers?.[pair.checkbox.id]).length===0;
+    }
     if(q?.allowDisagree)return true;
-    return isLinkedCheckboxUnselected(doc,q,answers);
+    return false;
   }
 
   function getEffectiveBlockSubmitValues(doc,q,answers){
+    const pair=getLinkedProvideConsentPair(doc,q);
+    if(pair){
+      // 체크 1개라도 있으면 「동의하지 않음」 저장 차단
+      if(selectedAnswerValues(answers?.[pair.checkbox.id]).length>0){
+        return ['동의하지 않음'];
+      }
+      return [];
+    }
     if(isDisagreeAllowedForQuestion(doc,q,answers))return [];
     return Array.isArray(q?.block_submit_values)?q.block_submit_values:[];
   }
