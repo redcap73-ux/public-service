@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 const FORCE_LIGHT_HEAD = [
   '<meta name="nightmode" content="disable" />',
   '<meta name="darkmode" content="disable" />',
-  '<style>html,body{background:#eef3f9!important;color:#1e293b!important;forced-color-adjust:none;-webkit-forced-color-adjust:none}html.counter-force-dark{filter:invert(1) hue-rotate(180deg)!important}html.counter-force-dark img,html.counter-force-dark picture,html.counter-force-dark video,html.counter-force-dark canvas,html.counter-force-dark iframe{filter:invert(1) hue-rotate(180deg)!important}</style>',
+  '<style>html,body{background:#eef3f9!important;color:#1e293b!important;forced-color-adjust:none;-webkit-forced-color-adjust:none}html.counter-force-dark{filter:invert(1) hue-rotate(180deg)!important}html.counter-force-dark img,html.counter-force-dark picture,html.counter-force-dark video,html.counter-force-dark canvas:not(.draw-pad-canvas),html.counter-force-dark iframe{filter:invert(1) hue-rotate(180deg)!important}</style>',
 ].join('');
 
 export async function GET() {

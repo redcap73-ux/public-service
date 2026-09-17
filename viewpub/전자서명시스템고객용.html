@@ -91,11 +91,39 @@
     html.counter-force-dark img,
     html.counter-force-dark picture,
     html.counter-force-dark video,
-    html.counter-force-dark canvas,
+    html.counter-force-dark canvas:not(.draw-pad-canvas),
     html.counter-force-dark iframe,
     html.counter-force-dark .pdf-paper,
     html.counter-force-dark .paper.pdf-paper{
       filter:invert(1) hue-rotate(180deg) !important;
+    }
+    /* 서명/성명 패드: 항상 흰 배경. 강제다크(html invert)일 때는 shell을 한 번 더 반전시켜 상쇄 */
+    .canvas-shell{
+      background:#ffffff !important;
+      border:2px solid #3b82f6 !important;
+      box-shadow:inset 0 0 0 1px #fff,0 0 0 3px rgba(59,130,246,.22);
+      isolation:isolate;
+    }
+    .canvas-shell canvas.draw-pad-canvas{
+      background:#ffffff !important;
+      filter:none !important;
+    }
+    html.counter-force-dark .canvas-shell{
+      /* 부모 html invert를 상쇄 → 흰 배경+검정 획이 그대로 보임, toDataURL도 정상 */
+      filter:invert(1) hue-rotate(180deg) !important;
+      background:#ffffff !important;
+    }
+    html.counter-force-dark .canvas-shell canvas.draw-pad-canvas{
+      filter:none !important;
+      background:#ffffff !important;
+    }
+    @media (prefers-color-scheme: dark){
+      .canvas-shell{
+        background:#ffffff !important;
+        border-color:#60a5fa !important;
+        box-shadow:inset 0 0 0 1px #fff,0 0 0 4px rgba(96,165,250,.35);
+      }
+      .canvas-placeholder{color:#475569 !important;font-weight:800}
     }
 
     /* 수동 밝은화면 전환 UI */
@@ -342,6 +370,7 @@
         window.__ESIGN_TOGGLE_LIGHT_MODE__=function(){
           var cur=window.__ESIGN_LIGHT_MODE__||'lock';
           applyMode(nextMode(cur));
+          try{window.__ESIGN_REFRESH_DRAW_PADS__&&window.__ESIGN_REFRESH_DRAW_PADS__();}catch(err){}
         };
         document.addEventListener('DOMContentLoaded',function(){
           applyMode(window.__ESIGN_LIGHT_MODE__||autoMode());
@@ -518,11 +547,11 @@
               <div class="canvas-card">
                 <div class="name-sign-block">
                   <div class="consent-title"><strong>성명</strong><span class="badge blue">필수</span></div>
-                  <div class="canvas-shell canvas-shell-name" id="nameCanvasShell"><canvas id="nameSignatureCanvas"></canvas><div class="canvas-placeholder" id="nameCanvasPlaceholder">손가락으로 성함을 정자로 기재해주세요</div></div>
+                  <div class="canvas-shell canvas-shell-name" id="nameCanvasShell"><canvas id="nameSignatureCanvas" class="draw-pad-canvas"></canvas><div class="canvas-placeholder" id="nameCanvasPlaceholder">손가락으로 성함을 정자로 기재해주세요</div></div>
                   <div class="canvas-tools"><button type="button" id="clearNameSignatureBtn">성명 지우기</button><button type="button" id="undoNameSignatureBtn">한 획 되돌리기</button></div>
                 </div>
                 <div class="consent-title"><strong>서명(사인)</strong><span class="badge blue">필수</span></div>
-                <div class="canvas-shell" id="canvasShell"><canvas id="signatureCanvas"></canvas><div class="canvas-placeholder" id="canvasPlaceholder">손가락으로 서명(사인)해주세요</div></div>
+                <div class="canvas-shell" id="canvasShell"><canvas id="signatureCanvas" class="draw-pad-canvas"></canvas><div class="canvas-placeholder" id="canvasPlaceholder">손가락으로 서명(사인)해주세요</div></div>
                 <div class="canvas-tools"><button type="button" id="clearSignatureBtn">서명 지우기</button><button type="button" id="undoSignatureBtn">한 획 되돌리기</button></div>
               </div>
               <div class="final-checks" id="finalChecks">
@@ -3939,12 +3968,14 @@
         });
       }
       drawing=true;
+      applyStrokeStyle(ctx);
+      if(!state.strokes.length)fillDrawPadBackground(ctx,canvas);
       currentStroke=[pointer(e)];
       canvas.setPointerCapture?.(e.pointerId);
       $('canvasPlaceholder').classList.add('hidden');
     });
     canvas.addEventListener('pointermove',e=>{if(!drawing)return;e.preventDefault();const p=pointer(e);currentStroke.push(p);drawSegment(ctx,currentStroke[currentStroke.length-2],p);});
-    const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;if(state.hasSignature)clearSignatureHighlight();};
+    const end=e=>{if(!drawing)return;drawing=false;if(currentStroke.length===1){const p=currentStroke[0];applyStrokeStyle(ctx);ctx.beginPath();ctx.arc(p.x,p.y,Math.max(2.6,2.4*devicePixelRatio),0,Math.PI*2);ctx.fill();}state.strokes.push(currentStroke);currentStroke=[];state.hasSignature=state.strokes.length>0;if(state.hasSignature)clearSignatureHighlight();};
     canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('pointerleave',e=>{if(drawing)end(e)});
 
     nameCanvas=$('nameSignatureCanvas');nameCtx=nameCanvas.getContext('2d');
@@ -3957,12 +3988,14 @@
         });
       }
       nameDrawing=true;
+      applyStrokeStyle(nameCtx);
+      if(!state.nameStrokes.length)fillDrawPadBackground(nameCtx,nameCanvas);
       nameCurrentStroke=[namePointer(e)];
       nameCanvas.setPointerCapture?.(e.pointerId);
       $('nameCanvasPlaceholder').classList.add('hidden');
     });
     nameCanvas.addEventListener('pointermove',e=>{if(!nameDrawing)return;e.preventDefault();const p=namePointer(e);nameCurrentStroke.push(p);drawSegment(nameCtx,nameCurrentStroke[nameCurrentStroke.length-2],p);});
-    const nameEnd=e=>{if(!nameDrawing)return;nameDrawing=false;if(nameCurrentStroke.length===1){const p=nameCurrentStroke[0];nameCtx.beginPath();nameCtx.arc(p.x,p.y,2.2,0,Math.PI*2);nameCtx.fill();}state.nameStrokes.push(nameCurrentStroke);nameCurrentStroke=[];state.hasNameSignature=state.nameStrokes.length>0;if(state.hasNameSignature)clearNameSignatureHighlight();};
+    const nameEnd=e=>{if(!nameDrawing)return;nameDrawing=false;if(nameCurrentStroke.length===1){const p=nameCurrentStroke[0];applyStrokeStyle(nameCtx);nameCtx.beginPath();nameCtx.arc(p.x,p.y,Math.max(2.6,2.4*devicePixelRatio),0,Math.PI*2);nameCtx.fill();}state.nameStrokes.push(nameCurrentStroke);nameCurrentStroke=[];state.hasNameSignature=state.nameStrokes.length>0;if(state.hasNameSignature)clearNameSignatureHighlight();};
     nameCanvas.addEventListener('pointerup',nameEnd);nameCanvas.addEventListener('pointercancel',nameEnd);nameCanvas.addEventListener('pointerleave',e=>{if(nameDrawing)nameEnd(e)});
 
     resizeCanvas();
@@ -3997,17 +4030,31 @@
     if(!targetCtx)return;
     targetCtx.lineCap='round';
     targetCtx.lineJoin='round';
-    targetCtx.strokeStyle='#111827';
-    targetCtx.fillStyle='#111827';
-    targetCtx.lineWidth=Math.max(3,3.1*devicePixelRatio);
+    // 저장/PDF용 비트맵은 항상 검정 획. 화면 다크보정은 CSS로 처리
+    targetCtx.strokeStyle='#000000';
+    targetCtx.fillStyle='#000000';
+    targetCtx.lineWidth=Math.max(4.5,4.8*devicePixelRatio);
+    targetCtx.shadowColor='rgba(0,0,0,.22)';
+    targetCtx.shadowBlur=Math.max(0.8,0.9*devicePixelRatio);
+  }
+  function fillDrawPadBackground(targetCtx,targetCanvas){
+    if(!targetCtx||!targetCanvas)return;
+    targetCtx.save();
+    targetCtx.setTransform(1,0,0,1,0,0);
+    targetCtx.globalCompositeOperation='source-over';
+    targetCtx.shadowColor='transparent';
+    targetCtx.shadowBlur=0;
+    targetCtx.fillStyle='#ffffff';
+    targetCtx.fillRect(0,0,targetCanvas.width,targetCanvas.height);
+    targetCtx.restore();
   }
   function drawSegment(targetCtx,a,b){targetCtx.beginPath();targetCtx.moveTo(a.x,a.y);targetCtx.lineTo(b.x,b.y);targetCtx.stroke();}
   function redrawStrokes(targetCtx,targetCanvas,strokes){
     if(!targetCtx||!targetCanvas)return;
-    targetCtx.clearRect(0,0,targetCanvas.width,targetCanvas.height);
+    fillDrawPadBackground(targetCtx,targetCanvas);
     applyStrokeStyle(targetCtx);
     strokes.forEach(st=>{
-      if(st.length===1){targetCtx.beginPath();targetCtx.arc(st[0].x,st[0].y,2.2,0,Math.PI*2);targetCtx.fill();return;}
+      if(st.length===1){targetCtx.beginPath();targetCtx.arc(st[0].x,st[0].y,Math.max(2.6,2.4*devicePixelRatio),0,Math.PI*2);targetCtx.fill();return;}
       for(let i=1;i<st.length;i++)drawSegment(targetCtx,st[i-1],st[i]);
     });
   }
@@ -4021,6 +4068,7 @@
     state.hasNameSignature=state.nameStrokes.length>0;
     $('nameCanvasPlaceholder')?.classList.toggle('hidden',state.hasNameSignature);
   }
+  window.__ESIGN_REFRESH_DRAW_PADS__=function(){try{redrawSignature();redrawNameSignature();}catch(e){}};
   function clearSignature(){
     state.strokes=[];
     state.hasSignature=false;
