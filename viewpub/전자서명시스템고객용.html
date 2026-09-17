@@ -888,6 +888,44 @@
     return String(value??'').trim().toUpperCase()==='Y';
   }
 
+  function normalizeQuestionLabel(label){
+    return String(label||'').replace(/\s+/g,'').replace(/[?,.，．!！]/g,'');
+  }
+
+  /** 「동의 여부, 위 항목에 대한 제공에 동의 하십니까?」 유형의 후속 동의 질문 */
+  function isProvideConsentFollowUpQuestion(q){
+    if(q?.input_type!=='agree_disagree')return false;
+    return normalizeQuestionLabel(q.label).includes('위항목에대한제공에동의');
+  }
+
+  /** 직전 CHECKBOX + is_allow_disagree=Y 문항 */
+  function getPrecedingAllowDisagreeCheckbox(doc,question){
+    const qs=doc?.questions||[];
+    const idx=qs.findIndex((q)=>String(q.id)===String(question?.id));
+    if(idx<=0)return null;
+    const prev=qs[idx-1];
+    if(prev?.input_type==='checkbox' && prev.allowDisagree)return prev;
+    return null;
+  }
+
+  /** 앞 CHECKBOX가 미선택이면 후속 「동의하지 않음」 허용 */
+  function isLinkedCheckboxUnselected(doc,question,answers){
+    if(!isProvideConsentFollowUpQuestion(question))return false;
+    const prev=getPrecedingAllowDisagreeCheckbox(doc,question);
+    if(!prev)return false;
+    return selectedAnswerValues(answers?.[prev.id]).length===0;
+  }
+
+  function isDisagreeAllowedForQuestion(doc,q,answers){
+    if(q?.allowDisagree)return true;
+    return isLinkedCheckboxUnselected(doc,q,answers);
+  }
+
+  function getEffectiveBlockSubmitValues(doc,q,answers){
+    if(isDisagreeAllowedForQuestion(doc,q,answers))return [];
+    return Array.isArray(q?.block_submit_values)?q.block_submit_values:[];
+  }
+
   function mapTemplateItems(items){
     if(!Array.isArray(items)||!items.length)return [];
     return items.map((item,index)=>{
@@ -925,7 +963,7 @@
     if(st?.consent!=='reject')return false;
     if(hasTemplateItems(doc)){
       const agreeItem=doc.questions.find((q)=>q.input_type==='agree_disagree');
-      if(agreeItem?.allowDisagree)return false;
+      if(agreeItem && isDisagreeAllowedForQuestion(doc,agreeItem,st?.answers||{}))return false;
       return true;
     }
     return Boolean(doc?.required);
@@ -2277,10 +2315,11 @@
     }
   }
 
-  function isAllowDisagreeDoc(doc){
+  function isAllowDisagreeDoc(doc,answers){
     if(!hasTemplateItems(doc))return false;
     const agreeItem=doc.questions.find((q)=>q.input_type==='agree_disagree');
-    return Boolean(agreeItem?.allowDisagree);
+    if(!agreeItem)return false;
+    return isDisagreeAllowedForQuestion(doc,agreeItem,answers||{});
   }
 
   /** 최종문서확인/서명 PDF 대상: 동의 문서 + 미동의 허용(reject) 문서 */
@@ -2290,7 +2329,7 @@
       .filter((item)=>{
         if(!item.doc.file_path)return false;
         if(item.consent==='agree')return true;
-        if(item.consent==='reject' && isAllowDisagreeDoc(item.doc))return true;
+        if(item.consent==='reject' && isAllowDisagreeDoc(item.doc,state.docs[item.index]?.answers))return true;
         return false;
       });
   }
@@ -3223,6 +3262,8 @@
     for(const q of doc.questions){
       if(!q.required)continue;
       if(q.input_type==='checkbox'){
+        // is_allow_disagree=Y 인 체크박스는 미선택도 저장 허용
+        if(q.allowDisagree)continue;
         if(!Array.isArray(answers[q.id])||!answers[q.id].length){
           return {ok:false,message:`Q${q.order} 항목을 선택해 주세요.`,qid:q.id};
         }
@@ -3240,12 +3281,13 @@
     }
     for(const q of doc.questions){
       const value=answers[q.id];
-      if(!q.block_submit_values?.length)continue;
+      const blocked=getEffectiveBlockSubmitValues(doc,q,answers);
+      if(!blocked.length)continue;
       if(Array.isArray(value)){
-        if(value.some(item=>q.block_submit_values.includes(item))){
+        if(value.some(item=>blocked.includes(item))){
           return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.',qid:q.id};
         }
-      }else if(q.block_submit_values.includes(value)){
+      }else if(blocked.includes(value)){
         return {ok:false,message:'필수 동의 항목에 동의하지 않아 전자서명을 진행할 수 없습니다.',qid:q.id};
       }
     }
@@ -3257,6 +3299,7 @@
     for(const q of doc.questions||[]){
       if(!q.required)continue;
       if(q.input_type==='checkbox'){
+        if(q.allowDisagree)continue;
         if(!Array.isArray(answers[q.id])||!answers[q.id].length)ids.push(q.id);
         continue;
       }
