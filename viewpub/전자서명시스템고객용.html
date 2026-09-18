@@ -1673,6 +1673,7 @@
     }
     closeAddressSearchEmbed();
     $('identityAddressDetail').focus();
+    syncIdentitySaveHighlight();
   }
 
   async function openAddressSearch(){
@@ -1777,6 +1778,8 @@
     request.signer.identityConfirmedAt=confirmedAt.toISOString();
     state.identityProfile.confirmed=true;
     state.identityProfile.confirmedAt=confirmedAt;
+    clearIdentitySaveHighlight();
+    clearNextBtnHighlight();
     $('introSignerName').textContent=request.signer.maskedName;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
 
@@ -3274,14 +3277,52 @@
     saveProgressDraft();
   }
 
-  function checkViewerScrollComplete(){
+  function checkViewerScrollComplete(options={}){
     // PDF/문서 본문이 준비되기 전(로딩 문구만 있는 상태)에는 스크롤 완료로 보지 않음
     if(!viewerContentReady)return;
     const el=$('documentViewer'),st=state.docs[state.currentDocIndex];
     if(!el || !st || st.scrolled)return;
-    if(el.scrollHeight<=el.clientHeight+24 || el.scrollTop+el.clientHeight>=el.scrollHeight-24){
-      markDocumentScrolled();
+
+    const pageCount=el.querySelectorAll('.pdf-page-canvas').length;
+    const overflow=el.scrollHeight-el.clientHeight;
+    const atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-24;
+
+    // 스크롤이 생기는 문서: 실제로 맨 아래까지 내려야만 완료
+    if(overflow>24){
+      if(atBottom)markDocumentScrolled();
+      return;
     }
+
+    // 레이아웃 직후(특히 PDF 다중 페이지)에는 scrollHeight가 아직 짧게 잡혀
+    // 스크롤 없이 완료 처리되는 오판이 날 수 있음 → 안정화 후 재검사
+    const attempt=Number(options.attempt)||0;
+    if(!options.settled || (pageCount>1 && attempt<6)){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          checkViewerScrollComplete({settled:true,attempt:attempt+1});
+        });
+      });
+      if(pageCount>1){
+        setTimeout(()=>{
+          checkViewerScrollComplete({settled:true,attempt:attempt+1});
+        },80*(attempt+1));
+      }
+      return;
+    }
+
+    // 안정화 후에도 내용 높이가 뷰어보다 크면 스크롤이 필요한 문서로 보고 완료하지 않음
+    const paperHeight=$('paperContent')?.scrollHeight||0;
+    if(pageCount>1 || paperHeight>el.clientHeight+24){
+      if(attempt<8){
+        setTimeout(()=>{
+          checkViewerScrollComplete({settled:true,attempt:attempt+1});
+        },100*(attempt+1));
+      }
+      return;
+    }
+
+    // 한 페이지/짧은 문서가 화면에 다 들어오는 경우만 자동 완료
+    markDocumentScrolled();
   }
 
   async function renderPdfIntoPaper(filePath,paperEl,generation){
@@ -3293,7 +3334,8 @@
       if(generation!==pdfRenderGeneration)return;
       if(rendered){
         viewerContentReady=true;
-        requestAnimationFrame(()=>checkViewerScrollComplete());
+        // 캔버스 CSS 높이 반영 전 오판 방지를 위해 settled 검사 사용
+        checkViewerScrollComplete({settled:false,attempt:0});
       }
     }catch(error){
       if(generation!==pdfRenderGeneration)return;
@@ -3651,6 +3693,61 @@
     try{nextBtn.focus({preventScroll:true});}catch{nextBtn.focus();}
     toast('문서 응답 저장이 끝났습니다. 하단의 「문서 확인 완료」를 눌러 주세요.');
     nextBtnHighlightTimer=setTimeout(()=>clearNextBtnHighlight(),4500);
+  }
+
+  function promptIdentityAuthGuide(){
+    const nextBtn=$('nextBtn');
+    if(!nextBtn || state.currentStep!==1)return;
+    clearNextBtnHighlight();
+    nextBtn.classList.add('needs-attention');
+    nextBtn.scrollIntoView({behavior:'smooth',block:'nearest'});
+    try{nextBtn.focus({preventScroll:true});}catch{nextBtn.focus();}
+    nextBtnHighlightTimer=setTimeout(()=>clearNextBtnHighlight(),4500);
+  }
+
+  let identitySaveHighlightTimer=null;
+  function clearIdentitySaveHighlight(){
+    $('saveIdentityProfileBtn')?.classList.remove('needs-attention');
+    if(identitySaveHighlightTimer){
+      clearTimeout(identitySaveHighlightTimer);
+      identitySaveHighlightTimer=null;
+    }
+  }
+
+  function promptIdentitySaveGuide(){
+    if(state.identityProfile.confirmed || state.currentStep!==2)return;
+    if(validateIdentityProfileForm())return;
+    clearIdentitySaveHighlight();
+    clearNextBtnHighlight();
+    const saveBtn=$('saveIdentityProfileBtn');
+    if(saveBtn && !saveBtn.disabled){
+      saveBtn.classList.add('needs-attention');
+      saveBtn.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+    const nextBtn=$('nextBtn');
+    if(nextBtn){
+      nextBtn.classList.add('needs-attention');
+      // 모바일에서는 카드 저장 버튼이 숨겨지므로 하단 버튼도 함께 강조
+      nextBtn.scrollIntoView({behavior:'smooth',block:'nearest'});
+      try{nextBtn.focus({preventScroll:true});}catch{nextBtn.focus();}
+    }
+    identitySaveHighlightTimer=setTimeout(()=>{
+      clearIdentitySaveHighlight();
+      clearNextBtnHighlight();
+    },4500);
+  }
+
+  function syncIdentitySaveHighlight(){
+    if(state.identityProfile.confirmed || state.currentStep!==2){
+      clearIdentitySaveHighlight();
+      return;
+    }
+    if(validateIdentityProfileForm()){
+      clearIdentitySaveHighlight();
+      if($('nextBtn')?.classList.contains('needs-attention'))clearNextBtnHighlight();
+      return;
+    }
+    promptIdentitySaveGuide();
   }
 
   function promptFinalSubmitGuide(){
@@ -4761,10 +4858,16 @@
 
   $('nextBtn').addEventListener('click',next);$('backBtn').addEventListener('click',back);
   $('requestOwnerCheck').addEventListener('change',()=>{
-    if($('requestOwnerCheck').checked)clearOwnerCheckHighlight();
+    if($('requestOwnerCheck').checked){
+      clearOwnerCheckHighlight();
+      promptIdentityAuthGuide();
+    }else{
+      clearNextBtnHighlight();
+    }
   });
   $('identityProfileConfirmCheck').addEventListener('change',()=>{
     if($('identityProfileConfirmCheck').checked)clearIdentityConfirmHighlight();
+    syncIdentitySaveHighlight();
   });
   function saveCurrentDocument(){
     clearSaveDocHighlight();
@@ -4802,6 +4905,7 @@
   $('identityAddressBase').addEventListener('focus',guideAddressSearchFirst);
   $('identityAddressDetail').addEventListener('input',()=>{
     if($('identityAddressDetail').value.trim())clearAddressDetailHighlight();
+    syncIdentitySaveHighlight();
   });
   $('clearSignatureBtn').addEventListener('click',clearSignature);$('undoSignatureBtn').addEventListener('click',undoSignature);
   $('clearNameSignatureBtn').addEventListener('click',clearNameSignature);$('undoNameSignatureBtn').addEventListener('click',undoNameSignature);
