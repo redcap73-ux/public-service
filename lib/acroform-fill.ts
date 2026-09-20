@@ -631,11 +631,9 @@ function formatPhoneNumber(value: string) {
   return value;
 }
 
-/** 화면·PDF 표기용: 사고번호 앞 3자리 제거 */
+/** 화면·PDF 표기용: JSON claim_no 그대로 표시 */
 function formatClaimNoForDisplay(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  return trimmed.length > 3 ? trimmed.slice(3) : trimmed;
+  return value.trim();
 }
 
 /** 회사명 표기 정규화: 티엔지 → 티앤지 */

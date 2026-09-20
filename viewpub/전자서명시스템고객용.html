@@ -969,9 +969,8 @@
     return String(phone||'').trim();
   }
   function formatClaimNoForDisplay(claimNo){
-    if(!claimNo)return '-';
-    const value=String(claimNo);
-    return value.length>3?value.slice(3):value;
+    const value=String(claimNo??'').trim();
+    return value||'-';
   }
   function formatDate(date){return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(date).replace(/\. /g,'-').replace('.','');}
   function formatExpiry(date){
@@ -2326,7 +2325,7 @@
     request.requestNo=req.request_no||request.requestNo;
     request.token=token;
     request.insurer=insurer;
-    request.claimNo=req.claim_no||request.claimNo;
+    request.claimNo=String(req.claim_no??'').trim();
     request.adjustPhone=String(req.aphone||'').trim();
     request.polNo=String(req.pol_no||'').trim();
     request.prodNm=String(req.prod_nm||'').trim();
