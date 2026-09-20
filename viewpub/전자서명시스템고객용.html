@@ -430,11 +430,11 @@
         <div class="card-body">
           <div class="notice">문자 또는 알림톡으로 받은 링크는 <b>본인만 사용</b>해야 합니다.</div>
           <table class="summary-table">
-            <tr><th>서명 요청자</th><td><div id="introSender">T&G 손해사정 · 담당 김수현</div><a class="intro-sender-phone hidden" id="introSenderPhone" href="#"><svg class="intro-sender-phone-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1l-2.2 2.2z"/></svg><span class="intro-sender-phone-num" id="introSenderPhoneNum"></span></a></td></tr>
-            <tr><th>서명 대상자</th><td><span id="introSignerName">홍*동</span> · <span id="introRole">피보험자</span></td></tr>
-            <tr><th>보험사</th><td id="introInsurer">DB손해보험</td></tr>
-            <tr><th>사고번호</th><td id="introClaimNo">2026-123456</td></tr>
-            <tr><th>요청 문서</th><td><span id="introDocCount">4</span>건</td></tr>
+            <tr><th>서명 요청자</th><td><div id="introSender">-</div><a class="intro-sender-phone hidden" id="introSenderPhone" href="#"><svg class="intro-sender-phone-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.2 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1l-2.2 2.2z"/></svg><span class="intro-sender-phone-num" id="introSenderPhoneNum"></span></a></td></tr>
+            <tr><th>서명 대상자</th><td><span id="introSignerName">-</span><span id="introSignerSep" hidden> · </span><span id="introRole"></span></td></tr>
+            <tr><th>보험사</th><td id="introInsurer">-</td></tr>
+            <tr><th>사고번호</th><td id="introClaimNo">-</td></tr>
+            <tr><th>요청 문서</th><td id="introDocCount">-</td></tr>
           </table>
           <div style="height:12px"></div>
           <label class="check-line" id="requestOwnerCheckLine"><input type="checkbox" id="requestOwnerCheck" /> 위 요청은 본인과 관련된 손해사정 업무이며, 본인이 직접 전자서명을 진행합니다.</label>
@@ -613,7 +613,7 @@
 
   <button type="button" class="light-mode-fab" id="lightModeFab" aria-label="밝은 화면으로 전환">밝은 화면</button>
   <div class="sticky-actions" id="stickyActions">
-    <div class="sticky-inner"><button class="button secondary back" type="button" id="backBtn">이전</button><button class="button primary" type="button" id="nextBtn">본인인증 진행</button></div>
+    <div class="sticky-inner"><button class="button secondary back" type="button" id="backBtn">이전</button><button class="button primary" type="button" id="nextBtn" disabled>본인인증 진행</button></div>
   </div>
 </div>
 
@@ -661,9 +661,12 @@
 (() => {
   'use strict';
 
+  const urlToken = new URLSearchParams(location.search).get('token');
+  const hasUrlToken = Boolean(urlToken && String(urlToken).trim());
+
   const request = {
     requestNo: 'CON-20260721-0101',
-    token: new URLSearchParams(location.search).get('token') || 'demo-c3f8e4a9-82bc-4a11-b1e9',
+    token: urlToken || 'demo-c3f8e4a9-82bc-4a11-b1e9',
     insurer: 'DB손해보험',
     claimNo: 'DB-2026-123456',
     purpose: '누수사고 손해사정 조사 및 관련 개인정보 처리 동의',
@@ -1611,7 +1614,7 @@
     if(!nextBtn)return;
     if(state.currentStep===1){
       nextBtn.textContent='본인인증 진행';
-      nextBtn.disabled=false;
+      nextBtn.disabled=!hasUrlToken;
       return;
     }
     if(state.currentStep===2){
@@ -1780,7 +1783,7 @@
     state.identityProfile.confirmedAt=confirmedAt;
     clearIdentitySaveHighlight();
     clearNextBtnHighlight();
-    $('introSignerName').textContent=request.signer.maskedName;
+    setIntroSignerDisplay(request.signer.maskedName,request.signer.role);
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
 
     const payload={
@@ -2374,15 +2377,45 @@
     if(phoneNum)phoneNum.textContent=formatPhoneDisplay(request.adjustPhone);
   }
 
+  function setIntroSignerDisplay(maskedName,role){
+    const nameEl=$('introSignerName');
+    const roleEl=$('introRole');
+    const sepEl=$('introSignerSep');
+    const name=maskedName||'';
+    const roleText=role||'';
+    if(!name && !roleText){
+      if(nameEl)nameEl.textContent='-';
+      if(roleEl)roleEl.textContent='';
+      if(sepEl)sepEl.hidden=true;
+      return;
+    }
+    if(nameEl)nameEl.textContent=name||'-';
+    if(roleEl)roleEl.textContent=roleText;
+    if(sepEl)sepEl.hidden=!roleText;
+  }
+
   function hydrateRequest(){
     $('requestDescription').textContent='본인확인 후 요청된 여러 동의문서를 차례대로 확인하고 한 번의 자필서명으로 제출할 수 있습니다.';
+    if(!hasUrlToken){
+      $('introSender').textContent='-';
+      updateIntroSenderPhone();
+      setIntroSignerDisplay('','');
+      $('introInsurer').textContent='-';
+      $('introClaimNo').textContent='-';
+      $('introDocCount').textContent='-';
+      $('reviewTotalCount').textContent='0';
+      $('finalSigner').textContent='-';
+      $('finalClaimNo').textContent='-';
+      $('expiryCountdown').textContent='-';
+      updateStickyNextLabel();
+      return;
+    }
     $('introSender').textContent=request.sender;
     updateIntroSenderPhone();
-    $('introSignerName').textContent=request.signer.maskedName;
-    $('introRole').textContent=request.signer.role;
+    setIntroSignerDisplay(request.signer.maskedName,request.signer.role);
     $('introInsurer').textContent=request.insurer||'-';
     $('introClaimNo').textContent=formatClaimNoForDisplay(request.claimNo);
-    $('introDocCount').textContent=request.documents.length;
+    $('introDocCount').textContent=`${request.documents.length}건`;
     $('reviewTotalCount').textContent=request.documents.length;
     $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     $('finalClaimNo').textContent=formatClaimNoForDisplay(request.claimNo);
@@ -2442,6 +2475,10 @@
 
   function next(){
     if(state.currentStep===1){
+      if(!hasUrlToken){
+        toast('유효한 서명 링크가 필요합니다.');
+        return;
+      }
       goToIdentityVerification();
       return;
     }
@@ -2802,7 +2839,7 @@
     applyPortOneProfilePriority(userInfo);
 
     if(userInfo.name){
-      $('introSignerName').textContent=request.signer.maskedName;
+      setIntroSignerDisplay(request.signer.maskedName,request.signer.role);
       $('finalSigner').textContent=`${request.signer.name} / ${request.signer.role}`;
     }
 
@@ -3697,7 +3734,7 @@
 
   function promptIdentityAuthGuide(){
     const nextBtn=$('nextBtn');
-    if(!nextBtn || state.currentStep!==1)return;
+    if(!nextBtn || state.currentStep!==1 || !hasUrlToken || nextBtn.disabled)return;
     clearNextBtnHighlight();
     nextBtn.classList.add('needs-attention');
     nextBtn.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -4744,6 +4781,8 @@
     }
   }
   function clearUnavailableRequestSummary(type,options={}){
+    $('introSender').textContent='-';
+    setIntroSignerDisplay('','');
     $('introInsurer').textContent='-';
     $('introClaimNo').textContent='-';
     $('introDocCount').textContent='-';
