@@ -12,6 +12,7 @@ const MAX_DOCUMENTS = 20;
 type SignApiResponse = {
   ok?: boolean;
   request?: {
+    request_no?: string;
     status?: string;
     completed_at?: string | null;
     expires_at?: string;
@@ -21,6 +22,8 @@ type SignApiResponse = {
 type SignMergeBody = {
   token?: string;
   signatureDataUrl?: string;
+  /** 최종 PDF 하단 표기용 (API request_no 우선) */
+  requestNo?: string;
   documents?: Array<{
     filePath?: string;
     index?: number;
@@ -109,8 +112,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const requestNo =
+      String(apiRequest.request_no ?? body.requestNo ?? '').trim() || null;
+
     const result = await buildSignedMergedPdfOnServer({
       signatureDataUrl,
+      requestNo,
       documents: documents.map((doc) => ({
         filePath: String(doc.filePath).trim(),
         index: doc.index,

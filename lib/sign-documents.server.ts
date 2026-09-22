@@ -15,7 +15,7 @@ import {
   loadImage,
 } from '@/lib/canvas-shim.server';
 import { getObjectFromNcp } from '@/lib/ncp-storage.server';
-import { mergePdfByteList } from '@/lib/pdf-merge';
+import { mergePdfByteList, stampRequestNoFooter } from '@/lib/pdf-merge';
 
 const SIGNATURE_FIELD_ALIASES = [
   'signature',
@@ -349,8 +349,10 @@ export async function generateSignedPdfBytesOnServer(options: {
 export async function buildSignedMergedPdfOnServer(options: {
   signatureDataUrl: string;
   documents: ServerSignDocumentInput[];
+  /** 최종 PDF 각 페이지 하단 왼쪽에 표기 */
+  requestNo?: string | null;
 }) {
-  const { signatureDataUrl, documents } = options;
+  const { signatureDataUrl, documents, requestNo } = options;
 
   if (!documents.length) {
     throw new Error('서명할 동의 문서가 없습니다.');
@@ -384,10 +386,15 @@ export async function buildSignedMergedPdfOnServer(options: {
     });
   }
 
-  const mergedBytes =
+  let mergedBytes =
     signedParts.length === 1
       ? signedParts[0]
       : await mergePdfByteList(signedParts);
+
+  const footerRequestNo = String(requestNo ?? '').trim();
+  if (footerRequestNo) {
+    mergedBytes = await stampRequestNoFooter(mergedBytes, footerRequestNo);
+  }
 
   return {
     mergedBytes,
