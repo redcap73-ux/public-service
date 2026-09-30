@@ -467,7 +467,7 @@
               <label for="identityPhone">전화번호</label>
               <input class="form-text-input" id="identityPhone" type="tel" autocomplete="tel" />
             </div>
-            <div class="field full">
+            <div class="field full" id="identityAddressField">
               <label for="identityAddressSearchBtn">주소</label>
               <button class="inline-btn address-search-btn" type="button" id="identityAddressSearchBtn">주소 검색</button>
               <div class="address-embed-wrap hidden" id="addressEmbedWrap">
@@ -754,6 +754,8 @@
       fieldSources: {},
     },
     portOneProfile: null,
+    /** PDF address* 필드가 있을 때만 주소 입력·필수. 스캔 전/실패 시 true(안전) */
+    needsAddress: true,
   };
 
   function buildDefaultAnswers(doc){
@@ -1518,7 +1520,69 @@
     $('identityProfileBadge').className=`badge ${profileLocked?'green':'gray'}`;
     $('identityProfileBadge').textContent=profileLocked?'확인 완료':'확인 필요';
     $('identityProfileCard')?.classList.toggle('identity-confirmed',profileLocked);
+    updateIdentityAddressVisibility();
     updateIdentityProfileGate();
+  }
+
+  function updateIdentityAddressVisibility(){
+    const field=$('identityAddressField');
+    if(!field)return;
+    const show=state.needsAddress!==false;
+    field.classList.toggle('hidden',!show);
+    if(!show){
+      $('addressEmbedWrap')?.classList.add('hidden');
+      clearAddressSearchHighlight();
+      clearAddressDetailHighlight();
+    }
+  }
+
+  async function documentHasAddressAcroFormField(filePath){
+    if(!filePath)return false;
+    const response=await fetch(buildFileApiUrl(filePath),{cache:'no-store'});
+    if(!response.ok){
+      throw new Error(`PDF 조회 실패 (${response.status})`);
+    }
+    const pdfBytes=await response.arrayBuffer();
+    const mod=await ensureAcroformFill();
+    if(typeof mod.hasAddressAcroFormFields!=='function'){
+      throw new Error('hasAddressAcroFormFields를 사용할 수 없습니다.');
+    }
+    return Boolean(await mod.hasAddressAcroFormFields(pdfBytes));
+  }
+
+  async function detectNeedsAddressFromDocuments(){
+    const docs=(request.documents||[]).filter((doc)=>String(doc?.file_path||'').trim());
+    if(!docs.length){
+      // 스캔할 PDF가 없으면 주소 입력은 유지(기존 UX)
+      state.needsAddress=true;
+      updateIdentityAddressVisibility();
+      return state.needsAddress;
+    }
+
+    let scannedOk=false;
+    let foundAddress=false;
+    try{
+      for(const doc of docs){
+        try{
+          scannedOk=true;
+          if(await documentHasAddressAcroFormField(doc.file_path)){
+            foundAddress=true;
+            break;
+          }
+        }catch(error){
+          console.warn('[identity-address] field scan failed:',doc.file_path,error);
+          // 개별 문서 실패 시 다음 문서 계속 확인
+        }
+      }
+      // 전부 스캔 실패면 주소 유지(안전), 성공 스캔만으로 없으면 숨김
+      state.needsAddress=scannedOk?foundAddress:true;
+    }catch(error){
+      console.warn('[identity-address] detect failed, keep address required:',error);
+      state.needsAddress=true;
+    }
+    updateIdentityAddressVisibility();
+    syncIdentitySaveHighlight();
+    return state.needsAddress;
   }
 
   function scrollDocFlowToTop(){
@@ -1756,8 +1820,10 @@
     if(!request.signer.birth || request.signer.birth.length<8)return '생년월일을 입력해 주세요.';
     if(!request.signer.gender)return '성별을 선택해 주세요.';
     if(!request.signer.phone || request.signer.phone.length<10)return '전화번호를 입력해 주세요.';
-    if(!request.signer.postcode || !request.signer.addressBase)return '주소 검색으로 기본 주소를 입력해 주세요.';
-    if(!request.signer.addressDetail)return '상세 주소를 입력해 주세요.';
+    if(state.needsAddress){
+      if(!request.signer.postcode || !request.signer.addressBase)return '주소 검색으로 기본 주소를 입력해 주세요.';
+      if(!request.signer.addressDetail)return '상세 주소를 입력해 주세요.';
+    }
     if(!$('identityProfileConfirmCheck').checked)return '인적 사항 확인 체크박스에 동의해 주세요.';
     return null;
   }
@@ -4890,6 +4956,7 @@
     hydrateRequest();
     setupCanvas();
     setStep(1);
+    void detectNeedsAddressFromDocuments();
     requestAnimationFrame(()=>{
       setTimeout(notifyProgressDraftAvailable,400);
     });
@@ -4917,6 +4984,7 @@
 
   function guideAddressSearchFirst(){
     if(state.identityProfile.confirmed)return;
+    if(!state.needsAddress)return;
     toast('주소 검색을 먼저 진행해 주세요.');
     focusRequiredAddressSearch();
   }

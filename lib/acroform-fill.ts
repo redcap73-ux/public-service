@@ -1474,6 +1474,18 @@ async function stampAuditDescField(
 }
 
 /**
+ * PDF AcroForm에 address* 필드가 있는지 확인합니다.
+ * (본인 인적사항 주소 입력 UI 표시 여부 판별용)
+ */
+export async function hasAddressAcroFormFields(
+  pdfBytes: ArrayBuffer | Uint8Array
+): Promise<boolean> {
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const fields = safeListFormFields(pdfDoc);
+  return fields.some((field) => fieldStartsWithPrefix(field.getName(), 'address'));
+}
+
+/**
  * Fill matching AcroForm text fields with identity verification values.
  * Returns null when the PDF has no AcroForm fields.
  *

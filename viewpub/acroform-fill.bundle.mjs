@@ -20118,9 +20118,7 @@ function formatPhoneNumber(value) {
   return value;
 }
 function formatClaimNoForDisplay(value) {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  return trimmed.length > 3 ? trimmed.slice(3) : trimmed;
+  return value.trim();
 }
 function normalizeCompanyName(value) {
   return String(value ?? "").replace(/티엔지/g, "\uD2F0\uC564\uC9C0").trim();
@@ -20722,6 +20720,11 @@ async function stampAuditDescField(pdfDoc, fieldName, values2) {
     });
   }
 }
+async function hasAddressAcroFormFields(pdfBytes) {
+  const pdfDoc = await PDFDocument_default.load(pdfBytes);
+  const fields = safeListFormFields(pdfDoc);
+  return fields.some((field) => fieldStartsWithPrefix(field.getName(), "address"));
+}
 async function fillAcroFormIdentity(pdfBytes, values2, options) {
   const pdfDoc = await PDFDocument_default.load(pdfBytes);
   const form = pdfDoc.getForm();
@@ -20985,6 +20988,7 @@ export {
   fillAcroFormIdentity,
   fillAndDownloadIdentityDocuments,
   formatIdentityAddress,
+  hasAddressAcroFormFields,
   isSignatureStampField,
   normalizeCompanyName,
   removeAllAcroFormFields,

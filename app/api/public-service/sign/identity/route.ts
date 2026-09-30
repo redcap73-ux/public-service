@@ -17,10 +17,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '성명은 필수입니다.' }, { status: 400 });
     }
 
-    if (!body.address?.trim()) {
-      return NextResponse.json({ error: '주소는 필수입니다.' }, { status: 400 });
-    }
-
     if (!body.identityConfirmedAt) {
       return NextResponse.json({ error: 'identityConfirmedAt 값이 필요합니다.' }, { status: 400 });
     }
