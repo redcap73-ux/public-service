@@ -1336,6 +1336,38 @@
     return window.matchMedia('(max-width: 768px)').matches;
   }
 
+  function getStickyTopOffset(){
+    const header=$('site-header')||document.querySelector('.site-header');
+    const lightBar=document.querySelector('.light-mode-bar');
+    let offset=header?Math.ceil(header.getBoundingClientRect().height):72;
+    if(lightBar && !lightBar.classList.contains('hidden') && lightBar.offsetParent!==null){
+      offset+=Math.ceil(lightBar.getBoundingClientRect().height);
+    }
+    return offset;
+  }
+
+  /** 모바일: 본인 인적 사항 확인 카드가 화면 상단에 오도록 스크롤 */
+  function scrollIdentityProfileCardIntoView(options={}){
+    const el=$('identityProfileCard');
+    if(!el || el.offsetParent===null)return;
+    const behavior=options.behavior||'auto';
+    const top=window.scrollY+el.getBoundingClientRect().top-getStickyTopOffset()-8;
+    window.scrollTo({top:Math.max(0,top),behavior});
+  }
+
+  function scheduleIdentityProfileCardScroll(){
+    if(!isMobileViewport())return;
+    const run=()=>scrollIdentityProfileCardIntoView({behavior:'auto'});
+    // 본인인증 팝업 복귀 직후 레이아웃/주소창 높이 변화에 대비해 여러 번 맞춤
+    requestAnimationFrame(()=>{
+      run();
+      setTimeout(run,80);
+      setTimeout(run,250);
+      setTimeout(run,600);
+      setTimeout(run,1100);
+    });
+  }
+
   function normalizeGenderValue(value){
     const raw=String(value||'').trim().toUpperCase();
     if(!raw)return '';
@@ -1510,7 +1542,12 @@
     setIdentityFieldMode('identityName',sources.name==='portone','본인인증');
     setIdentityFieldMode('identityBirth',sources.birth==='portone','본인인증');
     setIdentityFieldMode('identityGender',sources.gender==='portone','본인인증');
-    setIdentityFieldMode('identityPhone',sources.phone==='portone','본인인증');
+    // 전화번호는 본인인증/요청값 여부와 관계없이 수정 불가
+    setIdentityFieldMode(
+      'identityPhone',
+      true,
+      sources.phone==='portone'?'본인인증':(sources.phone==='api'?'요청정보':'')
+    );
 
     const profileLocked=state.identityProfile.confirmed;
     $('identityProfileConfirmCheck').checked=profileLocked;
@@ -2512,11 +2549,7 @@
     if(step===3){updateFinalSummary();setTimeout(resizeCanvas,30);}
     if(step===2 && isMobileViewport()){
       // 모바일: 상단 요약/스테퍼보다 본인 인적사항 확인부터 보이게
-      requestAnimationFrame(()=>{
-        setTimeout(()=>{
-          $('identityProfileCard')?.scrollIntoView({behavior:'smooth',block:'start'});
-        },50);
-      });
+      scheduleIdentityProfileCardScroll();
       return;
     }
     if(step===3){
@@ -2591,6 +2624,7 @@
     updateStickyNextLabel();
     requestAnimationFrame(()=>{
       $('identityProfileCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+      if(isMobileViewport())scheduleIdentityProfileCardScroll();
     });
   }
 
@@ -3044,7 +3078,12 @@
             : ' AcroForm 필드가 있는 문서가 없어 미리보기 반영을 건너뛰었습니다.')
         );
       }
-      setTimeout(()=>setStep(advanceToStep ?? restored.resumeStep ?? 2),500);
+      setTimeout(()=>{
+        const nextStep=advanceToStep ?? restored.resumeStep ?? 2;
+        setStep(nextStep);
+        // 본인인증 직후 모바일에서 인적사항 카드부터 확실히 노출
+        if(nextStep===2)scheduleIdentityProfileCardScroll();
+      },500);
     }catch(error){
       console.error(error);
       toast(error instanceof Error?error.message:'본인인증 중 오류가 발생했습니다.');
