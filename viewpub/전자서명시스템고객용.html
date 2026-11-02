@@ -3654,26 +3654,38 @@
     badge.textContent=pending.length
       ? (doneCount?`작성 중 ${doneCount}/${fields.length}`:'작성 대기')
       : '작성 완료';
-    list.innerHTML=fields.map((field,i)=>{
+    const safeIndex=Number.isFinite(Number(index))?Number(index):state.currentDocIndex;
+    list.replaceChildren();
+    fields.forEach((field,i)=>{
       const entry=getHandwriteEntry(st,field.id);
       const done=Boolean(entry?.dataUrl);
-      return `<div class="handwrite-row${done?' is-done':''}" data-handwrite-id="${escapeHtml(field.id)}">
-        <span class="handwrite-row-no">${i+1}</span>
+      const row=document.createElement('div');
+      row.className=`handwrite-row${done?' is-done':''}`;
+      row.dataset.handwriteId=String(field.id);
+      row.innerHTML=`<span class="handwrite-row-no">${i+1}</span>
         <div class="handwrite-row-text">
           <strong>「${escapeHtml(field.prompt)}」을 자필로 기재</strong>
           <span>${done?'작성 완료':'자필 작성 필요'}</span>
-        </div>
-        <button class="handwrite-row-btn" type="button" data-open-handwrite="${escapeHtml(field.id)}">${done?'다시 작성':'자필 작성'}</button>
-      </div>`;
-    }).join('');
-    list.querySelectorAll('[data-open-handwrite]').forEach((btn)=>{
+        </div>`;
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='handwrite-row-btn';
+      btn.textContent=done?'다시 작성':'자필 작성';
+      // PDF 핫스팟과 동일하게 dataset으로 보관 (innerHTML data-open-handwrite 파싱 이슈 회피)
+      btn.dataset.handwriteId=String(field.id);
+      btn.dataset.docIndex=String(safeIndex);
       btn.addEventListener('click',(event)=>{
         event.preventDefault();
         event.stopPropagation();
-        const targetIndex=Number.isFinite(Number(index))?Number(index):state.currentDocIndex;
-        const fieldId=String(btn.getAttribute('data-open-handwrite')||btn.dataset.openHandwrite||'').trim();
-        openHandwriteModal(targetIndex,fieldId);
+        const targetIndex=Number(btn.dataset.docIndex);
+        const fieldId=String(btn.dataset.handwriteId||'').trim();
+        openHandwriteModal(
+          Number.isFinite(targetIndex)?targetIndex:state.currentDocIndex,
+          fieldId||field.id
+        );
       });
+      row.appendChild(btn);
+      list.appendChild(row);
     });
   }
 
@@ -4675,10 +4687,25 @@
   }
 
   function openHandwriteModal(docIndex,fieldId){
-    const safeIndex=Number.isFinite(Number(docIndex))?Number(docIndex):state.currentDocIndex;
-    const doc=request.documents[safeIndex];
-    const st=state.docs[safeIndex];
+    let safeIndex=Number.isFinite(Number(docIndex))?Number(docIndex):state.currentDocIndex;
+    let doc=request.documents[safeIndex];
+    let st=state.docs[safeIndex];
     let field=findHandwriteField(doc,fieldId);
+    // 문서 인덱스가 어긋난 경우(패널 버튼 등): 현재 문서·전체 문서에서 재검색
+    if(!field){
+      const searchIndexes=[state.currentDocIndex,...request.documents.map((_,i)=>i)]
+        .filter((i,pos,arr)=>Number.isFinite(i)&&arr.indexOf(i)===pos);
+      for(const i of searchIndexes){
+        const candidate=findHandwriteField(request.documents[i],fieldId);
+        if(candidate){
+          safeIndex=i;
+          doc=request.documents[i];
+          st=state.docs[i];
+          field=candidate;
+          break;
+        }
+      }
+    }
     // 버튼 id와 목록이 어긋난 경우: 미작성 첫 항목으로 폴백
     if(!field && doc && st){
       const pending=getPendingHandwriteFields(doc,st);
