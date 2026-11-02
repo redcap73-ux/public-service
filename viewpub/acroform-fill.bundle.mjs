@@ -20432,7 +20432,98 @@ function loadHtmlImage(dataUrl) {
     image.src = dataUrl;
   });
 }
-async function trimInkFromDataUrl(dataUrl) {
+function resolveThickenMode(thicken) {
+  if (thicken === false || thicken === "none") return "none";
+  if (thicken === "light") return "light";
+  return "full";
+}
+function binarizeInkCanvas(canvas, whiteThreshold = 245) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index];
+    const g = pixels[index + 1];
+    const b = pixels[index + 2];
+    const a = pixels[index + 3];
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (a >= 24 && luminance < whiteThreshold) {
+      pixels[index] = 0;
+      pixels[index + 1] = 0;
+      pixels[index + 2] = 0;
+      pixels[index + 3] = 255;
+    } else {
+      pixels[index] = 0;
+      pixels[index + 1] = 0;
+      pixels[index + 2] = 0;
+      pixels[index + 3] = 0;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+function dilateInkCanvas(source, mode) {
+  const bold = document.createElement("canvas");
+  bold.width = source.width;
+  bold.height = source.height;
+  const boldCtx = bold.getContext("2d");
+  if (!boldCtx) return source;
+  boldCtx.clearRect(0, 0, bold.width, bold.height);
+  const offsets = mode === "light" ? [
+    [0, 0],
+    [1, 0],
+    [0, 1]
+  ] : [
+    [0, 0],
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [-1, 1],
+    [1, -1],
+    [-1, -1]
+  ];
+  for (const [ox, oy] of offsets) {
+    boldCtx.drawImage(source, ox, oy);
+  }
+  binarizeInkCanvas(bold);
+  return bold;
+}
+function dilateInkCanvasHeavy(source) {
+  const bold = document.createElement("canvas");
+  bold.width = source.width;
+  bold.height = source.height;
+  const boldCtx = bold.getContext("2d");
+  if (!boldCtx) return source;
+  boldCtx.clearRect(0, 0, bold.width, bold.height);
+  for (let oy = -2; oy <= 2; oy += 1) {
+    for (let ox = -2; ox <= 2; ox += 1) {
+      if (ox * ox + oy * oy > 5) continue;
+      boldCtx.drawImage(source, ox, oy);
+    }
+  }
+  binarizeInkCanvas(bold);
+  return bold;
+}
+function enhanceHandwriteInkCanvas(trimmed) {
+  let solid = dilateInkCanvasHeavy(trimmed);
+  solid = dilateInkCanvasHeavy(solid);
+  const minHeight = 220;
+  const scale2 = Math.max(4, minHeight / Math.max(solid.height, 1));
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, Math.round(solid.width * scale2));
+  out.height = Math.max(1, Math.round(solid.height * scale2));
+  const outCtx = out.getContext("2d");
+  if (!outCtx) return solid;
+  outCtx.imageSmoothingEnabled = false;
+  outCtx.clearRect(0, 0, out.width, out.height);
+  outCtx.drawImage(solid, 0, 0, out.width, out.height);
+  binarizeInkCanvas(out);
+  return dilateInkCanvasHeavy(out);
+}
+async function trimInkFromDataUrl(dataUrl, options = {}) {
+  const thickenMode = resolveThickenMode(options.thicken);
   const image = await loadHtmlImage(dataUrl);
   const source = document.createElement("canvas");
   source.width = Math.max(1, image.width);
@@ -20473,7 +20564,7 @@ async function trimInkFromDataUrl(dataUrl) {
   if (maxX < minX || maxY < minY) {
     return dataUrlToUint8Array(dataUrl);
   }
-  const pad = 4;
+  const pad = thickenMode === "none" ? 2 : 4;
   const cropX = Math.max(0, minX - pad);
   const cropY = Math.max(0, minY - pad);
   const cropWidth = Math.min(width - cropX, maxX - minX + 1 + pad * 2);
@@ -20485,6 +20576,7 @@ async function trimInkFromDataUrl(dataUrl) {
   if (!trimmedCtx) {
     return dataUrlToUint8Array(dataUrl);
   }
+  trimmedCtx.imageSmoothingEnabled = false;
   trimmedCtx.clearRect(0, 0, trimmed.width, trimmed.height);
   trimmedCtx.drawImage(
     source,
@@ -20497,39 +20589,15 @@ async function trimInkFromDataUrl(dataUrl) {
     cropWidth,
     cropHeight
   );
-  const trimmedData = trimmedCtx.getImageData(0, 0, trimmed.width, trimmed.height);
-  const pixels = trimmedData.data;
-  for (let index = 0; index < pixels.length; index += 4) {
-    const r = pixels[index];
-    const g = pixels[index + 1];
-    const b = pixels[index + 2];
-    if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-      pixels[index + 3] = 0;
-    } else if (pixels[index + 3] > 0) {
-      pixels[index] = 0;
-      pixels[index + 1] = 0;
-      pixels[index + 2] = 0;
-      pixels[index + 3] = 255;
-    }
+  binarizeInkCanvas(trimmed, whiteThreshold);
+  if (options.handwriteEnhance) {
+    const enhanced = enhanceHandwriteInkCanvas(trimmed);
+    return dataUrlToUint8Array(enhanced.toDataURL("image/png"));
   }
-  trimmedCtx.putImageData(trimmedData, 0, 0);
-  const bold = document.createElement("canvas");
-  bold.width = trimmed.width;
-  bold.height = trimmed.height;
-  const boldCtx = bold.getContext("2d");
-  if (!boldCtx) {
+  if (thickenMode === "none") {
     return dataUrlToUint8Array(trimmed.toDataURL("image/png"));
   }
-  boldCtx.clearRect(0, 0, bold.width, bold.height);
-  for (const [ox, oy] of [
-    [0, 0],
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1]
-  ]) {
-    boldCtx.drawImage(trimmed, ox, oy);
-  }
+  const bold = dilateInkCanvas(trimmed, thickenMode === "light" ? "light" : "full");
   return dataUrlToUint8Array(bold.toDataURL("image/png"));
 }
 function fitImageInFieldRect(imageWidth, imageHeight, rect, padding = 1) {
@@ -20545,19 +20613,22 @@ function fitImageInFieldRect(imageWidth, imageHeight, rect, padding = 1) {
     height: drawHeight
   };
 }
-async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
+async function embedTrimmedPng(pdfDoc, imageDataUrl, options = {}) {
+  let pngBytes;
+  try {
+    pngBytes = await trimInkFromDataUrl(imageDataUrl, options);
+  } catch {
+    pngBytes = dataUrlToUint8Array(imageDataUrl);
+  }
+  return pdfDoc.embedPng(pngBytes);
+}
+async function stampImageOnField(pdfDoc, fieldName, imageDataUrl, options = {}) {
   const form = pdfDoc.getForm();
   const field = form.getFields().find((item) => item.getName() === fieldName);
   if (!field) {
     return false;
   }
-  let pngBytes;
-  try {
-    pngBytes = await trimInkFromDataUrl(imageDataUrl);
-  } catch {
-    pngBytes = dataUrlToUint8Array(imageDataUrl);
-  }
-  const embeddedImage = await pdfDoc.embedPng(pngBytes);
+  const embeddedImage = await embedTrimmedPng(pdfDoc, imageDataUrl, options);
   const widgets = field.acroField.getWidgets();
   if (widgets.length === 0) {
     return false;
@@ -20572,9 +20643,70 @@ async function stampImageOnField(pdfDoc, fieldName, imageDataUrl) {
       embeddedImage.width,
       embeddedImage.height,
       rect,
-      1
+      options.handwriteEnhance || options.thicken === false || options.thicken === "none" ? 0 : 1
     );
-    page.drawImage(embeddedImage, draw);
+    if (options.handwriteEnhance) {
+      for (const [dx, dy] of [
+        [0, 0],
+        [0.35, 0],
+        [0, 0.35],
+        [0.35, 0.35]
+      ]) {
+        page.drawImage(embeddedImage, {
+          x: draw.x + dx,
+          y: draw.y + dy,
+          width: draw.width,
+          height: draw.height
+        });
+      }
+    } else {
+      page.drawImage(embeddedImage, draw);
+    }
+  }
+  return true;
+}
+async function stampImageOnPageRatio(pdfDoc, imageDataUrl, options) {
+  const pages = pdfDoc.getPages();
+  if (!pages.length) return false;
+  const pageIndex = Math.max(0, Math.min(pages.length - 1, Math.floor((options.page || 1) - 1)));
+  const page = pages[pageIndex];
+  const { width: pageWidth, height: pageHeight } = page.getSize();
+  const xRatio = Number(options.xRatio);
+  const yRatio = Number(options.yRatio);
+  const widthRatio = Number(options.widthRatio);
+  const heightRatio = Number(options.heightRatio);
+  if (![xRatio, yRatio, widthRatio, heightRatio].every((n) => Number.isFinite(n))) {
+    return false;
+  }
+  const rawWidth = Math.max(pageWidth * widthRatio, 8);
+  const rawHeight = Math.max(pageHeight * heightRatio, 8);
+  const boxWidth = Math.min(pageWidth * 0.34, Math.max(rawWidth * 2, 48));
+  const boxHeight = Math.min(pageHeight * 0.07, Math.max(rawHeight * 2.8, 28));
+  const boxX = pageWidth * xRatio + (rawWidth - boxWidth) / 2;
+  const boxYTop = pageHeight * yRatio + (rawHeight - boxHeight) / 2;
+  const boxY = pageHeight - boxYTop - boxHeight;
+  const embeddedImage = await embedTrimmedPng(pdfDoc, imageDataUrl, {
+    thicken: "full",
+    handwriteEnhance: true
+  });
+  const draw = fitImageInFieldRect(embeddedImage.width, embeddedImage.height, {
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight
+  }, 0);
+  for (const [dx, dy] of [
+    [0, 0],
+    [0.35, 0],
+    [0, 0.35],
+    [0.35, 0.35]
+  ]) {
+    page.drawImage(embeddedImage, {
+      x: draw.x + dx,
+      y: draw.y + dy,
+      width: draw.width,
+      height: draw.height
+    });
   }
   return true;
 }
@@ -20890,7 +21022,10 @@ async function fillAcroFormIdentity(pdfBytes, values2, options) {
     dateToStamp.push({ fieldName, text });
     reservedNames.add(fieldName);
   }
-  if (toStamp.length === 0 && addressToStamp.length === 0 && nameSystemImageFields.length === 0 && !shouldFillDesc && extraToStamp.length === 0 && dateToStamp.length === 0) {
+  const handwriteImages = (values2.handwriteImages ?? []).filter(
+    (item) => String(item?.dataUrl ?? "").startsWith("data:image/")
+  );
+  if (toStamp.length === 0 && addressToStamp.length === 0 && nameSystemImageFields.length === 0 && !shouldFillDesc && extraToStamp.length === 0 && dateToStamp.length === 0 && handwriteImages.length === 0) {
     return null;
   }
   for (const item of toStamp) {
@@ -20909,6 +21044,45 @@ async function fillAcroFormIdentity(pdfBytes, values2, options) {
       if (stamped) {
         filledFields.push(fieldName);
       }
+    }
+  }
+  for (const item of handwriteImages) {
+    const wanted = String(item.fieldName ?? "").trim();
+    let stamped = false;
+    if (wanted) {
+      const targets = new Set(resolveExtraFieldTargets(fieldNames, wanted));
+      for (const fieldName of fieldNames) {
+        if (fieldName === wanted || getFieldLeafName(fieldName) === wanted || fieldStartsWithPrefix(fieldName, wanted)) {
+          targets.add(fieldName);
+        }
+      }
+      for (const fieldName of targets) {
+        const ok = await stampImageOnField(pdfDoc, fieldName, item.dataUrl, {
+          thicken: "full",
+          handwriteEnhance: true
+        });
+        if (ok) {
+          filledFields.push(fieldName);
+          reservedNames.add(fieldName);
+          stamped = true;
+        }
+      }
+    }
+    if (!stamped) {
+      const ok = await stampImageOnPageRatio(pdfDoc, item.dataUrl, {
+        page: item.page,
+        xRatio: item.xRatio,
+        yRatio: item.yRatio,
+        widthRatio: item.widthRatio,
+        heightRatio: item.heightRatio
+      });
+      if (ok) {
+        filledFields.push(wanted || `handwrite-page-${item.page || 1}`);
+        stamped = true;
+      }
+    }
+    if (!stamped) {
+      console.warn("[acroform-fill] handwrite stamp failed:", wanted || item);
     }
   }
   for (const item of addressToStamp) {

@@ -53,6 +53,19 @@ export type IdentityFormValues = {
   userConfirm?: boolean;
   /** template pdf_field_name 이 year4/year2/month/day/hour/min 인 경우, 같은 접두어 PDF 필드에 현재 시각을 넣습니다. */
   datePrefixes?: Array<'year4' | 'year2' | 'month' | 'day' | 'hour' | 'min'>;
+  /**
+   * HANDWRITE 자필 이미지.
+   * fieldName이 있으면 해당 AcroForm 위젯에, 없거나 매칭 실패 시 page/xRatio/yRatio 좌표에 스탬프합니다.
+   */
+  handwriteImages?: Array<{
+    fieldName?: string;
+    dataUrl: string;
+    page?: number;
+    xRatio?: number | null;
+    yRatio?: number | null;
+    widthRatio?: number | null;
+    heightRatio?: number | null;
+  }>;
 };
 
 export type FillableDocumentInput = {
@@ -1064,11 +1077,139 @@ function loadHtmlImage(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
+type TrimInkOptions = {
+  /**
+   * full(기본): 서명용 강한 팽창
+   * light: 자필 문구용 — 1px만 키워 작은 칸에서도 획이 사라지지 않게
+   * none: 팽창 없음
+   */
+  thicken?: boolean | 'none' | 'light' | 'full';
+  /** 자필 전용: 작은 PDF 칸에 맞춰 고해상도·이진화 후처리 */
+  handwriteEnhance?: boolean;
+};
+
+function resolveThickenMode(
+  thicken: TrimInkOptions['thicken']
+): 'none' | 'light' | 'full' {
+  if (thicken === false || thicken === 'none') return 'none';
+  if (thicken === 'light') return 'light';
+  return 'full';
+}
+
+function binarizeInkCanvas(
+  canvas: HTMLCanvasElement,
+  whiteThreshold = 245
+): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index];
+    const g = pixels[index + 1];
+    const b = pixels[index + 2];
+    const a = pixels[index + 3];
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    // 회색 안티앨리어싱 가장자리까지 순수 검정 실선으로 — 서명과 같은 선명도
+    if (a >= 24 && luminance < whiteThreshold) {
+      pixels[index] = 0;
+      pixels[index + 1] = 0;
+      pixels[index + 2] = 0;
+      pixels[index + 3] = 255;
+    } else {
+      pixels[index] = 0;
+      pixels[index + 1] = 0;
+      pixels[index + 2] = 0;
+      pixels[index + 3] = 0;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function dilateInkCanvas(
+  source: HTMLCanvasElement,
+  mode: 'light' | 'full'
+): HTMLCanvasElement {
+  const bold = document.createElement('canvas');
+  bold.width = source.width;
+  bold.height = source.height;
+  const boldCtx = bold.getContext('2d');
+  if (!boldCtx) return source;
+  boldCtx.clearRect(0, 0, bold.width, bold.height);
+  const offsets =
+    mode === 'light'
+      ? ([
+          [0, 0],
+          [1, 0],
+          [0, 1],
+        ] as const)
+      : ([
+          [0, 0],
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+          [1, 1],
+          [-1, 1],
+          [1, -1],
+          [-1, -1],
+        ] as const);
+  for (const [ox, oy] of offsets) {
+    boldCtx.drawImage(source, ox, oy);
+  }
+  binarizeInkCanvas(bold);
+  return bold;
+}
+
+/** 자필 전용: 반경 2px 팽창으로 서명보다 더 두꺼운 실선 */
+function dilateInkCanvasHeavy(source: HTMLCanvasElement): HTMLCanvasElement {
+  const bold = document.createElement('canvas');
+  bold.width = source.width;
+  bold.height = source.height;
+  const boldCtx = bold.getContext('2d');
+  if (!boldCtx) return source;
+  boldCtx.clearRect(0, 0, bold.width, bold.height);
+  for (let oy = -2; oy <= 2; oy += 1) {
+    for (let ox = -2; ox <= 2; ox += 1) {
+      if (ox * ox + oy * oy > 5) continue;
+      boldCtx.drawImage(source, ox, oy);
+    }
+  }
+  binarizeInkCanvas(bold);
+  return bold;
+}
+
+/**
+ * 자필 문구: 순수 검정 + 두꺼운 팽창 + nearest-neighbor 고해상도.
+ * 작은 칸에서도 서명 획만큼 뚜렷하게 보이도록 합니다.
+ */
+function enhanceHandwriteInkCanvas(trimmed: HTMLCanvasElement): HTMLCanvasElement {
+  let solid = dilateInkCanvasHeavy(trimmed);
+  solid = dilateInkCanvasHeavy(solid);
+  const minHeight = 220;
+  const scale = Math.max(4, minHeight / Math.max(solid.height, 1));
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(solid.width * scale));
+  out.height = Math.max(1, Math.round(solid.height * scale));
+  const outCtx = out.getContext('2d');
+  if (!outCtx) return solid;
+  // 부드러운 업스케일은 회색 흐림의 원인 → 금지
+  outCtx.imageSmoothingEnabled = false;
+  outCtx.clearRect(0, 0, out.width, out.height);
+  outCtx.drawImage(solid, 0, 0, out.width, out.height);
+  binarizeInkCanvas(out);
+  return dilateInkCanvasHeavy(out);
+}
+
 /**
  * 캔버스 여백을 제거하고 잉크(필기) 영역만 남깁니다.
  * AcroForm 필드에 넣을 때 실제 서명 글자가 필드 크기에 맞게 커지도록 합니다.
  */
-async function trimInkFromDataUrl(dataUrl: string): Promise<Uint8Array> {
+async function trimInkFromDataUrl(
+  dataUrl: string,
+  options: TrimInkOptions = {}
+): Promise<Uint8Array> {
+  const thickenMode = resolveThickenMode(options.thicken);
   const image = await loadHtmlImage(dataUrl);
   const source = document.createElement('canvas');
   source.width = Math.max(1, image.width);
@@ -1115,7 +1256,7 @@ async function trimInkFromDataUrl(dataUrl: string): Promise<Uint8Array> {
     return dataUrlToUint8Array(dataUrl);
   }
 
-  const pad = 4;
+  const pad = thickenMode === 'none' ? 2 : 4;
   const cropX = Math.max(0, minX - pad);
   const cropY = Math.max(0, minY - pad);
   const cropWidth = Math.min(width - cropX, maxX - minX + 1 + pad * 2);
@@ -1129,6 +1270,7 @@ async function trimInkFromDataUrl(dataUrl: string): Promise<Uint8Array> {
     return dataUrlToUint8Array(dataUrl);
   }
 
+  trimmedCtx.imageSmoothingEnabled = false;
   trimmedCtx.clearRect(0, 0, trimmed.width, trimmed.height);
   trimmedCtx.drawImage(
     source,
@@ -1141,43 +1283,18 @@ async function trimInkFromDataUrl(dataUrl: string): Promise<Uint8Array> {
     cropWidth,
     cropHeight
   );
+  binarizeInkCanvas(trimmed, whiteThreshold);
 
-  const trimmedData = trimmedCtx.getImageData(0, 0, trimmed.width, trimmed.height);
-  const pixels = trimmedData.data;
-  for (let index = 0; index < pixels.length; index += 4) {
-    const r = pixels[index];
-    const g = pixels[index + 1];
-    const b = pixels[index + 2];
-    if (r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold) {
-      pixels[index + 3] = 0;
-    } else if (pixels[index + 3] > 0) {
-      pixels[index] = 0;
-      pixels[index + 1] = 0;
-      pixels[index + 2] = 0;
-      pixels[index + 3] = 255;
-    }
+  if (options.handwriteEnhance) {
+    const enhanced = enhanceHandwriteInkCanvas(trimmed);
+    return dataUrlToUint8Array(enhanced.toDataURL('image/png'));
   }
-  trimmedCtx.putImageData(trimmedData, 0, 0);
 
-  // 스트로크를 약간 두껍게 해 PDF에서도 또렷하게 보이도록 합니다.
-  const bold = document.createElement('canvas');
-  bold.width = trimmed.width;
-  bold.height = trimmed.height;
-  const boldCtx = bold.getContext('2d');
-  if (!boldCtx) {
+  if (thickenMode === 'none') {
     return dataUrlToUint8Array(trimmed.toDataURL('image/png'));
   }
-  boldCtx.clearRect(0, 0, bold.width, bold.height);
-  for (const [ox, oy] of [
-    [0, 0],
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ] as const) {
-    boldCtx.drawImage(trimmed, ox, oy);
-  }
 
+  const bold = dilateInkCanvas(trimmed, thickenMode === 'light' ? 'light' : 'full');
   return dataUrlToUint8Array(bold.toDataURL('image/png'));
 }
 
@@ -1201,6 +1318,20 @@ function fitImageInFieldRect(
   };
 }
 
+async function embedTrimmedPng(
+  pdfDoc: PDFDocument,
+  imageDataUrl: string,
+  options: TrimInkOptions = {}
+) {
+  let pngBytes: Uint8Array;
+  try {
+    pngBytes = await trimInkFromDataUrl(imageDataUrl, options);
+  } catch {
+    pngBytes = dataUrlToUint8Array(imageDataUrl);
+  }
+  return pdfDoc.embedPng(pngBytes);
+}
+
 /**
  * Stamp an image (e.g. handwritten name) onto an AcroForm field widget.
  * Trims empty canvas margins first so the ink scales up to the field size.
@@ -1208,7 +1339,8 @@ function fitImageInFieldRect(
 async function stampImageOnField(
   pdfDoc: PDFDocument,
   fieldName: string,
-  imageDataUrl: string
+  imageDataUrl: string,
+  options: TrimInkOptions = {}
 ) {
   const form = pdfDoc.getForm();
   const field = form.getFields().find((item) => item.getName() === fieldName);
@@ -1216,13 +1348,7 @@ async function stampImageOnField(
     return false;
   }
 
-  let pngBytes: Uint8Array;
-  try {
-    pngBytes = await trimInkFromDataUrl(imageDataUrl);
-  } catch {
-    pngBytes = dataUrlToUint8Array(imageDataUrl);
-  }
-  const embeddedImage = await pdfDoc.embedPng(pngBytes);
+  const embeddedImage = await embedTrimmedPng(pdfDoc, imageDataUrl, options);
   const widgets = field.acroField.getWidgets();
   if (widgets.length === 0) {
     return false;
@@ -1239,14 +1365,98 @@ async function stampImageOnField(
       embeddedImage.width,
       embeddedImage.height,
       rect,
-      1
+      options.handwriteEnhance || options.thicken === false || options.thicken === 'none'
+        ? 0
+        : 1
     );
 
-    page.drawImage(embeddedImage, draw);
+    if (options.handwriteEnhance) {
+      for (const [dx, dy] of [
+        [0, 0],
+        [0.35, 0],
+        [0, 0.35],
+        [0.35, 0.35],
+      ] as const) {
+        page.drawImage(embeddedImage, {
+          x: draw.x + dx,
+          y: draw.y + dy,
+          width: draw.width,
+          height: draw.height,
+        });
+      }
+    } else {
+      page.drawImage(embeddedImage, draw);
+    }
   }
 
   // 필드 제거는 하지 않음 — pdf-lib removeField 가 Annot을 깨뜨려 인쇄 오류를 냄.
   // 최종 removeAllAcroFormFields / stripAllFields 에서 안전하게 제거.
+  return true;
+}
+
+/**
+ * HANDWRITE 좌표 배치용: page(1-base) + 비율(x/y/width/height) 위치에 이미지 스탬프.
+ * yRatio는 상단 기준(웹/디자인 툴 좌표)로 보고 PDF 하단 원점으로 변환합니다.
+ */
+async function stampImageOnPageRatio(
+  pdfDoc: PDFDocument,
+  imageDataUrl: string,
+  options: {
+    page?: number;
+    xRatio?: number | null;
+    yRatio?: number | null;
+    widthRatio?: number | null;
+    heightRatio?: number | null;
+  }
+) {
+  const pages = pdfDoc.getPages();
+  if (!pages.length) return false;
+  const pageIndex = Math.max(0, Math.min(pages.length - 1, Math.floor((options.page || 1) - 1)));
+  const page = pages[pageIndex];
+  const { width: pageWidth, height: pageHeight } = page.getSize();
+
+  const xRatio = Number(options.xRatio);
+  const yRatio = Number(options.yRatio);
+  const widthRatio = Number(options.widthRatio);
+  const heightRatio = Number(options.heightRatio);
+  if (![xRatio, yRatio, widthRatio, heightRatio].every((n) => Number.isFinite(n))) {
+    return false;
+  }
+
+  // 자필 칸이 서명보다 작아 표시 크기를 키워야 획이 또렷해 보임
+  const rawWidth = Math.max(pageWidth * widthRatio, 8);
+  const rawHeight = Math.max(pageHeight * heightRatio, 8);
+  const boxWidth = Math.min(pageWidth * 0.34, Math.max(rawWidth * 2.0, 48));
+  const boxHeight = Math.min(pageHeight * 0.07, Math.max(rawHeight * 2.8, 28));
+  const boxX = pageWidth * xRatio + (rawWidth - boxWidth) / 2;
+  // 입력 좌표가 상단 기준이면 PDF y는 하단 기준이므로 뒤집기
+  const boxYTop = pageHeight * yRatio + (rawHeight - boxHeight) / 2;
+  const boxY = pageHeight - boxYTop - boxHeight;
+
+  const embeddedImage = await embedTrimmedPng(pdfDoc, imageDataUrl, {
+    thicken: 'full',
+    handwriteEnhance: true,
+  });
+  const draw = fitImageInFieldRect(embeddedImage.width, embeddedImage.height, {
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight,
+  }, 0);
+  // 같은 이미지를 미세 오프셋으로 여러 번 찍어 PDF에서도 획이 더 굵고 진하게 보이게 함
+  for (const [dx, dy] of [
+    [0, 0],
+    [0.35, 0],
+    [0, 0.35],
+    [0.35, 0.35],
+  ] as const) {
+    page.drawImage(embeddedImage, {
+      x: draw.x + dx,
+      y: draw.y + dy,
+      width: draw.width,
+      height: draw.height,
+    });
+  }
   return true;
 }
 
@@ -1691,13 +1901,18 @@ export async function fillAcroFormIdentity(
     reservedNames.add(fieldName);
   }
 
+  const handwriteImages = (values.handwriteImages ?? []).filter((item) =>
+    String(item?.dataUrl ?? '').startsWith('data:image/')
+  );
+
   if (
     toStamp.length === 0 &&
     addressToStamp.length === 0 &&
     nameSystemImageFields.length === 0 &&
     !shouldFillDesc &&
     extraToStamp.length === 0 &&
-    dateToStamp.length === 0
+    dateToStamp.length === 0 &&
+    handwriteImages.length === 0
   ) {
     return null;
   }
@@ -1719,6 +1934,50 @@ export async function fillAcroFormIdentity(
       if (stamped) {
         filledFields.push(fieldName);
       }
+    }
+  }
+
+  for (const item of handwriteImages) {
+    const wanted = String(item.fieldName ?? '').trim();
+    let stamped = false;
+    if (wanted) {
+      const targets = new Set<string>(resolveExtraFieldTargets(fieldNames, wanted));
+      for (const fieldName of fieldNames) {
+        if (
+          fieldName === wanted ||
+          getFieldLeafName(fieldName) === wanted ||
+          fieldStartsWithPrefix(fieldName, wanted)
+        ) {
+          targets.add(fieldName);
+        }
+      }
+      for (const fieldName of targets) {
+        const ok = await stampImageOnField(pdfDoc, fieldName, item.dataUrl, {
+          thicken: 'full',
+          handwriteEnhance: true,
+        });
+        if (ok) {
+          filledFields.push(fieldName);
+          reservedNames.add(fieldName);
+          stamped = true;
+        }
+      }
+    }
+    if (!stamped) {
+      const ok = await stampImageOnPageRatio(pdfDoc, item.dataUrl, {
+        page: item.page,
+        xRatio: item.xRatio,
+        yRatio: item.yRatio,
+        widthRatio: item.widthRatio,
+        heightRatio: item.heightRatio,
+      });
+      if (ok) {
+        filledFields.push(wanted || `handwrite-page-${item.page || 1}`);
+        stamped = true;
+      }
+    }
+    if (!stamped) {
+      console.warn('[acroform-fill] handwrite stamp failed:', wanted || item);
     }
   }
 
